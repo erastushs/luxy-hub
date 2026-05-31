@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata = {
-  title: 'Luxy Hub',
-  description: 'Ultimate Roblox Script Library',
+  title: 'LuxyHub - Ultimate Roblox Script Library',
+  description: 'Track updates, supported games, and script status.',
 }
 
 export default function RootLayout({
