@@ -4,9 +4,11 @@
 import Image from 'next/image'
 import { X } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useState } from 'react'
 import type { MouseEvent } from 'react'
 
 export default function GameModal({ game, onClose }: { game: any; onClose: () => void }) {
+  const [loaded, setLoaded] = useState(false)
   if (!game) return null
 
   const statusColor = {
@@ -39,10 +41,17 @@ export default function GameModal({ game, onClose }: { game: any; onClose: () =>
         "
       >
         <div className="relative h-44 md:h-56">
-          <Image src={game.image} alt={game.title} fill className="object-cover" />
+          {!loaded && <div className="absolute inset-0 animate-pulse bg-zinc-900" />}
+
+          <Image
+            src={game.image}
+            alt={game.title}
+            fill
+            onLoad={() => setLoaded(true)}
+            className={`object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          />
 
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent" />
-
           <button
             onClick={onClose}
             className="absolute right-4 top-4 rounded-lg bg-black/70 p-2 transition hover:bg-red-500/20"

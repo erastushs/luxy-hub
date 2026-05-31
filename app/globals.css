@@ -46,3 +46,30 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #ef4444, #991b1b);
 }
+
+.particle {
+  position: absolute;
+  bottom: -10px;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 10px #ef4444;
+  animation: floatParticle 8s linear infinite;
+}
+
+@keyframes floatParticle {
+  from {
+    transform: translateY(0);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  to {
+    transform: translateY(-800px);
+    opacity: 0;
+  }
+}

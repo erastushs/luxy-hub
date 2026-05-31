@@ -3,12 +3,15 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import { toast } from 'sonner'
-
+import { motion, useScroll, useTransform } from 'framer-motion'
 import Typewriter from './Typewriter'
 import { config } from '../data/config'
 
 export default function Hero() {
   const [copied, setCopied] = useState(false)
+  const { scrollY } = useScroll()
+
+  const y = useTransform(scrollY, [0, 1000], [0, 350])
 
   const script = config.mainScript
 
@@ -33,19 +36,24 @@ export default function Hero() {
       <div className="overflow-hidden rounded-3xl border border-red-900/40 bg-zinc-950">
         <div className="grid grid-cols-1 lg:min-h-[calc(100vh-80px)] lg:grid-cols-2">
           {/* Character Image Desktop Only */}
-          <div className="relative hidden min-h-[350px] lg:block lg:order-2 lg:min-h-full">
+          <motion.div
+            style={{ y }}
+            className="relative hidden min-h-[350px] overflow-hidden lg:block lg:order-2 lg:min-h-full"
+          >
+            {' '}
+            <div className="absolute right-10 top-1/2 h-[400px] w-[400px] -translate-y-1/2 rounded-full bg-red-500/20 blur-[120px]" />
             <Image
               src="/bg.webp"
               alt="Luxy Hub"
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover"
+              className="object-cover brightness-90"
             />
-
+            <div className="absolute inset-0 bg-red-500/5 mix-blend-screen" />
+            <div className="absolute right-0 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-red-500/25 blur-[160px]" />
             <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent lg:bg-gradient-to-r lg:from-zinc-950 lg:via-transparent lg:to-transparent" />
-          </div>
-
+          </motion.div>
           {/* Content */}
           <div className="relative order-2 flex items-center p-5 sm:p-8 lg:order-1 lg:p-16">
             {/* Mobile Background */}
@@ -69,7 +77,7 @@ export default function Hero() {
               </div>
 
               {/* Script Preview */}
-              <div className="mt-8 w-full max-w-2xl overflow-hiddenrounded-2xl border border-red-500/20 bg-black/90 shadow-[0_0_30px_rgba(239,68,68,0.08)]">
+              <div className="mt-8 w-full max-w-2xl overflow-hidden rounded-2xl border border-red-500/20 bg-black/90 shadow-[0_0_30px_rgba(239,68,68,0.08)]">
                 <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
                   <div className="h-3 w-3 rounded-full bg-red-500" />
                   <div className="h-3 w-3 rounded-full bg-yellow-500" />
