@@ -28,7 +28,7 @@ export const games = [
     title: 'Build A Ring Farm',
     image: '/BARF.webp',
     status: 'Working',
-    features: 25,
+    features: 28,
 
     lastUpdate: '1 Juni 2026',
     description: 'Advanced automation for seeds, farming, upgrades, events, and economy management.',
