@@ -22,50 +22,8 @@ Ultimate Roblox Script Library built with Next.js 16, TypeScript, Tailwind CSS, 
 ## Supported Games
 
 ### Kick A Lucky Block
-
-- Auto Kick & Predict
-- Auto Train & Collect Cash
-- Auto Rebirth
-- Auto Upgrade Plot
-- Auto Place & Upgrade Brainrot
-- Auto Battle & Mastery Farm
-- Auto Weather Summoner
-- Auto Buy & Sell
-- Discord Webhook Integration
-- FPS Boost
-- RTX Shader
-- Anti AFK
-
 ### Build A Ring Farm
-
-- Auto Buy & Roll Seeds
-- Auto Plant & Manage Farm
-- Auto Unlock Plots
-- Auto Upgrade Seeds
-- Auto Expand Farm
-- Auto Upgrade Floor Stats
-- Auto Composter
-- Auto Buy Eggs & Gear
-- Auto Sell System
-- Plant Rush Event Automation
-
 ### Slime RNG
-
-- Auto Roll
-- Auto Equip Best Slime
-- Auto Farm Zones
-- Auto Rebirth
-- Auto Gun
-- Auto Upgrade Trees
-- Auto Craft
-- Auto Collect Loots
-- Auto Claim Index
-- Auto Feed Pets
-- Auto Use Potions
-- Auto Use Fruits
-- ESP Loot & Orbs
-- FPS Boost
-- Noclip
 
 ## Tech Stack
 
@@ -143,8 +101,9 @@ app/
 │   ├── FeaturedGames.tsx
 │   ├── GameModal.tsx
 │   ├── Faq.tsx
+│   ├── Changelog.tsx
 │   ├── Footer.tsx
-│   └── Changelog.tsx
+│   └── CustomCursor.tsx
 │
 ├── data/
 │   ├── games.ts
@@ -152,11 +111,18 @@ app/
 │   ├── changelog.ts
 │   └── config.ts
 │
+├── robots.ts
+├── sitemap.ts
+├── not-found.tsx
 ├── page.tsx
 ├── layout.tsx
 └── globals.css
 
 public/
+├── LH.webp
+├── LH2.webp
+├── og-image.png
+└── bg.webp
 ```
 
 ## Configuration
