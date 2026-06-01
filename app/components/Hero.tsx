@@ -32,9 +32,9 @@ export default function Hero() {
   }
 
   return (
-    <section id="top" className="mx-auto max-w-7xl px-2 sm:px-4 py-4 lg:py-10">
+    <section id="top" className="mx-auto max-w-7xl px-2 sm:px-4 py-4 lg:py-8">
       <div className="overflow-hidden rounded-3xl border border-red-900/40 bg-zinc-950">
-        <div className="grid grid-cols-1 lg:min-h-[calc(100vh-80px)] lg:grid-cols-2">
+        <div className="grid grid-cols-1 lg:min-h-[75vh] lg:grid-cols-2">
           {/* Character Image Desktop Only */}
           <motion.div
             style={{ y }}
@@ -55,7 +55,7 @@ export default function Hero() {
             <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent lg:bg-gradient-to-r lg:from-zinc-950 lg:via-transparent lg:to-transparent" />
           </motion.div>
           {/* Content */}
-          <div className="relative order-2 flex items-center p-5 sm:p-8 lg:order-1 lg:p-16">
+          <div className="relative order-2 flex items-center p-5 sm:p-8 lg:order-1 lg:p-12">
             {/* Mobile Background */}
             <div className="absolute inset-0 lg:hidden">
               <Image src="/bg.webp" alt="Luxy Hub" fill priority sizes="100vw" className="object-cover opacity-20" />
@@ -65,8 +65,7 @@ export default function Hero() {
 
             <div className="relative z-10">
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.4em] text-red-500">Welcome To</p>
-
-              <h1 className="text-5xl font-black leading-none sm:text-6xl lg:text-8xl">
+              <h1 className="text-5xl font-black leading-none sm:text-6xl lg:text-7xl">
                 <span className="text-red-500">LUXY</span> HUB
               </h1>
 
