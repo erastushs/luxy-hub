@@ -73,3 +73,18 @@ html {
     opacity: 0;
   }
 }
+
+@media (min-width: 768px) {
+  html,
+  body,
+  *,
+  *::before,
+  *::after,
+  a,
+  button,
+  input,
+  textarea,
+  select {
+    cursor: none !important;
+  }
+}

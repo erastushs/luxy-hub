@@ -30,7 +30,7 @@ export const games = [
     status: 'Working',
     features: 25,
 
-    lastUpdate: '31 May 2026',
+    lastUpdate: '1 Juni 2026',
     description: 'Advanced automation for seeds, farming, upgrades, events, and economy management.',
 
     featureList: [
@@ -54,7 +54,7 @@ export const games = [
     status: 'Working',
     features: 30,
 
-    lastUpdate: '31 May 2026',
+    lastUpdate: '29 May 2026',
     description:
       'Comprehensive RNG automation with farming, upgrades, crafting, inventory management, and combat assistance.',
 
