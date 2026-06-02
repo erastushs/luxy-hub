@@ -57,7 +57,7 @@ export const games = [
     image: '/SlimeRNG.webp',
     status: 'Broken',
     //  features: 30,
-    features: 30,
+    features: 0,
 
     lastUpdate: '29 May 2026',
     description:
