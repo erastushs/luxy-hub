@@ -55,30 +55,15 @@ export const games = [
     slug: 'slime-rng',
     title: 'Slime RNG',
     image: '/SlimeRNG.webp',
-    status: 'Working',
+    status: 'Broken',
+    //  features: 30,
     features: 30,
 
     lastUpdate: '29 May 2026',
     description:
       'Comprehensive RNG automation with farming, upgrades, crafting, inventory management, and combat assistance.',
-
-    featureList: [
-      'Auto Roll & Auto Equip',
-      'Target Slime Selection',
-      'Auto Farm Zones',
-      'Auto Rebirth',
-      'Auto Unlock Zone Features',
-      'Goop Gun Auto Aim',
-      'Auto Upgrade Trees',
-      'Auto Craft System',
-      'Auto Collect Loots',
-      'Auto Claim Index',
-      'Auto Feed Pets',
-      'Auto Use Potions & Fruits',
-      'Run Speed & Noclip',
-      'ESP Loot & Orbs',
-      'FPS Boost',
-    ],
+    featureList: ['Awaiting Fix'],
+    //  featureList: ['Auto Roll & Auto Equip','Target Slime Selection','Auto Farm Zones','Auto Rebirth','Auto Unlock Zone Features','Goop Gun Auto Aim','Auto Upgrade Trees','Auto Craft System','Auto Collect Loots','Auto Claim Index','Auto Feed Pets','Auto Use Potions & Fruits','Run Speed & Noclip','ESP Loot & Orbs','FPS Boost',],
   },
 
   {
