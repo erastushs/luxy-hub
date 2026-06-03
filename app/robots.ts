@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
     },
-    sitemap: 'https://luxyhub.vercel.app/sitemap.xml',
+    sitemap: 'https://luxyhub.space/sitemap.xml',
   }
 }
