@@ -8,6 +8,26 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: 'v4.2',
+    date: '3 Jun 2026',
+    game: 'Multi Game Update',
+    summary: 'New Automation Features, Shop Support & Stability Improvements',
+    changes: [
+      'Build A Ring Farm: Added Gear Shop & Rush Shop shortcuts',
+      'Build A Ring Farm: Added Auto Fertilizer, Auto Feed Pet & Time Rewards',
+      'Build A Ring Farm: Added Plant, Fertilizer, Pet & Treat filters',
+      'Build A Ring Farm: Improved Plant Rush, Seed Roll & Upgrade systems',
+      'Build A Ring Farm: Improved Honey, Alien Drops & Anti AFK',
+      'Build A Ring Farm: Removed Plot & Inventory Sync to reduce lag',
+      'Slime RNG: Improved Loot Collection, Potion Usage & Rebirth',
+      'Slime RNG: Improved Teleport, Slime Management & Upgrade System',
+      'Slime RNG: Added Config Auto Save/Load & Anti AFK',
+      'Kick a Lucky Block: Added Accuracy Minigame Support',
+      'Kick a Lucky Block: Added Power Scale Mode',
+      'Kick a Lucky Block: Improved Cash Collection, Weather & Brainrot Systems',
+    ],
+  },
+  {
     version: 'v4.1',
     date: '1 Jun 2026',
     game: 'Build A Ring Farm',
