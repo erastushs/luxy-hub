@@ -36,6 +36,7 @@ export default function CustomCursor() {
 
   return (
     <div
+      id="custom-cursor"
       className="
       pointer-events-none
       fixed
