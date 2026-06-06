@@ -1,6 +1,6 @@
 import { KeyRound, AlertTriangle, RefreshCw, ArrowLeft } from 'lucide-react'
-import { headers } from 'next/headers'
 import CopyKeyButton from '@/app/components/CopyKeyButton'
+import { verifyWorkinkToken } from '@/app/lib/verify-workink'
 import Navbar from '@/app/components/Navbar'
 import Footer from '@/app/components/Footer'
 
@@ -44,31 +44,11 @@ export default async function VerifyTokenPage({ searchParams }: { searchParams: 
     )
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
-    ? (process.env.NEXT_PUBLIC_SITE_URL.startsWith('http')
-        ? process.env.NEXT_PUBLIC_SITE_URL
-        : `https://${process.env.NEXT_PUBLIC_SITE_URL}`)
-    : process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000'
-
   let status: TokenStatus
 
   try {
-    const headersList = await headers()
-    const clientIP = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1'
-
-    const response = await fetch(`${baseUrl}/api/verify-workink`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-client-ip': clientIP,
-      },
-      body: JSON.stringify({ token }),
-      cache: 'no-store',
-    })
-
-    status = await response.json()
+    const result = await verifyWorkinkToken('127.0.0.1', token)
+    status = result
   } catch {
     status = { success: false, message: 'Verification service unavailable' }
   }
