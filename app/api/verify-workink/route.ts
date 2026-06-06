@@ -1,36 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/app/lib/supabase'
 import { generateKey } from '@/app/lib/key-generator'
+import { checkRateLimit, getClientIP } from '@/app/lib/rate-limiter'
+import { logEvent } from '@/app/lib/logger'
 
 export async function POST(req: NextRequest) {
+  const clientIP = getClientIP(req)
+
   try {
     const { token } = await req.json()
 
-    if (!token) {
+    if (!token || typeof token !== 'string') {
       return NextResponse.json(
-        {
-          success: false,
-          message: 'Token required',
-        },
+        { success: false, message: 'Token required' },
         { status: 400 },
+      )
+    }
+
+    const rateLimit = await checkRateLimit(clientIP, 'VERIFY_WORKINK')
+
+    if (!rateLimit.allowed) {
+      await logEvent({ event: 'RATE_LIMITED', ip: clientIP, token, message: 'verify-workink rate limit exceeded' })
+
+      return NextResponse.json(
+        { success: false, message: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } },
       )
     }
 
     const response = await fetch(`https://work.ink/_api/v2/token/isValid/${token}`)
 
+    if (!response.ok) {
+      await logEvent({ event: 'VERIFY_WORKINK_FAILED', ip: clientIP, token, message: `Work.ink API returned ${response.status}` })
+
+      return NextResponse.json(
+        { success: false, message: 'Verification service unavailable' },
+        { status: 502 },
+      )
+    }
+
     const data = await response.json()
 
-    console.log('WORKINK RESPONSE')
-    console.log(data)
-
     if (!data.valid) {
+      await logEvent({ event: 'VERIFY_WORKINK_FAILED', ip: clientIP, token, message: 'Work.ink token invalid' })
+
       return NextResponse.json(
-        {
-          success: false,
-          message: 'Invalid token',
-        },
+        { success: false, message: 'Invalid token' },
         { status: 403 },
       )
+    }
+
+    if (data.info?.byIp) {
+      const workinkIP = data.info.byIp.trim()
+
+      if (workinkIP !== clientIP && clientIP !== '127.0.0.1') {
+        await logEvent({ event: 'IP_MISMATCH', ip: clientIP, token, message: `Work.ink IP ${workinkIP} does not match client IP` })
+
+        return NextResponse.json(
+          { success: false, message: 'IP verification failed' },
+          { status: 403 },
+        )
+      }
     }
 
     const { data: existingToken } = await supabase
@@ -40,20 +70,26 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (existingToken) {
+      await logEvent({ event: 'TOKEN_ALREADY_USED', ip: clientIP, token, message: 'Replay attempt detected' })
+
       return NextResponse.json(
-        {
-          success: false,
-          message: 'Token already used',
-        },
+        { success: false, message: 'Token already used' },
         { status: 403 },
       )
     }
 
-    await supabase.from('used_workink_tokens').insert({
-      token,
-    })
+    const { error: insertError } = await supabase.from('used_workink_tokens').insert({ token, used_at: new Date().toISOString() })
 
-    let key = generateKey()
+    if (insertError) {
+      await logEvent({ event: 'TOKEN_ALREADY_USED', ip: clientIP, token, message: 'Replay attempt detected (insert conflict)' })
+
+      return NextResponse.json(
+        { success: false, message: 'Token already used' },
+        { status: 403 },
+      )
+    }
+
+    const key = generateKey()
 
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + 1)
@@ -67,6 +103,8 @@ export async function POST(req: NextRequest) {
       throw error
     }
 
+    await logEvent({ event: 'KEY_GENERATED', ip: clientIP, token, key, message: 'Key generated successfully' })
+
     return NextResponse.json({
       success: true,
       key,
@@ -74,12 +112,10 @@ export async function POST(req: NextRequest) {
       tokenInfo: data.info,
     })
   } catch (error) {
-    console.error(error)
+    console.error('verify-workink error:', error)
 
     return NextResponse.json(
-      {
-        success: false,
-      },
+      { success: false, message: 'Internal server error' },
       { status: 500 },
     )
   }

@@ -4,5 +4,5 @@ export function generateKey() {
   const random = (length: number) =>
     Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 
-  return `LUXY-FREE-${random(4)}-${random(4)}-${random(4)}`
+  return `LUXY-${random(4)}-${random(4)}-${random(4)}`
 }

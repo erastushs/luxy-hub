@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -11,7 +12,9 @@ export default function Navbar({ keyPage = false }: { keyPage?: boolean }) {
   const [activeSection, setActiveSection] = useState('top')
 
   useEffect(() => {
-    const sections = ['top', 'games', 'changelog', `faq`]
+    if (keyPage) return
+
+    const sections = ['top', 'games', 'changelog', 'faq']
 
     const observers = sections.map((id) => {
       const section = document.getElementById(id)
@@ -39,7 +42,7 @@ export default function Navbar({ keyPage = false }: { keyPage?: boolean }) {
         observer?.disconnect()
       })
     }
-  }, [])
+  }, [keyPage])
 
   return (
     <nav className="sticky top-0 z-50 border-b border-red-950/40 bg-black/70 backdrop-blur">
@@ -57,13 +60,13 @@ export default function Navbar({ keyPage = false }: { keyPage?: boolean }) {
         <div className="hidden items-center gap-8 md:flex">
           {keyPage ? (
             <>
-              <a href="/" className="transition hover:text-red-500">
+              <Link href="/" className="transition hover:text-red-500">
                 Home
-              </a>
+              </Link>
 
-              <a href="/get-key" className="text-red-500">
+              <Link href="/get-key" className="text-red-500">
                 Get Key
-              </a>
+              </Link>
             </>
           ) : (
             <>
@@ -112,13 +115,13 @@ export default function Navbar({ keyPage = false }: { keyPage?: boolean }) {
           <div className="flex flex-col gap-5 p-5">
             {keyPage ? (
               <>
-                <a href="/" onClick={() => setMobileMenu(false)} className="transition hover:text-red-500">
+                <Link href="/" onClick={() => setMobileMenu(false)} className="transition hover:text-red-500">
                   Home
-                </a>
+                </Link>
 
-                <a href="/get-key" onClick={() => setMobileMenu(false)} className="text-red-500">
+                <Link href="/get-key" onClick={() => setMobileMenu(false)} className="text-red-500">
                   Get Key
-                </a>
+                </Link>
               </>
             ) : (
               <>
