@@ -19,7 +19,56 @@ export default function GetKeyPage() {
             <p className="text-lg text-zinc-400">Complete one quick offer to unlock your LuxyHub access key.</p>
           </div>
 
-          <div className="mb-10 rounded-2xl border border-zinc-800 bg-zinc-900 p-6 sm:p-8">
+          <a
+            href="https://work.ink/2Dlr/luxyhub"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-8 py-4 text-lg font-semibold transition-all hover:bg-red-500 hover:shadow-[0_0_30px_rgba(239,68,68,0.4)] active:scale-[0.98]"
+          >
+            <ExternalLink className="h-5 w-5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+
+            <span>Generate Key via Work.ink</span>
+          </a>
+
+          <p className="mt-4 text-center text-xs text-zinc-600">
+            You will be redirected to Work.ink to complete a quick verification.
+          </p>
+
+          <div className="mt-10 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+            <div className="flex items-start gap-3">
+              <Clock className="mt-0.5 h-5 w-5 shrink-0 text-yellow-500" />
+
+              <div>
+                <p className="text-sm font-medium text-yellow-400">Key expires after 24 hours</p>
+
+                <p className="mt-1 text-xs text-yellow-500/70">
+                  You will need to complete a new offer to generate a fresh key once it expires.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-center">
+              <Shield className="mx-auto mb-2 h-5 w-5 text-zinc-500" />
+
+              <p className="text-xs text-zinc-500">Secure & Encrypted</p>
+            </div>
+
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-center">
+              <Clock className="mx-auto mb-2 h-5 w-5 text-zinc-500" />
+
+              <p className="text-xs text-zinc-500">24-Hour Access Key</p>
+            </div>
+
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-center">
+              <CheckCircle className="mx-auto mb-2 h-5 w-5 text-zinc-500" />
+
+              <p className="text-xs text-zinc-500">One-Time Verification</p>
+            </div>
+          </div>
+
+          <div className="mt-10 rounded-2xl border border-zinc-800 bg-zinc-900 p-6 sm:p-8">
             <h2 className="mb-6 text-lg font-semibold">How it works</h2>
 
             <div className="space-y-5">
@@ -31,7 +80,7 @@ export default function GetKeyPage() {
                 <div>
                   <p className="font-medium">Click Generate Key</p>
 
-                  <p className="text-sm text-zinc-400">Tap the button below to open Work.ink in a new tab.</p>
+                  <p className="text-sm text-zinc-400">Tap the button above to open Work.ink in a new tab.</p>
                 </div>
               </div>
 
@@ -64,55 +113,6 @@ export default function GetKeyPage() {
               </div>
             </div>
           </div>
-
-          <div className="mb-10 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-center">
-              <Shield className="mx-auto mb-2 h-5 w-5 text-zinc-500" />
-
-              <p className="text-xs text-zinc-500">Secure & Encrypted</p>
-            </div>
-
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-center">
-              <Clock className="mx-auto mb-2 h-5 w-5 text-zinc-500" />
-
-              <p className="text-xs text-zinc-500">24-Hour Access Key</p>
-            </div>
-
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-center">
-              <CheckCircle className="mx-auto mb-2 h-5 w-5 text-zinc-500" />
-
-              <p className="text-xs text-zinc-500">One-Time Verification</p>
-            </div>
-          </div>
-
-          <div className="mb-8 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-            <div className="flex items-start gap-3">
-              <Clock className="mt-0.5 h-5 w-5 shrink-0 text-yellow-500" />
-
-              <div>
-                <p className="text-sm font-medium text-yellow-400">Key expires after 24 hours</p>
-
-                <p className="mt-1 text-xs text-yellow-500/70">
-                  You will need to complete a new offer to generate a fresh key once it expires.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <a
-            href="https://work.ink/2Dlr/luxyhub"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-8 py-4 text-lg font-semibold transition-all hover:bg-red-500 hover:shadow-[0_0_30px_rgba(239,68,68,0.4)] active:scale-[0.98]"
-          >
-            <ExternalLink className="h-5 w-5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-
-            <span>Generate Key via Work.ink</span>
-          </a>
-
-          <p className="mt-4 text-center text-xs text-zinc-600">
-            You will be redirected to Work.ink to complete a quick verification.
-          </p>
         </div>
       </main>
 
