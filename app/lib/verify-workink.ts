@@ -77,6 +77,7 @@ export async function verifyWorkinkToken(clientIP: string, token: string): Promi
 
     return {
       success: true,
+      message: 'Key generated successfully',
       key,
       expires_at: expiresAt.toISOString(),
       tokenInfo: data.info,
