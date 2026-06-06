@@ -31,12 +31,7 @@ export async function POST(req: NextRequest) {
     const response = await fetch(`https://work.ink/_api/v2/token/isValid/${token}`)
 
     if (!response.ok) {
-      await logEvent({ event: 'VERIFY_WORKINK_FAILED', ip: clientIP, token, message: `Work.ink API returned ${response.status}` })
-
-      return NextResponse.json(
-        { success: false, message: 'Verification service unavailable' },
-        { status: 502 },
-      )
+      console.error(`Work.ink API returned ${response.status} for token ${token.slice(0, 8)}...`)
     }
 
     const data = await response.json()
@@ -54,12 +49,14 @@ export async function POST(req: NextRequest) {
       const workinkIP = data.info.byIp.trim()
 
       if (workinkIP !== clientIP && clientIP !== '127.0.0.1') {
-        await logEvent({ event: 'IP_MISMATCH', ip: clientIP, token, message: `Work.ink IP ${workinkIP} does not match client IP` })
+        console.warn(`IP mismatch: Work.ink=${workinkIP} client=${clientIP} — allowing (soft check)`)
 
-        return NextResponse.json(
-          { success: false, message: 'IP verification failed' },
-          { status: 403 },
-        )
+        await logEvent({
+          event: 'IP_MISMATCH',
+          ip: clientIP,
+          token,
+          message: `Soft mismatch: Work.ink IP ${workinkIP} vs client IP ${clientIP}`,
+        })
       }
     }
 
