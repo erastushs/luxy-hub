@@ -1,13 +1,20 @@
-import KeyGenerator from '@/app/components/KeyGenerator'
+import Link from 'next/link'
 
 export default function GetKeyPage() {
   return (
-    <main className="container mx-auto max-w-2xl px-4 py-20">
-      <h1 className="mb-4 text-4xl font-bold">Get Key</h1>
+    <main className="min-h-screen flex items-center justify-center">
+      <div className="max-w-md w-full text-center space-y-6">
+        <h1 className="text-4xl font-bold">Get Your Free Key</h1>
 
-      <p className="mb-8 text-gray-400">Generate a free key to use LuxyHub scripts.</p>
+        <p className="text-gray-400">Complete one offer through Work.ink to unlock your LuxyHub key.</p>
 
-      <KeyGenerator />
+        <Link
+          href="https://work.ink/2Dlr/luxyhub"
+          className="inline-block px-6 py-3 rounded-lg bg-red-600 hover:bg-red-700 transition"
+        >
+          Generate Key
+        </Link>
+      </div>
     </main>
   )
 }
