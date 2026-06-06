@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 
 import { config } from '../data/config'
 
-export default function Navbar() {
+export default function Navbar({ keyPage = false }: { keyPage?: boolean }) {
   const [mobileMenu, setMobileMenu] = useState(false)
   const [activeSection, setActiveSection] = useState('top')
 
@@ -55,21 +55,38 @@ export default function Navbar() {
 
         {/* Desktop Menu */}
         <div className="hidden items-center gap-8 md:flex">
-          <a href="#top" className={activeSection === 'top' ? 'text-red-500' : 'transition hover:text-red-500'}>
-            Home
-          </a>
-          <a href="#games" className={activeSection === 'games' ? 'text-red-500' : 'transition hover:text-red-500'}>
-            Games
-          </a>
-          <a
-            href="#changelog"
-            className={activeSection === 'changelog' ? 'text-red-500' : 'transition hover:text-red-500'}
-          >
-            Changelog
-          </a>{' '}
-          <a href="#faq" className={activeSection === 'faq' ? 'text-red-500' : 'transition hover:text-red-500'}>
-            FAQ
-          </a>
+          {keyPage ? (
+            <>
+              <a href="/" className="transition hover:text-red-500">
+                Home
+              </a>
+
+              <a href="/get-key" className="text-red-500">
+                Get Key
+              </a>
+            </>
+          ) : (
+            <>
+              <a href="#top" className={activeSection === 'top' ? 'text-red-500' : 'transition hover:text-red-500'}>
+                Home
+              </a>
+
+              <a href="#games" className={activeSection === 'games' ? 'text-red-500' : 'transition hover:text-red-500'}>
+                Games
+              </a>
+
+              <a
+                href="#changelog"
+                className={activeSection === 'changelog' ? 'text-red-500' : 'transition hover:text-red-500'}
+              >
+                Changelog
+              </a>
+
+              <a href="#faq" className={activeSection === 'faq' ? 'text-red-500' : 'transition hover:text-red-500'}>
+                FAQ
+              </a>
+            </>
+          )}
         </div>
 
         {/* Right Side */}
@@ -93,36 +110,51 @@ export default function Navbar() {
       {mobileMenu && (
         <div className="border-t border-red-950/40 bg-black md:hidden">
           <div className="flex flex-col gap-5 p-5">
-            <a
-              href="#top"
-              onClick={() => setMobileMenu(false)}
-              className={activeSection === 'top' ? 'text-red-500' : ''}
-            >
-              Home
-            </a>
+            {keyPage ? (
+              <>
+                <a href="/" onClick={() => setMobileMenu(false)} className="transition hover:text-red-500">
+                  Home
+                </a>
 
-            <a
-              href="#games"
-              onClick={() => setMobileMenu(false)}
-              className={activeSection === 'games' ? 'text-red-500' : ''}
-            >
-              Games
-            </a>
+                <a href="/get-key" onClick={() => setMobileMenu(false)} className="text-red-500">
+                  Get Key
+                </a>
+              </>
+            ) : (
+              <>
+                <a
+                  href="#top"
+                  onClick={() => setMobileMenu(false)}
+                  className={activeSection === 'top' ? 'text-red-500' : ''}
+                >
+                  Home
+                </a>
 
-            <a
-              href="#changelog"
-              onClick={() => setMobileMenu(false)}
-              className={activeSection === 'changelog' ? 'text-red-500' : ''}
-            >
-              Changelog
-            </a>
-            <a
-              href="#faq"
-              onClick={() => setMobileMenu(false)}
-              className={activeSection === 'faq' ? 'text-red-500' : ''}
-            >
-              FAQ
-            </a>
+                <a
+                  href="#games"
+                  onClick={() => setMobileMenu(false)}
+                  className={activeSection === 'games' ? 'text-red-500' : ''}
+                >
+                  Games
+                </a>
+
+                <a
+                  href="#changelog"
+                  onClick={() => setMobileMenu(false)}
+                  className={activeSection === 'changelog' ? 'text-red-500' : ''}
+                >
+                  Changelog
+                </a>
+
+                <a
+                  href="#faq"
+                  onClick={() => setMobileMenu(false)}
+                  className={activeSection === 'faq' ? 'text-red-500' : ''}
+                >
+                  FAQ
+                </a>
+              </>
+            )}
 
             <a
               href={config.discord}

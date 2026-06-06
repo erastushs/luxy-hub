@@ -1,20 +1,27 @@
-import Link from 'next/link'
+import Navbar from '@/app/components/Navbar'
+import Footer from '@/app/components/Footer'
 
 export default function GetKeyPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center">
-      <div className="max-w-md w-full text-center space-y-6">
-        <h1 className="text-4xl font-bold">Get Your Free Key</h1>
+    <>
+      <Navbar keyPage />
 
-        <p className="text-gray-400">Complete one offer through Work.ink to unlock your LuxyHub key.</p>
+      <main className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-xl text-center">
+          <h1 className="text-5xl font-bold mb-6">Get Your Free Key</h1>
 
-        <Link
-          href="https://work.ink/2Dlr/luxyhub"
-          className="inline-block px-6 py-3 rounded-lg bg-red-600 hover:bg-red-700 transition"
-        >
-          Generate Key
-        </Link>
-      </div>
-    </main>
+          <p className="text-zinc-400 mb-8">Complete one Work.ink offer to unlock your LuxyHub access key.</p>
+
+          <a
+            href="https://work.ink/2Dlr/luxyhub"
+            className="inline-flex items-center rounded-xl bg-red-600 px-8 py-4 font-semibold transition hover:bg-red-700"
+          >
+            Generate Key
+          </a>
+        </div>
+      </main>
+
+      <Footer />
+    </>
   )
 }
