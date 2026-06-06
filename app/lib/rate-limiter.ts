@@ -29,8 +29,8 @@ export async function checkRateLimit(ip: string, limitKey: LimitKey) {
     .lte('created_at', now.toISOString())
 
   if (error) {
-    console.error('Rate limit check error:', error)
-    return { allowed: false, retryAfter: Math.ceil(windowMs / 1000) }
+    console.error('[rate-limiter] Database error — allowing request (fail-open):', error.message || error)
+    return { allowed: true }
   }
 
   if (recentRequests && recentRequests.length >= maxRequests) {

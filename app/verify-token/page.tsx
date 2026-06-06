@@ -91,11 +91,17 @@ export default async function VerifyTokenPage({ searchParams }: { searchParams: 
               {isAlreadyUsed ? 'Token Already Used' : 'Invalid Token'}
             </h1>
 
-            <p className="mb-8 text-zinc-400">
+            <p className="mb-4 text-zinc-400">
               {isAlreadyUsed
                 ? 'This verification token has already been redeemed. Each offer can only be used once.'
                 : 'This token is invalid or expired. Please complete a new Work.ink offer to receive a valid key.'}
             </p>
+
+            {!isAlreadyUsed && (
+              <p className="mb-8 text-xs text-zinc-600">
+                Server response: {status.message}
+              </p>
+            )}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
               <a
