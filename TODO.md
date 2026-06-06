@@ -88,21 +88,21 @@ Response
 
 - [x] Create validate endpoint
 - [x] Check key existence
-- [ ] Check expiration
-- [ ] Check active status
-- [ ] Return structured responses
-- [ ] Add error handling
+- [x] Check expiration
+- [x] Check active status
+- [x] Return structured responses
+- [x] Add error handling
 
 ### Testing
 
-- [ ] Valid key
-- [ ] Invalid key
-- [ ] Expired key
-- [ ] Disabled key
+- [x] Valid key
+- [x] Invalid key
+- [x] Expired key
+- [x] Disabled key
 
 ### Exit Criteria
 
-- [ ] All validation scenarios work correctly
+- [x] All validation scenarios work correctly
 
 ---
 

@@ -4,7 +4,16 @@ import { generateKey } from '@/app/lib/key-generator'
 
 export async function POST() {
   try {
-    const key = generateKey()
+    let key
+    let exists = true
+
+    while (exists) {
+      key = generateKey()
+
+      const { data } = await supabase.from('keys').select('id').eq('key', key).maybeSingle()
+
+      exists = !!data
+    }
 
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + 1)
