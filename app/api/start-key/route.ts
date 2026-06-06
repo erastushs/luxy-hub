@@ -12,7 +12,7 @@ export async function POST() {
 
     if (error) throw error
 
-    const lootlabsUrl = `${process.env.LOOTLABS_URL}?puid=${sessionId}`
+    const lootlabsUrl = `${process.env.LOOTLABS_URL}&puid=${sessionId}`
 
     return NextResponse.json({
       success: true,
