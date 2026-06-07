@@ -433,6 +433,270 @@ Server error
 
 ---
 
+## CDN Integration
+
+### Upload Script
+
+```bash
+curl -s -X POST https://luxyhub.vercel.app/api/scripts \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_API_KEY" \
+  -d '{
+    "slug": "my-script",
+    "name": "My Script",
+    "description": "An example Roblox script",
+    "visibility": "public",
+    "content": "print(\"Hello from LuxyHub CDN\")"
+  }'
+```
+
+**JavaScript:**
+```javascript
+const response = await fetch('https://luxyhub.vercel.app/api/scripts', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${process.env.ADMIN_API_KEY}`,
+  },
+  body: JSON.stringify({
+    slug: 'my-script',
+    name: 'My Script',
+    description: 'An example Roblox script',
+    visibility: 'public',
+    content: 'print("Hello from LuxyHub CDN")',
+  }),
+})
+
+const data = await response.json()
+if (data.success) {
+  console.log('Script created:', data.script.slug)
+  console.log('Version ID:', data.script.current_version_id)
+}
+```
+
+### Update Script
+
+```bash
+curl -s -X PATCH https://luxyhub.vercel.app/api/scripts/my-script \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_API_KEY" \
+  -d '{
+    "name": "My Script v2",
+    "content": "print(\"Updated script\")"
+  }'
+```
+
+**JavaScript:**
+```javascript
+const response = await fetch(
+  'https://luxyhub.vercel.app/api/scripts/my-script',
+  {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.ADMIN_API_KEY}`,
+    },
+    body: JSON.stringify({
+      name: 'My Script v2',
+      content: 'print("Updated script")',
+    }),
+  }
+)
+```
+
+**Note:** When `content` changes, a new version is auto-created (`1.0.0` → `1.0.1`). The `current_version_id` is updated automatically.
+
+### Change Visibility
+
+```bash
+curl -s -X POST https://luxyhub.vercel.app/api/scripts/my-script/publish \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_API_KEY" \
+  -d '{"visibility": "public"}'
+```
+
+**JavaScript:**
+```javascript
+await fetch('https://luxyhub.vercel.app/api/scripts/my-script/publish', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${process.env.ADMIN_API_KEY}`,
+  },
+  body: JSON.stringify({ visibility: 'public' }),
+})
+```
+
+### Raw Endpoint (Script Delivery)
+
+```bash
+# Get raw script content (replaces GitHub Raw)
+curl -s https://luxyhub.vercel.app/api/scripts/my-script/raw
+```
+
+**Roblox Luau — Load Script from CDN:**
+```lua
+local HttpService = game:GetService("HttpService")
+local CDN_BASE = "https://luxyhub.vercel.app"
+
+local function loadScript(slug: string)
+    local success, response = pcall(function()
+        return syn.request({
+            Url = CDN_BASE .. "/api/scripts/" .. slug .. "/raw",
+            Method = "GET",
+        })
+    end)
+
+    if not success or response.StatusCode ~= 200 then
+        return nil, "Failed to load script: " .. slug
+    end
+
+    local fn, err = loadstring(response.Body)
+    if not fn then
+        return nil, "Script compile error: " .. (err or "unknown")
+    end
+
+    return fn, nil
+end
+
+-- Load and execute
+local scriptFn, err = loadScript("bloxatlas")
+if scriptFn then
+    scriptFn()
+else
+    warn("Script load failed:", err)
+end
+```
+
+**Roblox Luau — Load with Key Validation:**
+```lua
+local HttpService = game:GetService("HttpService")
+local BASE_URL = "https://luxyhub.vercel.app"
+
+local function validateAndLoad(key: string, scriptSlug: string)
+    -- Step 1: Validate key
+    local success, response = pcall(function()
+        return syn.request({
+            Url = BASE_URL .. "/api/validate",
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode({ key = key }),
+        })
+    end)
+
+    if not success or response.StatusCode ~= 200 then
+        return nil, "Key validation failed"
+    end
+
+    -- Step 2: Load script from CDN
+    local scriptSuccess, scriptResponse = pcall(function()
+        return syn.request({
+            Url = BASE_URL .. "/api/scripts/" .. scriptSlug .. "/raw",
+            Method = "GET",
+        })
+    end)
+
+    if not scriptSuccess or scriptResponse.StatusCode ~= 200 then
+        return nil, "Script loading failed"
+    end
+
+    local fn, err = loadstring(scriptResponse.Body)
+    if not fn then
+        return nil, "Script compile error: " .. (err or "unknown")
+    end
+
+    return fn, nil
+end
+```
+
+**JavaScript — Load Script:**
+```javascript
+async function loadScript(slug) {
+  const response = await fetch(
+    `https://luxyhub.vercel.app/api/scripts/${slug}/raw`
+  )
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message)
+  }
+
+  return response.text()
+}
+
+const content = await loadScript('bloxatlas')
+console.log(content)
+```
+
+### Analytics
+
+```bash
+curl -s https://luxyhub.vercel.app/api/scripts/my-script/stats
+```
+
+**JavaScript:**
+```javascript
+const response = await fetch(
+  'https://luxyhub.vercel.app/api/scripts/my-script/stats'
+)
+const data = await response.json()
+
+if (data.success) {
+  console.log('Total downloads:', data.stats.total_downloads)
+  console.log('Unique users:', data.stats.unique_ips)
+  console.log('Downloads today:', data.stats.downloads_today)
+  console.log('Last download:', data.stats.last_downloaded_at)
+}
+```
+
+### List Public Scripts
+
+```bash
+curl -s "https://luxyhub.vercel.app/api/scripts?limit=10&offset=0"
+```
+
+**JavaScript:**
+```javascript
+async function listScripts(limit = 20, offset = 0) {
+  const url = new URL('https://luxyhub.vercel.app/api/scripts')
+  url.searchParams.set('limit', limit)
+  url.searchParams.set('offset', offset)
+
+  const response = await fetch(url)
+  const data = await response.json()
+
+  if (data.success) {
+    console.log(`Showing ${data.scripts.length} of ${data.total} scripts`)
+    return data.scripts
+  }
+  return []
+}
+```
+
+### Delete Script
+
+```bash
+curl -s -X DELETE https://luxyhub.vercel.app/api/scripts/my-script \
+  -H "Authorization: Bearer $ADMIN_API_KEY"
+```
+
+---
+
+## CDN Rate Limits
+
+| Endpoint | Window | Limit | Auth |
+|----------|--------|-------|------|
+| `GET /api/scripts` | 1 minute | 30 | None |
+| `POST /api/scripts` | 1 hour | 30 | Bearer |
+| `GET /api/scripts/[slug]` | 1 minute | 60 | None |
+| `PATCH /api/scripts/[slug]` | 1 hour | 60 | Bearer |
+| `DELETE /api/scripts/[slug]` | — | Unlimited | Bearer |
+| `POST /api/scripts/[slug]/publish` | 1 hour | 60 | Bearer |
+| `GET /api/scripts/[slug]/raw` | 1 minute | 100 | None |
+| `GET /api/scripts/[slug]/stats` | 1 minute | 30 | None |
+
+---
+
 ## Breaking Changes from Older Versions
 
 | Change | Old | New |

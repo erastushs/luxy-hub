@@ -38,6 +38,23 @@ Last updated: 2026-06-07
 | 26 | **Database** | CDN Table Migration (UP) | `migrations/002_cdn_tables.sql` |
 | 27 | **Database** | CDN Table Migration (DOWN) | `migrations/002_cdn_tables_rollback.sql` |
 | 28 | **Database** | Schema updated (8 tables) | `schema.sql` |
+| 29 | **Code** | CDN Repository Layer | `app/lib/repositories/script-repository.ts` |
+| 30 | **Code** | CDN Service Layer | `app/lib/services/script-service.ts` |
+| 31 | **Code** | Admin Auth Module | `app/lib/auth/admin-auth.ts` |
+| 32 | **Code** | CDN Validators | `app/lib/validators.ts` (slug, visibility, content) |
+| 33 | **API** | CDN Rate Limits (6 keys) | `app/lib/repositories/rate-limit-repository.ts` |
+| 34 | **API** | GET /api/scripts (list) | `app/api/scripts/route.ts` |
+| 35 | **API** | POST /api/scripts (upload) | `app/api/scripts/route.ts` |
+| 36 | **API** | GET /api/scripts/[slug] (metadata) | `app/api/scripts/[slug]/route.ts` |
+| 37 | **API** | PATCH /api/scripts/[slug] (update) | `app/api/scripts/[slug]/route.ts` |
+| 38 | **API** | DELETE /api/scripts/[slug] (delete) | `app/api/scripts/[slug]/route.ts` |
+| 39 | **API** | GET /api/scripts/[slug]/raw (delivery) | `app/api/scripts/[slug]/raw/route.ts` |
+| 40 | **API** | GET /api/scripts/[slug]/stats (analytics) | `app/api/scripts/[slug]/stats/route.ts` |
+| 41 | **API** | POST /api/scripts/[slug]/publish (visibility) | `app/api/scripts/[slug]/publish/route.ts` |
+| 42 | **Infra** | Cleanup cron extended (downloads) | `app/api/cleanup/route.ts` |
+| 43 | **Docs** | CDN Migration Guide | `CDN_MIGRATION_GUIDE.md` |
+| 44 | **Docs** | API Spec updated (CDN endpoints) | `API_SPEC.md` |
+| 45 | **Docs** | Integration Guide updated (CDN) | `API_INTEGRATION.md` |
 
 ---
 
@@ -55,7 +72,6 @@ Last updated: 2026-06-07
 | 8 | Phase 1 | Error Tracking | Docs written — requires Better Stack Logtail |
 | 9 | Phase 1 | Uptime Alerts | Docs written — requires alert destinations |
 | 10 | Phase 1 | Supabase PITR Backups | Docs written — requires Supabase Pro plan |
-| 11 | Phase 2B | CDN API Implementation | Pending — DB foundation complete |
 
 ---
 
@@ -63,13 +79,6 @@ Last updated: 2026-06-07
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 2B | Script Upload API | CDN database foundation (✅ complete) |
-| 2 | Phase 2B | Script Edit API | CDN database foundation |
-| 3 | Phase 2B | Script Delete API | CDN database foundation |
-| 4 | Phase 2B | Script Visibility/Publish | CDN database foundation |
-| 5 | Phase 2B | Raw Endpoint | CDN database foundation |
-| 6 | Phase 2B | Public/Private/Unlisted Scripts | CDN database foundation |
-| 7 | Phase 2B | Script Analytics | CDN database foundation |
 | 8 | Phase 3 | Creator Dashboard | Phase 2 |
 | 9 | Phase 4 | Script Versioning | Phase 3 |
 | 10 | Phase 5 | LuxyHub Vault | Phase 4 |
@@ -82,12 +91,12 @@ Last updated: 2026-06-07
 ## Overall Completion
 
 ```text
-████████████░░░░░░░░░░░░░░░░░░░░░░ 25%
+████████████████░░░░░░░░░░░░░░░░░░ 32%
 
 Code & Docs:      95% complete  ████████████████████░
 Infrastructure:    10% complete  ██░░░░░░░░░░░░░░░░░░
 CDN Database:    100% complete  ████████████████████
-CDN API:           0% complete  ░░░░░░░░░░░░░░░░░░░░
+CDN API:         100% complete  ████████████████████
 Dashboard:          0% complete  ░░░░░░░░░░░░░░░░░░░░
 Marketplace:        0% complete  ░░░░░░░░░░░░░░░░░░░░
 ```
@@ -102,7 +111,8 @@ Marketplace:        0% complete  ░░░░░░░░░░░░░░░�
 | Phase 1 | Infrastructure & Monitoring | Docs Complete / Infra Pending | 75% |
 | Phase 1.5 | CDN Architecture Review | Complete | 100% |
 | Phase 2A | CDN Database Foundation | Complete | 100% |
-| Phase 2B | CDN API Implementation | Not Started | 0% |
+| Phase 2B | CDN API Implementation | Complete | 100% |
+| Phase 2C | Production Verification | In Progress | 50% |
 | Phase 3 | Creator Dashboard | Not Started | 0% |
 | Phase 4 | Script Versioning | Not Started | 0% |
 | Phase 5 | LuxyHub Vault | Not Started | 0% |
@@ -110,9 +120,8 @@ Marketplace:        0% complete  ░░░░░░░░░░░░░░░�
 | Phase 7 | Creator Marketplace | Not Started | 0% |
 | Phase 8 | Premium Ecosystem | Not Started | 0% |
 
-## Current Phase: Phase 2B -- CDN API Implementation
-> Phase 1 operational documentation is complete. Infrastructure deployment (Cloudflare, Vercel env vars, Better Stack, Uptime Kuma) requires manual configuration by a human operator with platform access. Those items are documented in `DEPLOYMENT_CHECKLIST.md`, `MONITORING.md`, `INCIDENT_RESPONSE.md`, and `BACKUP_STRATEGY.md`. Do not block Phase 2 on manual infra setup — proceed with CDN architecture review and implementation.
-> Phase 1.5 (Architecture Review) and Phase 2A (Database Foundation) are complete. The CDN schema is defined: 3 tables, 8 indexes, RLS policies, 3-way visibility model (public/private/unlisted), creator ownership column, and PII-protected analytics. Proceed with API route implementation in Phase 2B.
+## Current Phase: Phase 2C — Production Verification
+> Phase 2 (CDN MVP) is code-complete. All 8 endpoints implemented, 16 routes compiled, API docs updated. Phase 2C covers migration execution, endpoint testing, and production verification before the GitHub Raw cutover.
 ---
 
 # Phase 1 — Infrastructure & Monitoring

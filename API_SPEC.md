@@ -208,8 +208,397 @@ Authorization: Bearer <CRON_SECRET>
 2. Delete `used_workink_tokens` older than 3 days
 3. Delete `rate_limits` older than 3 days
 4. Delete `verification_logs` older than 30 days
+5. Delete `script_downloads` older than 90 days
 
 No rate limiting is applied to this endpoint.
+
+---
+
+## CDN Endpoints
+
+All CDN endpoints live under `/api/scripts`. Write operations require `Authorization: Bearer <ADMIN_API_KEY>`. Read endpoints are public where the script visibility allows it.
+
+### Visibility Model
+
+| Value | Raw Endpoint | Directory Listing | Auth Required |
+|-------|-------------|-------------------|---------------|
+| `public` | Anyone | Listed | None |
+| `private` | Bearer only | Not listed | Write: Bearer, Read: Bearer |
+| `unlisted` | Anyone | Not listed | Write: Bearer |
+
+---
+
+### GET /api/scripts
+
+List public scripts with pagination.
+
+**Request:**
+```http
+GET /api/scripts?limit=20&offset=0
+```
+
+**Query Parameters:**
+| Parameter | Default | Max | Description |
+|-----------|---------|-----|-------------|
+| `limit` | 20 | 100 | Results per page |
+| `offset` | 0 | — | Pagination offset |
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "scripts": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "slug": "bloxatlas",
+      "name": "BloxAtlas",
+      "description": "Universal ESP and aimbot for Roblox",
+      "visibility": "public",
+      "creator_id": null,
+      "current_version_id": "660e8400-e29b-41d4-a716-446655440001",
+      "created_at": "2026-06-07T09:00:00.000Z",
+      "updated_at": "2026-06-07T09:00:00.000Z"
+    }
+  ],
+  "total": 42,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+**Note:** The `content` field is not returned. Use `/api/scripts/[slug]/raw` for script content.
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | `{ "success": true, "scripts": [...], "total": N, "limit": N, "offset": N }` | Scripts listed |
+| 400 | `{ "success": false, "message": "Limit must be a number between 1 and 100" }` | Invalid pagination |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
+| 500 | `{ "success": false, "message": "Failed to list scripts" }` | Internal server error |
+
+**Rate Limit:** 30 requests per minute per IP (`SCRIPT_LIST`).
+
+---
+
+### POST /api/scripts
+
+Upload a new script. Requires admin authentication.
+
+**Request:**
+```http
+POST /api/scripts
+Content-Type: application/json
+Authorization: Bearer <ADMIN_API_KEY>
+
+{
+  "slug": "bloxatlas",
+  "name": "BloxAtlas",
+  "description": "Universal ESP and aimbot for Roblox",
+  "visibility": "public",
+  "content": "loadstring(game:HttpGet('https://...'))()"
+}
+```
+
+| Field | Required | Type | Constraints |
+|-------|----------|------|-------------|
+| `slug` | Yes | string | 3-64 chars, lowercase alphanumeric + hyphens (`/^[a-z0-9]+(?:-[a-z0-9]+)*$/`) |
+| `name` | Yes | string | 1-100 characters |
+| `content` | Yes | string | Non-empty, max 62 KB |
+| `visibility` | No | `"public"` \| `"private"` \| `"unlisted"` | Defaults to `"private"` |
+| `description` | No | string | Any string |
+
+**Success (201):**
+```json
+{
+  "success": true,
+  "script": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "bloxatlas",
+    "name": "BloxAtlas",
+    "description": "Universal ESP and aimbot for Roblox",
+    "visibility": "public",
+    "creator_id": null,
+    "current_version_id": "660e8400-e29b-41d4-a716-446655440001",
+    "created_at": "2026-06-07T09:00:00.000Z",
+    "updated_at": "2026-06-07T09:00:00.000Z"
+  }
+}
+```
+
+A `script_versions` row (version `"1.0.0"`) is automatically created.
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 201 | `{ "success": true, "script": {...} }` | Script created |
+| 400 | `{ "success": false, "message": "..." }` | Validation error (slug, name, content, visibility) |
+| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing or invalid admin key |
+| 409 | `{ "success": false, "message": "A script with slug \"...\" already exists" }` | Slug conflict |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
+| 500 | `{ "success": false, "message": "Failed to create script" }` | Internal server error |
+
+**Rate Limit:** 30 requests per hour per IP (`SCRIPT_UPLOAD`).
+
+---
+
+### GET /api/scripts/[slug]
+
+Get script metadata. Content is not returned.
+
+**Request:**
+```http
+GET /api/scripts/bloxatlas
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "script": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "bloxatlas",
+    "name": "BloxAtlas",
+    "description": "Universal ESP and aimbot for Roblox",
+    "visibility": "public",
+    "creator_id": null,
+    "current_version_id": "660e8400-e29b-41d4-a716-446655440001",
+    "created_at": "2026-06-07T09:00:00.000Z",
+    "updated_at": "2026-06-07T09:00:00.000Z"
+  }
+}
+```
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | `{ "success": true, "script": {...} }` | Script found |
+| 400 | `{ "success": false, "message": "Invalid slug format" }` | Slug does not match format |
+| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
+| 500 | `{ "success": false, "message": "Failed to fetch script" }` | Internal server error |
+
+**Rate Limit:** 60 requests per minute per IP (`SCRIPT_GET`).
+
+---
+
+### PATCH /api/scripts/[slug]
+
+Update script metadata and/or content. Requires admin authentication.
+
+**Request:**
+```http
+PATCH /api/scripts/bloxatlas
+Content-Type: application/json
+Authorization: Bearer <ADMIN_API_KEY>
+
+{
+  "name": "BloxAtlas v2",
+  "description": "Updated description",
+  "visibility": "public",
+  "content": "loadstring(game:HttpGet('https://...'))()"
+}
+```
+
+All fields are optional. Only provided fields are updated. `slug` cannot be changed.
+
+When `content` is provided and differs from current content, a new `script_versions` row is auto-created and `current_version_id` is updated to point to the new version. Version numbers auto-increment (`1.0.0` → `1.0.1` → `1.0.2`).
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "script": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "bloxatlas",
+    "name": "BloxAtlas v2",
+    "description": "Updated description",
+    "visibility": "public",
+    "creator_id": null,
+    "current_version_id": "660e8400-e29b-41d4-a716-446655440002",
+    "created_at": "2026-06-07T09:00:00.000Z",
+    "updated_at": "2026-06-07T10:30:00.000Z"
+  }
+}
+```
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | `{ "success": true, "script": {...} }` | Script updated |
+| 400 | `{ "success": false, "message": "..." }` | Validation error |
+| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing admin key |
+| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
+| 500 | `{ "success": false, "message": "Failed to update script" }` | Internal server error |
+
+**Rate Limit:** 60 requests per hour per IP (`SCRIPT_UPDATE`).
+
+---
+
+### DELETE /api/scripts/[slug]
+
+Delete a script and all associated data. Requires admin authentication.
+
+**Request:**
+```http
+DELETE /api/scripts/bloxatlas
+Authorization: Bearer <ADMIN_API_KEY>
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Script deleted"
+}
+```
+
+Cascade deletes: all `script_versions` and `script_downloads` for this script are also removed.
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | `{ "success": true, "message": "Script deleted" }` | Script deleted |
+| 400 | `{ "success": false, "message": "Invalid slug format" }` | Slug validation failed |
+| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing admin key |
+| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist |
+| 500 | `{ "success": false, "message": "Failed to delete script" }` | Internal server error |
+
+No rate limiting is applied to DELETE operations.
+
+---
+
+### POST /api/scripts/[slug]/publish
+
+Change script visibility. Requires admin authentication.
+
+**Request:**
+```http
+POST /api/scripts/bloxatlas/publish
+Content-Type: application/json
+Authorization: Bearer <ADMIN_API_KEY>
+
+{
+  "visibility": "public"
+}
+```
+
+`visibility` must be one of: `"public"`, `"private"`, `"unlisted"`.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "script": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "bloxatlas",
+    "name": "BloxAtlas",
+    "description": "...",
+    "visibility": "public",
+    "creator_id": null,
+    "current_version_id": "660e8400-e29b-41d4-a716-446655440001",
+    "created_at": "2026-06-07T09:00:00.000Z",
+    "updated_at": "2026-06-07T10:30:00.000Z"
+  }
+}
+```
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | `{ "success": true, "script": {...} }` | Visibility updated |
+| 400 | `{ "success": false, "message": "Invalid visibility. Must be public, private, or unlisted" }` | Invalid visibility |
+| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing admin key |
+| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
+| 500 | `{ "success": false, "message": "Failed to update visibility" }` | Internal server error |
+
+**Rate Limit:** 60 requests per hour per IP (`SCRIPT_UPDATE`).
+
+---
+
+### GET /api/scripts/[slug]/raw
+
+Get raw script content. Returns `text/plain` (not JSON).
+
+**Request:**
+```http
+GET /api/scripts/bloxatlas/raw
+```
+
+**Success (200):**
+```
+Content-Type: text/plain; charset=utf-8
+Cache-Control: public, max-age=300, s-maxage=3600
+
+loadstring(game:HttpGet('https://...'))()
+```
+
+**Cache Headers:**
+- `max-age=300` — browsers cache for 5 minutes
+- `s-maxage=3600` — shared caches (CDN) cache for 1 hour
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | Raw script content (`text/plain`) | Content delivered |
+| 400 | `{ "success": false, "message": "Invalid slug format" }` | Slug validation failed |
+| 403 | `{ "success": false, "message": "This script is private" }` | Private script without auth |
+| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist or no published version |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
+| 500 | `{ "success": false, "message": "Failed to fetch script content" }` | Internal server error |
+
+**Error responses return JSON** (not text/plain). This ensures clients that expect JSON error objects work correctly.
+
+**Private Scripts:** When `visibility = "private"`, the raw endpoint returns 403 unless the request includes `Authorization: Bearer <ADMIN_API_KEY>`.
+
+**Rate Limit:** 100 requests per minute per IP (`SCRIPT_RAW`).
+
+---
+
+### GET /api/scripts/[slug]/stats
+
+Get download analytics for a script.
+
+**Request:**
+```http
+GET /api/scripts/bloxatlas/stats
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "stats": {
+    "slug": "bloxatlas",
+    "total_downloads": 1523,
+    "unique_ips": 847,
+    "downloads_today": 42,
+    "downloads_this_week": 0,
+    "last_downloaded_at": "2026-06-07T18:30:00.000Z"
+  }
+}
+```
+
+**Stats Fields:**
+| Field | Description |
+|-------|-------------|
+| `total_downloads` | All-time download count |
+| `unique_ips` | Unique hashed IP addresses |
+| `downloads_today` | Downloads since midnight UTC |
+| `downloads_this_week` | Downloads this calendar week |
+| `last_downloaded_at` | Timestamp of most recent download |
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | `{ "success": true, "stats": {...} }` | Stats returned |
+| 400 | `{ "success": false, "message": "Invalid slug format" }` | Slug validation failed |
+| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
+| 500 | `{ "success": false, "message": "Failed to fetch stats" }` | Internal server error |
+
+**Rate Limit:** 30 requests per minute per IP (`SCRIPT_STATS`).
 
 ---
 
@@ -239,6 +628,14 @@ Keys expire 24 hours after generation.
 | `POST /api/verify-workink` | 1 minute | 10 requests | Per IP |
 | `POST /api/generate-key` | 24 hours | 5 keys | Per IP |
 | `POST /api/cleanup` | — | Unlimited | Bearer auth |
+| `GET /api/scripts` | 1 minute | 30 requests | Per IP |
+| `POST /api/scripts` | 1 hour | 30 requests | Per IP + Bearer auth |
+| `GET /api/scripts/[slug]` | 1 minute | 60 requests | Per IP |
+| `PATCH /api/scripts/[slug]` | 1 hour | 60 requests | Per IP + Bearer auth |
+| `DELETE /api/scripts/[slug]` | — | Unlimited | Bearer auth |
+| `POST /api/scripts/[slug]/publish` | 1 hour | 60 requests | Per IP + Bearer auth |
+| `GET /api/scripts/[slug]/raw` | 1 minute | 100 requests | Per IP |
+| `GET /api/scripts/[slug]/stats` | 1 minute | 30 requests | Per IP |
 
 Rate-limited responses (HTTP 429) include a `Retry-After` header with the number of seconds until the window resets.
 
