@@ -1,0 +1,540 @@
+# LuxyHub — Incident Response Plan
+
+Last updated: 2026-06-07
+
+---
+
+## 1. Severity Classification
+
+| Level | Name | Description | Response SLA |
+|-------|------|-------------|-------------|
+| **P0** | Critical | Service completely unavailable. All users affected. Revenue loss. | 15 min detection → 1 hour resolution |
+| **P1** | High | Core API degraded. Key validation failing. Major feature broken. | 30 min detection → 4 hour resolution |
+| **P2** | Medium | Single endpoint degraded. Non-critical feature broken. Partial impact. | 2 hour detection → 24 hour resolution |
+| **P3** | Low | Minor bug. Cosmetic issue. No user impact. | Next business day |
+
+### P0 Triggers
+- `/api/health` returns non-200 for > 3 consecutive checks
+- Website `www.luxyhub.space` returns 5xx for all requests
+- Supabase database unreachable
+- Work.ink API completely down preventing all key generation
+
+### P1 Triggers
+- `/api/validate` returns 500 for > 5% of requests
+- `/api/generate-key` returns 500 for all requests
+- Rate limiter fail-closed (all requests 429)
+- Key validation success rate drops below 90%
+
+### P2 Triggers
+- Single API endpoint returns elevated error rate
+- Rate limiting too aggressive for specific IPs
+- Cleanup cron job fails repeatedly
+- Dashboard partially degraded
+
+---
+
+## 2. Escalation Path
+
+```
+Detection (Monitoring / User Report)
+    │
+    ▼
+On-Call Responder — Initial triage (15 min)
+    │
+    ▼
+Assess Severity — Apply classification
+    │
+    ├── P2/P3 → Fix during business hours
+    │
+    ▼ P0/P1
+Incident Lead — Escalate and coordinate
+    │
+    ▼
+Execute Response Playbook — Contain → Mitigate → Resolve
+    │
+    ▼
+Communication — Update status page / Discord
+    │
+    ▼
+Post-Incident Review — Within 48 hours
+```
+
+---
+
+## 3. Response Playbooks
+
+### 3.1 P0 — API Outage (validate returns 500)
+
+**Symptom:** `/api/validate` returns HTTP 500 for all requests.
+
+**Root Causes (in order of likelihood):**
+1. Supabase database unreachable
+2. `SUPABASE_SERVICE_ROLE_KEY` expired or invalid
+3. Vercel function crash due to unhandled exception
+4. Network partition between Vercel and Supabase
+
+**Response Steps:**
+
+```bash
+# Step 1: Check Vercel status
+curl -s https://www.vercel-status.com
+
+# Step 2: Check Supabase status
+curl -s https://status.supabase.com
+
+# Step 3: Check health endpoint
+curl -s https://luxyhub.vercel.app/api/health
+# If 200: Vercel functions running, issue is Supabase
+# If 500: Vercel function issue
+
+# Step 4: Check Vercel function logs
+# Vercel Dashboard → Deployments → Production → Functions → Logs
+# Look for: "Supabase", "connection", "timeout", "service_role"
+
+# Step 5: Check Supabase database connectivity
+# Supabase Dashboard → Database → Settings → Connection status
+
+# Step 6: If SUPABASE_SERVICE_ROLE_KEY suspected:
+# Supabase Dashboard → Project Settings → API → service_role key
+# Verify key in Vercel → Settings → Environment Variables
+
+# Step 7: Roll back if recent deploy caused issue
+# Vercel Dashboard → Deployments → [previous working deploy] → Promote to Production
+```
+
+**Containment:**
+- If Supabase outage: no containment possible (external dependency)
+- If Vercel function issue: rollback to last known good deployment
+- If service_role key expired: rotate key immediately
+
+**Resolution:**
+- Supabase: automatic when Supabase recovers
+- Vercel: rollback + investigate root cause post-incident
+- Key expiry: rotate key, update env vars, redeploy
+
+### 3.2 P1 — Supabase Database Outage
+
+**Symptom:** All API endpoints return HTTP 500. Health endpoint may return 200.
+
+**Response Steps:**
+1. Verify outage at `https://status.supabase.com/`
+2. Check Supabase Dashboard → Database → Status
+3. All API requests will fail — rate limiter is fail-closed
+
+**Containment:**
+- No application-level containment possible
+- Database operations blocked until Supabase recovers
+
+**Resolution:**
+- Automatic when Supabase comes back online
+- Verify all tables and indexes intact after recovery
+- Run cleanup endpoint to clear stale rate limit records
+
+### 3.3 P1 — Vercel Deployment Failure
+
+**Symptom:** New deploy causes errors. Website or API returns 5xx.
+
+**Response Steps:**
+```bash
+# Immediate rollback
+# Vercel Dashboard → Deployments → [previous green deploy] → Promote to Production
+
+# After rollback, check:
+curl -s https://luxyhub.vercel.app/api/health
+curl -s -X POST https://luxyhub.vercel.app/api/validate \
+  -H "Content-Type: application/json" \
+  -d '{"key":"LUXY-ABCD-EFGH-IJKL"}'
+```
+
+**Containment:**
+- Rollback to last known good deployment immediately
+- Disable automatic deployments temporarily if needed
+
+**Resolution:**
+- Investigate failed deploy in Vercel build logs
+- Fix root cause before re-enabling auto-deploy
+
+### 3.4 P2 — Rate Limiter Fail-Closed
+
+**Symptom:** All API requests return HTTP 429 even for legitimate users.
+
+**Response Steps:**
+```bash
+# Step 1: Verify rate limiter is truly fail-closed
+for i in $(seq 1 5); do
+  curl -s -w "\n" -X POST https://luxyhub.vercel.app/api/validate \
+    -H "Content-Type: application/json" \
+    -d '{"key":"LUXY-ABCD-EFGH-IJKL"}'
+done
+# If all return 429: fail-closed confirmed
+
+# Step 2: Check rate_limits table size
+# Supabase Dashboard → SQL Editor:
+SELECT COUNT(*) FROM rate_limits;
+# If > 100,000 rows: cleanup cron not running
+
+# Step 3: Run manual cleanup
+curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
+  -H "Authorization: Bearer $CRON_SECRET"
+
+# Step 4: If table is severely bloated, manual truncation:
+# Supabase SQL Editor:
+DELETE FROM rate_limits WHERE created_at < NOW() - INTERVAL '1 hour';
+```
+
+**Containment:**
+- Run cleanup endpoint immediately
+- Manually delete recent rate limit records if necessary
+- Investigate why cron didn't run
+
+**Resolution:**
+- Fix cron job scheduling
+- Reduce rate limit TTL temporarily if abuse not a concern
+- Monitor table size for 24 hours
+
+### 3.5 P2 — Work.ink Integration Failure
+
+**Symptom:** `/api/generate-key` and `/api/verify-workink` return HTTP 403 or 500.
+
+**Impact:** Users cannot generate new keys. Existing keys continue working.
+
+**Response Steps:**
+```bash
+# Step 1: Verify Work.ink reachable
+curl -s -I https://work.ink/api/verify
+
+# Step 2: Check verification_logs for Work.ink errors
+# Supabase SQL Editor:
+SELECT * FROM verification_logs
+WHERE event LIKE '%WORKINK%'
+ORDER BY created_at DESC
+LIMIT 20;
+
+# Step 3: Test Work.ink flow directly
+curl -s -X POST https://luxyhub.vercel.app/api/verify-workink \
+  -H "Content-Type: application/json" \
+  -d '{"token":"test"}'
+```
+
+**Containment:**
+- `/api/validate` still works — existing users unaffected
+- Post notice to Discord/status: "Key generation temporarily unavailable"
+- Do NOT disable Work.ink requirement — maintain security
+
+**Resolution:**
+- Work.ink has no public status page
+- Automatic recovery when Work.ink resolves their issue
+- If outage > 4 hours, consider emergency bypass (HIGH RISK — requires security review)
+
+### 3.6 P1 — Mass Key Leak / Security Incident
+
+**Symptom:** Keys circulating publicly, unusual validation patterns, suspicious activity.
+
+**Response Steps:**
+```bash
+# Step 1: Deactivate all active keys immediately
+# Supabase SQL Editor:
+UPDATE keys SET is_active = false WHERE is_active = true;
+
+# Step 2: Run cleanup endpoint
+curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
+  -H "Authorization: Bearer $CRON_SECRET"
+
+# Step 3: Investigate source
+SELECT * FROM used_workink_tokens ORDER BY used_at DESC LIMIT 50;
+SELECT * FROM verification_logs
+WHERE event = 'GENERATE_KEY_SUCCESS'
+ORDER BY created_at DESC
+LIMIT 50;
+
+# Step 4: Check rate_limits for abuse patterns
+SELECT ip, COUNT(*) as count
+FROM rate_limits
+WHERE created_at > NOW() - INTERVAL '1 hour'
+GROUP BY ip
+HAVING COUNT(*) > 100
+ORDER BY count DESC;
+```
+
+**Containment:**
+- Mass deactivate all keys
+- Block abusive IPs in Cloudflare WAF if identifiable
+- Increase rate limits temporarily
+
+**Resolution:**
+- All users must re-generate keys through Work.ink
+- Patch any identified abuse vector before re-enabling
+- Post-incident review required
+
+### 3.7 P2 — Cleanup Cron Job Failure
+
+**Symptom:** Database tables growing without bound. Rate limit table > 100k rows.
+
+**Response Steps:**
+```bash
+# Step 1: Verify cron configuration
+# Vercel Dashboard → Settings → Cron Jobs
+
+# Step 2: Test cron endpoint manually
+curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
+  -H "Authorization: Bearer $CRON_SECRET"
+
+# Step 3: Check CRON_SECRET is configured
+# Vercel Dashboard → Settings → Environment Variables
+
+# Step 4: If cron not configured, set up immediately
+# See DEPLOYMENT_CHECKLIST.md Section 6.4
+```
+
+**Containment:**
+- Run manual cleanup
+- Set up cron if missing
+
+**Resolution:**
+- Configure Vercel cron job
+- Set up monitoring alert when rate_limits table exceeds threshold
+
+---
+
+## 4. Communication Templates
+
+### 4.1 Discord/Social — P0 Service Outage
+
+```
+🚨 LuxyHub is experiencing a service outage.
+
+Affected: Key validation and script delivery
+Status: Investigating
+ETA: We'll provide updates here
+
+Our team is working to restore service. Thank you for your patience.
+```
+
+### 4.2 Discord/Social — P1 Degraded Service
+
+```
+⚠️ LuxyHub is experiencing degraded service.
+
+Affected: Key generation temporarily unavailable
+Status: Existing keys continue to work
+
+We're investigating and will update shortly.
+```
+
+### 4.3 Discord/Social — Incident Resolved
+
+```
+✅ LuxyHub service has been restored.
+
+All systems operational. Thank you for your patience during this incident.
+
+If you experience any issues, please contact support.
+```
+
+---
+
+## 5. Post-Incident Review
+
+Conduct within 48 hours of incident resolution. Document in `INCIDENT_REPORTS/`.
+
+### Review Template
+
+```markdown
+# Incident Report — [YYYY-MM-DD]
+
+## Summary
+[One-line description]
+
+## Timeline
+[UTC times for each event]
+- HH:MM — Detection (how detected)
+- HH:MM — Response started
+- HH:MM — Root cause identified
+- HH:MM — Resolution applied
+- HH:MM — Service restored
+- Total downtime: [X] minutes
+
+## Root Cause
+[Detailed technical explanation]
+
+## Impact
+- Users affected: [N]
+- Keys invalidated: [N]
+- Revenue impact: [if any]
+
+## Resolution
+[Steps taken to resolve]
+
+## Prevention
+[Changes to prevent recurrence]
+- [ ] Action item 1
+- [ ] Action item 2
+
+## Lessons Learned
+[What went well, what could improve]
+```
+
+---
+
+## 6. Monitoring & Alerting
+
+### 6.1 Alerts Configured
+
+| Alert | Source | Threshold | Destination |
+|-------|--------|-----------|-------------|
+| API Health Check Fail | Better Stack / Uptime Kuma | 2 failures in 5 min | Discord / Email |
+| Website Down | Better Stack / Uptime Kuma | 2 failures in 5 min | Discord / Email |
+| Validate API Error Rate | Better Stack | > 5% in 5 min | Discord / Email |
+| Supabase DB Status | Supabase Dashboard | Connection failure | Email |
+| SSL Certificate Expiry | Cloudflare | < 30 days | Email |
+| Vercel Deploy Failure | Vercel | On failure | Email |
+
+### 6.2 Health Check Endpoints
+
+```bash
+# Primary health check
+curl https://luxyhub.vercel.app/api/health
+# Expected: {"status":"ok","timestamp":"..."}
+
+# Validate API functional check
+curl -s -X POST https://luxyhub.vercel.app/api/validate \
+  -H "Content-Type: application/json" \
+  -d '{"key":"LUXY-HEALTH-CHECK-KEY-RESERVED"}'
+# Expected: HTTP 403 (not 500 — 500 means DB issue)
+
+# Supabase connectivity (indirect)
+# If validate returns proper JSON (not 500, not connection error), DB is connected
+```
+
+### 6.3 Alert Escalation
+
+| Alert | First Responder | Escalate After |
+|-------|----------------|----------------|
+| P0 — Service Down | On-Call | 15 minutes |
+| P1 — Core Degraded | On-Call | 1 hour |
+| P2 — Partial Degraded | On-Call | 4 hours |
+| P3 — Minor | Next business day | N/A |
+
+---
+
+## 7. Recovery Runbooks
+
+### 7.1 Database Restore
+
+```bash
+# Supabase Dashboard → Database → Backups
+# 1. Select restore point
+# 2. Initiate restore (creates new database)
+# 3. Verify tables:
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public';
+# Expected: keys, used_workink_tokens, rate_limits, verification_logs, key_usage
+
+# 4. Re-apply RLS (backups may not include policies):
+# Run migrations/001_enable_rls.sql in SQL Editor
+```
+
+### 7.2 Environment Variable Recovery
+
+1. Retrieve from secure password manager
+2. Set in Vercel Dashboard → Settings → Environment Variables
+3. Redeploy application
+4. Verify: `curl https://luxyhub.vercel.app/api/health`
+
+### 7.3 CRON_SECRET Rotation
+
+```bash
+# 1. Generate new secret
+openssl rand -hex 32
+
+# 2. Update Vercel env var:
+# Vercel Dashboard → Settings → Environment Variables → CRON_SECRET
+
+# 3. Update cron job config:
+# Vercel Dashboard → Settings → Cron Jobs
+
+# 4. Redeploy
+
+# 5. Verify old secret rejected:
+curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
+  -H "Authorization: Bearer <old-secret>"
+# Expected: HTTP 401
+
+# 6. Verify new secret accepted:
+curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
+  -H "Authorization: Bearer <new-secret>"
+# Expected: HTTP 200
+```
+
+### 7.4 SUPABASE_SERVICE_ROLE_KEY Rotation
+
+1. Supabase Dashboard → Project Settings → API
+2. Generate new service_role JWT
+3. Update `SUPABASE_SERVICE_ROLE_KEY` in Vercel env vars
+4. Redeploy immediately
+5. Verify: `curl https://luxyhub.vercel.app/api/health`
+
+---
+
+## 8. Key Contacts & Resources
+
+### Infrastructure
+| Service | Status Page | Dashboard |
+|---------|------------|-----------|
+| Vercel | `https://www.vercel-status.com` | `https://vercel.com/dashboard` |
+| Supabase | `https://status.supabase.com` | `https://supabase.com/dashboard` |
+| Cloudflare | `https://www.cloudflarestatus.com` | `https://dash.cloudflare.com` |
+
+### Project Resources
+| Resource | Location |
+|----------|----------|
+| Source Code | `github.com/erastushs/luxy-hub` |
+| Deployment Checklist | `DEPLOYMENT_CHECKLIST.md` |
+| Backup Strategy | `BACKUP_STRATEGY.md` |
+| API Documentation | `API_SPEC.md` |
+| Integration Docs | `API_INTEGRATION.md` |
+| Database Schema | `schema.sql` |
+| RLS Migration | `migrations/001_enable_rls.sql` |
+
+---
+
+## 9. Emergency Procedures Checklist
+
+For P0/P1 incidents, follow this checklist in order:
+
+- [ ] **Detect & Confirm** — Verify incident via health endpoint and manual test
+- [ ] **Classify Severity** — P0, P1, P2, P3 per Section 1 definitions
+- [ ] **Notify** — Post to Discord/status if user-facing
+- [ ] **Contain** — Rollback, deactivate, or isolate as needed
+- [ ] **Identify Root Cause** — Check logs, dashboards, dependencies
+- [ ] **Resolve** — Apply fix per response playbook
+- [ ] **Verify** — Run operational verification (DEPLOYMENT_CHECKLIST.md Section 8)
+- [ ] **Communicate Resolution** — Post resolution notice
+- [ ] **Document** — Write incident report within 48 hours
+
+---
+
+## 10. Testing Incidents
+
+### 10.1 Quarterly Fire Drills
+
+Test these scenarios quarterly:
+
+1. **Simulated Supabase outage** — Verify application behavior
+2. **Simulated Work.ink outage** — Verify key validation unaffected
+3. **Rate limiter fail-closed test** — Verify cleanup restores service
+4. **CRON_SECRET rotation test** — Verify rotation procedure works
+5. **Database restore test** — Verify backup integrity and RLS re-application
+
+### 10.2 Test Commands
+
+```bash
+# Simulate rate limiter stress
+for i in $(seq 1 100); do
+  curl -s -X POST https://luxyhub.vercel.app/api/validate \
+    -H "Content-Type: application/json" \
+    -d '{"key":"LUXY-TEST-ONLY-XXXX"}' &
+done
+wait
+# Verify cleanup resets counters
+```
