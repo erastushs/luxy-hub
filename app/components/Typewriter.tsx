@@ -11,12 +11,8 @@ export default function Typewriter() {
   const msgIdxRef = useRef(0)
   const charIdxRef = useRef(0)
   const deletingRef = useRef(false)
-  const mountedRef = useRef(false)
 
   useEffect(() => {
-    if (mountedRef.current) return
-    mountedRef.current = true
-
     function tick() {
       const msg = messages[msgIdxRef.current]
 

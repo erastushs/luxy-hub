@@ -125,7 +125,7 @@ export default async function VerifyTokenPage({
 
   return (
     <>
-      <Navbar />
+      <Navbar keyPage />
       <main className="min-h-screen bg-zinc-950 px-4 py-24">
         <div className="mx-auto max-w-xl">
           <div className="text-center">

@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { games } from '../data/games'
 import { useState } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import GameModal from './GameModal'
 
 export default function FeaturedGames() {
@@ -70,7 +71,9 @@ hover:shadow-[0_0_35px_rgba(239,68,68,0.18)]
           </div>
         ))}
       </div>
-      {selectedGame && <GameModal game={selectedGame} onClose={() => setSelectedGame(null)} />}
+      <AnimatePresence>
+        {selectedGame && <GameModal game={selectedGame} onClose={() => setSelectedGame(null)} />}
+      </AnimatePresence>
     </section>
   )
 }
