@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, supabase } from '@/app/lib/supabase'
+import { supabaseAdmin } from '@/app/lib/supabase'
 
 export async function POST(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
@@ -21,10 +21,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const admin = supabaseAdmin || supabase
     const now = new Date().toISOString()
 
-    const { error: keysError } = await admin
+    const { error: keysError } = await supabaseAdmin
       .from('keys')
       .update({ is_active: false })
       .lt('expires_at', now)
@@ -38,7 +37,7 @@ export async function POST(req: NextRequest) {
       Date.now() - 3 * 24 * 60 * 60 * 1000
     ).toISOString()
 
-    const { error: tokensError } = await admin
+    const { error: tokensError } = await supabaseAdmin
       .from('used_workink_tokens')
       .delete()
       .lt('used_at', threeDaysAgo)
@@ -48,7 +47,7 @@ export async function POST(req: NextRequest) {
       console.error('Cleanup tokens error')
     }
 
-    const { error: rateLimitError } = await admin
+    const { error: rateLimitError } = await supabaseAdmin
       .from('rate_limits')
       .delete()
       .lt('created_at', threeDaysAgo)
@@ -62,7 +61,7 @@ export async function POST(req: NextRequest) {
       Date.now() - 30 * 24 * 60 * 60 * 1000
     ).toISOString()
 
-    const { error: logsError } = await admin
+    const { error: logsError } = await supabaseAdmin
       .from('verification_logs')
       .delete()
       .lt('created_at', thirtyDaysAgo)

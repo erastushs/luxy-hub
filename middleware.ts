@@ -8,7 +8,7 @@ export function middleware(request: NextRequest) {
 
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-eval' https://*.vercel-insights.com https://*.vercel-analytics.com",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.vercel-insights.com https://*.vercel-analytics.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https: blob: http:",
     "connect-src 'self' https://*.supabase.co https://*.vercel-analytics.com https://*.vercel-insights.com",

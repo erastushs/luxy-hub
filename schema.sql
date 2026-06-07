@@ -1,5 +1,8 @@
 -- LuxyHub Key System - Database Schema
 -- Run this in Supabase SQL Editor
+--
+-- After running this, apply migrations/001_enable_rls.sql
+-- to enable Row Level Security.
 
 -- Core key storage
 CREATE TABLE IF NOT EXISTS keys (

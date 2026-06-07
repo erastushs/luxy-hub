@@ -1,4 +1,4 @@
-import { supabase } from '@/app/lib/supabase'
+import { supabaseAdmin } from '@/app/lib/supabase'
 
 const WINDOW_MS: Record<string, number> = {
   VERIFY_WORKINK: 60_000,
@@ -38,7 +38,7 @@ export async function checkRateLimit(ip: string, limitKey: LimitKey) {
   const now = new Date()
   const windowStart = new Date(now.getTime() - windowMs)
 
-  const { data: recentRequests, error } = await supabase
+  const { data: recentRequests, error } = await supabaseAdmin
     .from('rate_limits')
     .select('id')
     .eq('ip', ip)
@@ -55,7 +55,7 @@ export async function checkRateLimit(ip: string, limitKey: LimitKey) {
     return { allowed: false, retryAfter: Math.ceil(windowMs / 1000) }
   }
 
-  await supabase.from('rate_limits').insert({
+  await supabaseAdmin.from('rate_limits').insert({
     ip,
     endpoint: limitKey,
     created_at: now.toISOString(),

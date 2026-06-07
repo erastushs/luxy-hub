@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabaseAdmin } from './supabase'
 
 type LogEvent =
   | 'VERIFY_WORKINK_FAILED'
@@ -25,7 +25,7 @@ export async function logEvent(data: LogData) {
   }
 
   try {
-    supabase
+    supabaseAdmin
       .from('verification_logs')
       .insert({
         event: data.event,

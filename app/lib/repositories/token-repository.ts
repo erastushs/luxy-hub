@@ -1,7 +1,7 @@
-import { supabase } from '@/app/lib/supabase'
+import { supabaseAdmin } from '@/app/lib/supabase'
 
 export async function findToken(token: string) {
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from('used_workink_tokens')
     .select('token')
     .eq('token', token)
@@ -13,7 +13,7 @@ export async function findToken(token: string) {
 export async function insertToken(token: string) {
   const now = new Date().toISOString()
 
-  const { data: existing } = await supabase
+  const { data: existing } = await supabaseAdmin
     .from('used_workink_tokens')
     .select('token')
     .eq('token', token)
@@ -21,7 +21,7 @@ export async function insertToken(token: string) {
 
   if (existing) return false
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('used_workink_tokens')
     .insert({ token, used_at: now })
 

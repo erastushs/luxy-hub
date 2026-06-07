@@ -1,7 +1,7 @@
-import { supabase } from '@/app/lib/supabase'
+import { supabaseAdmin } from '@/app/lib/supabase'
 
 export async function findKey(key: string) {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('keys')
     .select('id, key, is_active, expires_at, created_at')
     .eq('key', key)
@@ -12,7 +12,7 @@ export async function findKey(key: string) {
 }
 
 export async function insertKey(key: string, expiresAt: string) {
-  const { error } = await supabase.from('keys').insert({
+  const { error } = await supabaseAdmin.from('keys').insert({
     key,
     expires_at: expiresAt,
   })
@@ -26,7 +26,7 @@ export async function insertKey(key: string, expiresAt: string) {
 
 export async function deactivateExpiredKeys() {
   const now = new Date().toISOString()
-  return supabase
+  return supabaseAdmin
     .from('keys')
     .update({ is_active: false })
     .lt('expires_at', now)
