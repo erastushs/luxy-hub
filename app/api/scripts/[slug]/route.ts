@@ -108,8 +108,25 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const clientIP = getClientIP(req)
+
   try {
     const actor = await requireAuth()
+    const rateLimit = await checkRateLimit(clientIP, 'SCRIPT_DELETE')
+
+    if (!rateLimit.allowed) {
+      await logEvent({
+        event: 'RATE_LIMITED',
+        ip: clientIP,
+        message: 'script delete rate limit exceeded',
+      })
+
+      return NextResponse.json(
+        { success: false, message: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+      )
+    }
+
     const { slug } = await params
     const result = await deleteScript(slug, actor.id, actor.role)
 
