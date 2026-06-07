@@ -297,7 +297,7 @@ export async function getRawContent(
       return { success: false, message: 'Script content not found', status: 404 }
     }
 
-    trackDownloadAsync(script.id, version.id, '')
+    trackDownloadAsync(script.id, version.id, '0.0.0.0')
 
     return { success: true, content: version.content }
   } catch {
