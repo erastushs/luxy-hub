@@ -53,3 +53,73 @@ CREATE TABLE IF NOT EXISTS key_usage (
   key text NOT NULL,
   used_at timestamp with time zone DEFAULT now()
 );
+
+-- ============================================================================
+-- LuxyHub CDN — Phase 2
+-- Apply migrations/002_cdn_tables.sql after running this section
+-- ============================================================================
+
+-- Script metadata and ownership
+CREATE TABLE IF NOT EXISTS scripts (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  slug text NOT NULL UNIQUE,
+  name text NOT NULL,
+  description text DEFAULT '',
+  visibility text NOT NULL DEFAULT 'private'
+    CHECK (visibility IN ('public', 'private', 'unlisted')),
+  creator_id uuid,
+  current_version_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_scripts_slug
+  ON scripts (slug);
+
+CREATE INDEX IF NOT EXISTS idx_scripts_visibility
+  ON scripts (visibility);
+
+CREATE INDEX IF NOT EXISTS idx_scripts_creator_id
+  ON scripts (creator_id);
+
+-- Immutable version history
+CREATE TABLE IF NOT EXISTS script_versions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  script_id uuid NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
+  version text NOT NULL,
+  content text NOT NULL,
+  changelog text,
+  created_at timestamp with time zone DEFAULT now(),
+  UNIQUE(script_id, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_script_versions_script_id
+  ON script_versions (script_id);
+
+CREATE INDEX IF NOT EXISTS idx_script_versions_script_version
+  ON script_versions (script_id, version);
+
+-- current_version_id FK added after script_versions table exists
+ALTER TABLE scripts
+  ADD CONSTRAINT IF NOT EXISTS fk_scripts_current_version
+  FOREIGN KEY (current_version_id) REFERENCES script_versions(id)
+  ON DELETE SET NULL;
+
+-- Analytics with hashed PII identifiers
+CREATE TABLE IF NOT EXISTS script_downloads (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  script_id uuid NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
+  version_id uuid REFERENCES script_versions(id) ON DELETE SET NULL,
+  ip_hash text NOT NULL,
+  user_agent_hash text,
+  created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_script_downloads_script_id
+  ON script_downloads (script_id);
+
+CREATE INDEX IF NOT EXISTS idx_script_downloads_created_at
+  ON script_downloads (created_at);
+
+CREATE INDEX IF NOT EXISTS idx_script_downloads_script_time
+  ON script_downloads (script_id, created_at);

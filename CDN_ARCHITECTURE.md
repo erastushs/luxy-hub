@@ -1,14 +1,21 @@
 # LuxyHub CDN — Architecture Review
 
 Date: 2026-06-07
-Status: Pre-Implementation Review
-Phase: 1.5
+Status: Phase 2A — Database Foundation (IN PROGRESS)
+Phase: 1.5 (Complete) → 2A (IN PROGRESS)
 
 ---
 
 ## 1. Executive Summary
 
-This document defines the complete architecture for the LuxyHub CDN MVP (Phase 2) before any code is written. Every design decision is derived from an audit of the existing codebase and must preserve all existing functionality.
+This document defines the complete architecture for the LuxyHub CDN MVP (Phase 2). Every design decision is derived from an audit of the existing codebase and must preserve all existing functionality.
+
+### Revision History
+
+| Date | Change | Reason |
+|------|--------|--------|
+| 2026-06-07 v1 | Initial architecture | Phase 1.5 review |
+| 2026-06-07 v2 | `visibility TEXT` replaces `is_published BOOLEAN`; add `creator_id`, `current_version_id`; hash IP/UA for PII protection | Phase 3 readiness, Vault/Marketplace compatibility |
 
 ### Non-Negotiables
 
@@ -32,66 +39,106 @@ This document defines the complete architecture for the LuxyHub CDN MVP (Phase 2
 | Supabase Storage | Large files, CDN, signed URLs | New infra, new SDK usage, bucket RLS config | Future (Phase 3+) |
 | Cloudflare R2 | Edge performance, CDN, cheap | New external dependency, API complexity | Future (Phase 5+) |
 
-**Rationale:** Roblox Lua scripts are small text files (rarely exceed 100KB). PostgreSQL's `text` type handles up to ~1GB per field. Inline storage keeps the MVP simple with zero new infrastructure. The middleware already enforces a 64KB body limit on POST routes, which aligns with expected script sizes. Migration to Supabase Storage or R2 is trivial in future phases — content is already structured with version history.
-
-### Body Size Considerations
-
-| Layer | Limit | Enforcement |
-|-------|-------|-------------|
-| Middleware | 64 KB (`content-length` check) | Pre-route — HTTP 413 |
-| PostgreSQL `text` | ~1 GB theoretical | Database constraint |
-| Practical max | 64 KB (limited by middleware) | Sufficient for Lua scripts |
+**Rationale:** Roblox Lua scripts are small text files (rarely exceed 100KB). PostgreSQL's `text` type handles up to ~1GB per field. Inline storage keeps the MVP simple with zero new infrastructure. The middleware already enforces a 64KB body limit on POST routes, which aligns with expected script sizes.
 
 ---
 
-## 3. Database Schema
+## 3. Database Schema (FINAL)
 
-### 3.1 Table: `scripts`
+### 3.1 Entity Relationship Diagram
 
-Core script metadata and content. Inline storage.
+```
+┌──────────────────────┐
+│       scripts        │
+│──────────────────────│
+│ id                PK │──┐
+│ slug            UNIQ │  │        ┌──────────────────────────┐
+│ name                 │  │        │    script_versions       │
+│ description          │  │        │──────────────────────────│
+│ visibility    CHECK  │  │    ┌──│ script_id      FK ────────│──┐
+│  ('public',          │  │    │  │ version             UNIQ(per│  │
+│   'private',         │  │    │  │ content                  script)
+│   'unlisted')        │  │    │  │ changelog                │  │
+│ creator_id     NULL  │  │    │  │ created_at               │  │
+│ current_version_id ──│──┼────│──│──────────────────────────│  │
+│ created_at           │  │    │                              │  │
+│ updated_at           │  │    │                              │  │
+└──────────────────────┘  │    └──────────────────────────────┘  │
+        │                 │                                       │
+        │                 │    ┌──────────────────────────┐       │
+        │                 │    │    script_downloads      │       │
+        │                 │    │──────────────────────────│       │
+        └─────────────────│────│ script_id      FK ───────│───────┘
+                          │    │ version_id     FK ───────│───────(nullable)
+                          │    │ ip_hash                  │
+                          │    │ user_agent_hash          │
+                          │    │ created_at               │
+                          │    └──────────────────────────┘
+                          │
+                          ▼
+                   ON DELETE CASCADE:     ON DELETE SET NULL:
+                   scripts → versions     downloads → versions
+                   scripts → downloads    scripts → versions (current_version_id)
+```
+
+### 3.2 Table: `scripts`
+
+Core script metadata. Ownership and version tracking built in from day one.
 
 ```sql
 CREATE TABLE IF NOT EXISTS scripts (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  name text NOT NULL,
   slug text NOT NULL UNIQUE,
+  name text NOT NULL,
   description text DEFAULT '',
-  content text NOT NULL,
-  visibility text NOT NULL DEFAULT 'public'
-    CHECK (visibility IN ('public', 'private')),
-  is_published boolean DEFAULT false,
+  visibility text NOT NULL DEFAULT 'private'
+    CHECK (visibility IN ('public', 'private', 'unlisted')),
+  creator_id uuid,
+  current_version_id uuid,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_scripts_slug
-  ON scripts (slug);
-
-CREATE INDEX IF NOT EXISTS idx_scripts_visibility_published
-  ON scripts (visibility, is_published);
+CREATE INDEX IF NOT EXISTS idx_scripts_slug ON scripts (slug);
+CREATE INDEX IF NOT EXISTS idx_scripts_visibility ON scripts (visibility);
+CREATE INDEX IF NOT EXISTS idx_scripts_creator_id ON scripts (creator_id);
 ```
 
 | Column | Type | Constraint | Purpose |
 |--------|------|-----------|---------|
 | `id` | `uuid` | PK, `gen_random_uuid()` | Internal identifier |
-| `name` | `text` | NOT NULL | Human-readable display name |
 | `slug` | `text` | NOT NULL, UNIQUE | URL-safe identifier (e.g. `bloxatlas`) |
+| `name` | `text` | NOT NULL | Human-readable display name |
 | `description` | `text` | DEFAULT `''` | Short description for script directory |
-| `content` | `text` | NOT NULL | Raw script content (Lua source) |
-| `visibility` | `text` | NOT NULL, `'public'` or `'private'` | Access control — public or private |
-| `is_published` | `boolean` | DEFAULT `false` | Published scripts appear in directory |
+| `visibility` | `text` | NOT NULL, CHECK | Access model — `public`, `private`, or `unlisted` |
+| `creator_id` | `uuid` | nullable | Foreign key to future `users` table (Phase 3). NULL = unclaimed/legacy scripts |
+| `current_version_id` | `uuid` | nullable | FK to `script_versions(id)`. Points to the currently active version. NULL until first version is created. Will be SET NULL on version delete. |
 | `created_at` | `timestamptz` | DEFAULT `now()` | Creation timestamp |
 | `updated_at` | `timestamptz` | DEFAULT `now()` | Last update timestamp |
 
-**Design Notes:**
-- `slug` is the public-facing identity — used in URLs: `cdn.luxyhub.space/raw/{slug}`
-- `visibility` and `is_published` are independent — a script can be `public` but `is_published = false` (unlisted) or `private` (requires authentication)
-- No foreign key to a `users` table — creator identity comes in Phase 3 (Creator Dashboard). Admin API key identifies the uploader for now.
-- `updated_at` is updated manually on PATCH (not via trigger) for explicit control
+**Visibility Model:**
+| Value | Raw Endpoint | Directory Listing | Purpose |
+|-------|-------------|-------------------|---------|
+| `public` | ✅ Anyone | ✅ Listed | Free public scripts — the CDN default |
+| `private` | ❌ Auth required | ❌ Not listed | Premium scripts, creator-private scripts — Vault-ready |
+| `unlisted` | ✅ Anyone (no auth) | ❌ Not listed | "Secret" public scripts — share via direct link, invisible in directory |
 
-### 3.2 Table: `script_versions`
+**`creator_id` Strategy:**
+- Phase 2 MVP: `NULL` — no auth system exists. `ADMIN_API_KEY` authorizes all operations.
+- Phase 3: Populated via Creator Dashboard — `auth.users(id)` on Supabase.
+- Migration risk: None. Adding the column now avoids a costly `ALTER TABLE` later.
+- Index already created: `idx_scripts_creator_id` — enables efficient dashboard queries.
 
-Version history for forward compatibility with Phase 4. Created now, features implemented later.
+**`current_version_id` Strategy:**
+- Points to the active version in `script_versions`.
+- When a script is updated, a new version row is created and `current_version_id` is updated.
+- Raw endpoint serves content from the version pointed to by `current_version_id`.
+- Foreign key uses `ON DELETE SET NULL` — if a version is deleted, pointer becomes NULL (script has no active version).
+- The FK to `script_versions` must be created via `ALTER TABLE` after `script_versions` table exists.
+
+### 3.3 Table: `script_versions`
+
+Immutable version history. Every content update creates a new row.
 
 ```sql
 CREATE TABLE IF NOT EXISTS script_versions (
@@ -106,7 +153,6 @@ CREATE TABLE IF NOT EXISTS script_versions (
 
 CREATE INDEX IF NOT EXISTS idx_script_versions_script_id
   ON script_versions (script_id);
-
 CREATE INDEX IF NOT EXISTS idx_script_versions_script_version
   ON script_versions (script_id, version);
 ```
@@ -117,74 +163,89 @@ CREATE INDEX IF NOT EXISTS idx_script_versions_script_version
 | `script_id` | `uuid` | FK → `scripts(id)`, CASCADE | Parent script |
 | `version` | `text` | NOT NULL, UNIQUE per script | Semantic version (e.g. `1.0.0`) |
 | `content` | `text` | NOT NULL | Full script content at this version |
-| `changelog` | `text` | nullable | Release notes |
+| `changelog` | `text` | nullable | Release notes (markdown) |
 | `created_at` | `timestamptz` | DEFAULT `now()` | Version creation time |
 
 **Design Notes:**
-- `ON DELETE CASCADE` — deleting a script removes all its versions
-- `UNIQUE(script_id, version)` — prevents duplicate version numbers for the same script
-- Phase 2 MVP does NOT implement version CRUD. The raw endpoint always serves `scripts.content` (the "current" version). Versions are created as a side effect of updating a script (the old content is archived to `script_versions`).
-- In Phase 4, version management becomes first-class with `GET /api/scripts/:slug/versions/:version/raw`
+- `ON DELETE CASCADE` — deleting a script removes all its versions.
+- `UNIQUE(script_id, version)` — prevents duplicate version numbers for the same script.
+- Auto-versioning: First upload creates `1.0.0`. Subsequent content changes auto-increment (Phase 4).
+- Phase 2 MVP: Versions are created as a side effect of uploading/updating. The raw endpoint serves `current_version_id` content.
+- **After creating this table, the foreign key on `scripts.current_version_id` is added via ALTER TABLE:**
+  ```sql
+  ALTER TABLE scripts
+    ADD CONSTRAINT fk_scripts_current_version
+    FOREIGN KEY (current_version_id) REFERENCES script_versions(id)
+    ON DELETE SET NULL;
+  ```
 
-### 3.3 Table: `script_downloads`
+### 3.4 Table: `script_downloads`
 
-Analytics tracking. Every raw endpoint hit logs a row here.
+Analytics tracking. **No PII storage — hashed identifiers only.**
 
 ```sql
 CREATE TABLE IF NOT EXISTS script_downloads (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   script_id uuid NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
   version_id uuid REFERENCES script_versions(id) ON DELETE SET NULL,
-  ip text,
-  user_agent text,
-  downloaded_at timestamp with time zone DEFAULT now()
+  ip_hash text NOT NULL,
+  user_agent_hash text,
+  created_at timestamp with time zone DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_script_downloads_script_id
   ON script_downloads (script_id);
-
-CREATE INDEX IF NOT EXISTS idx_script_downloads_downloaded_at
-  ON script_downloads (downloaded_at);
-
+CREATE INDEX IF NOT EXISTS idx_script_downloads_created_at
+  ON script_downloads (created_at);
 CREATE INDEX IF NOT EXISTS idx_script_downloads_script_time
-  ON script_downloads (script_id, downloaded_at);
+  ON script_downloads (script_id, created_at);
 ```
 
 | Column | Type | Constraint | Purpose |
 |--------|------|-----------|---------|
 | `id` | `uuid` | PK | Log entry |
 | `script_id` | `uuid` | FK → `scripts(id)`, CASCADE | Which script was downloaded |
-| `version_id` | `uuid` | FK → `script_versions(id)`, SET NULL | Which version (nullable — current content has no version row) |
-| `ip` | `text` | nullable | Client IP for unique visitor counting |
-| `user_agent` | `text` | nullable | User agent for platform stats |
-| `downloaded_at` | `timestamptz` | DEFAULT `now()` | Download timestamp |
+| `version_id` | `uuid` | FK → `script_versions(id)`, SET NULL | Which version (nullable — survives version deletion) |
+| `ip_hash` | `text` | NOT NULL | SHA-256 hash of client IP (unique visitor counting without storing raw IP) |
+| `user_agent_hash` | `text` | nullable | SHA-256 hash of User-Agent (platform stats without storing raw UA strings) |
+| `created_at` | `timestamptz` | DEFAULT `now()` | Download timestamp |
+
+**PII Protection Strategy:**
+- `ip_hash` = `SHA-256(client_ip + PEPPER)` where PEPPER is a server-side secret rotation key
+- `user_agent_hash` = `SHA-256(user_agent + PEPPER)` 
+- The pepper ensures hashes cannot be reversed via rainbow tables (SHA-256 alone is reversible for IPs)
+- `ANALYTICS_PEPPER` is a new environment variable (rotatable, not committed)
+- If `ANALYTICS_PEPPER` is not set, fall back to `CRON_SECRET`
+- Unique visitor counting: `COUNT(DISTINCT ip_hash)` — same IP always produces same hash (until pepper rotation)
+- **Note:** This is stricter than existing tables (`rate_limits`, `verification_logs` store raw IPs). Those are operational tables needed for abuse detection. `script_downloads` is pure analytics.
 
 **Design Notes:**
 - `ON DELETE SET NULL` for `version_id` — if a version is deleted, download records survive with null version
-- IP is stored as plain text (not hashed) for analytics queries. This is consistent with existing `rate_limits` and `verification_logs` tables which also store raw IPs.
-- `user_agent` enables platform-level analytics (e.g., "60% of downloads from Synapse X, 30% from KRNL")
+- `ON DELETE CASCADE` for `script_id` — if a script is deleted, its download history is purged
+- User agent is nullable — some download clients (Roblox executors) may not send User-Agent headers
 
-### 3.4 Schema Summary
+### 3.5 Schema Summary
 
 ```text
 scripts ──1:N── script_versions
-   │
+   │              ▲
+   │              │ (current_version_id FK)
+   │              │
    └──1:N── script_downloads
               │
               └──?── script_versions (nullable FK)
 ```
 
 Total new tables: 3
-Total new indexes: 6
+Total new indexes: 8 (including `idx_scripts_creator_id` and `idx_scripts_visibility`)
 
 ---
 
 ## 4. RLS Policy Design
 
-### 4.1 Policy Pattern (Identical to Existing)
+### 4.1 Migration Pattern (Identical to Existing)
 
 ```sql
--- scripts
 ALTER TABLE scripts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS scripts_deny_all ON scripts;
 CREATE POLICY scripts_deny_all
@@ -194,7 +255,6 @@ CREATE POLICY scripts_deny_all
   USING (false)
   WITH CHECK (false);
 
--- script_versions
 ALTER TABLE script_versions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS script_versions_deny_all ON script_versions;
 CREATE POLICY script_versions_deny_all
@@ -204,7 +264,6 @@ CREATE POLICY script_versions_deny_all
   USING (false)
   WITH CHECK (false);
 
--- script_downloads
 ALTER TABLE script_downloads ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS script_downloads_deny_all ON script_downloads;
 CREATE POLICY script_downloads_deny_all
@@ -215,365 +274,138 @@ CREATE POLICY script_downloads_deny_all
   WITH CHECK (false);
 ```
 
-### 4.2 Migration File
+All queries go through `supabaseAdmin` (service role). Anon/authenticated users are denied at the RLS level. This is the identical pattern used by all existing tables.
 
-**Location:** `migrations/002_cdn_tables.sql` — creates all 3 tables + enables RLS
+### 4.2 Migration Files
 
-**Location:** `migrations/002_cdn_tables_rollback.sql` — drops policies + tables
-
-Follows the exact pattern of `migrations/001_enable_rls.sql`:
-- `BEGIN; / COMMIT;` transaction wrapper
-- Section comments with table names
-- Order: `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` → `DROP POLICY IF EXISTS` → `CREATE POLICY ... FOR ALL TO anon, authenticated USING (false) WITH CHECK (false)`
+| File | Purpose |
+|------|---------|
+| `migrations/002_cdn_tables.sql` | Create 3 tables, indexes, constraints, RLS |
+| `migrations/002_cdn_tables_rollback.sql` | Drop RLS policies, drop tables |
 
 ---
 
-## 5. API Contract
+## 5. Authentication Strategy
 
-### 5.1 Admin Authentication
+### 5.1 Phase 2 MVP (Current)
 
-Script management endpoints require an admin API key.
+**`ADMIN_API_KEY`** — a single shared secret for all administrative operations.
 
 ```
 Header: Authorization: Bearer <ADMIN_API_KEY>
+Env Var: ADMIN_API_KEY (falls back to CRON_SECRET if not set)
 ```
 
-`ADMIN_API_KEY` is a new environment variable, separate from `CRON_SECRET`. This allows different scopes:
-- `CRON_SECRET` → database cleanup only
-- `ADMIN_API_KEY` → script management only
+**⚠️ TEMPORARY — THIS IS NOT THE FINAL AUTH MODEL.**
 
-Fallback: If `ADMIN_API_KEY` is not set, fall back to `CRON_SECRET` so existing setups work without adding a new env var.
+This strategy is acceptable for Phase 2 because:
+- 1-2 creators manually upload scripts
+- No end-user accounts exist yet
+- Dashboard authentication does not exist yet
 
-### 5.2 Route Map
+**Limitations:**
+- No audit trail per creator (all operations from same identity)
+- No creator ownership validation
+- No self-service script management
+- Key rotation requires redeployment
+
+### 5.2 Phase 3 Migration Path (Future)
+
+| Phase 2 MVP | Phase 3 |
+|-------------|---------|
+| `ADMIN_API_KEY` → all operations | Session-based JWT from Supabase Auth |
+| `creator_id = NULL` | `creator_id = auth.uid()` on create |
+| No permission checks | RLS policies: `USING (creator_id = auth.uid())` for `authenticated` |
+| Single admin key | Per-user API keys with scopes |
+| `scripts` RLS: deny all + service role only | `scripts` RLS: `authenticated` can SELECT own scripts, `service_role` for admin ops |
+
+**Migration Steps (Phase 3 implementation):**
+1. Create `users` table synced with `auth.users`
+2. Add `creator_id` foreign key to `scripts`: `ALTER TABLE scripts ADD CONSTRAINT fk_scripts_creator FOREIGN KEY (creator_id) REFERENCES auth.users(id)`
+3. Update RLS policies on `scripts`:
+   ```sql
+   DROP POLICY IF EXISTS scripts_select_own ON scripts;
+   CREATE POLICY scripts_select_own ON scripts
+     FOR SELECT TO authenticated
+     USING (creator_id = auth.uid());
+
+   DROP POLICY IF EXISTS scripts_modify_own ON scripts;
+   CREATE POLICY scripts_modify_own ON scripts
+     FOR INSERT, UPDATE, DELETE TO authenticated
+     USING (creator_id = auth.uid())
+     WITH CHECK (creator_id = auth.uid());
+   ```
+4. Replace `verifyAdminAuth()` with `verifySessionAuth()` using Supabase `getUser()`
+5. Deprecate `ADMIN_API_KEY` — keep as fallback for service role operations (cleanup, migrations)
+
+**Database compatibility:** Zero schema changes required. `creator_id` already exists as `UUID NULL`. The FK constraint is additive — it doesn't break existing data.
+
+---
+
+## 6. API Contract (Unchanged from v1)
+
+### 6.1 Route Map
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `POST` | `/api/scripts` | Bearer | Upload (create) a new script |
-| `GET` | `/api/scripts` | None | List all public published scripts |
-| `GET` | `/api/scripts/[slug]` | None | Get script metadata |
+| `GET` | `/api/scripts` | None | List public scripts |
+| `GET` | `/api/scripts/[slug]` | None/Bearer | Get script metadata |
 | `PATCH` | `/api/scripts/[slug]` | Bearer | Update script name/description/content/visibility |
 | `DELETE` | `/api/scripts/[slug]` | Bearer | Delete script and all versions/downloads |
-| `POST` | `/api/scripts/[slug]/publish` | Bearer | Toggle publish status |
-| `GET` | `/api/scripts/[slug]/raw` | None | Get raw script content (text/plain) |
+| `POST` | `/api/scripts/[slug]/publish` | Bearer | Change visibility |
+| `GET` | `/api/scripts/[slug]/raw` | None/Bearer | Get raw script content (text/plain) |
 | `GET` | `/api/scripts/[slug]/stats` | None | Get download analytics |
 
-### 5.3 Endpoint Specifications
+### 6.2 Visibility-Based Access Matrix
 
-#### `POST /api/scripts` — Upload Script
+| Operation | `public` | `private` | `unlisted` |
+|-----------|----------|-----------|------------|
+| List in directory | ✅ | ❌ | ❌ |
+| Raw endpoint (no auth) | ✅ | ❌ 403 | ✅ |
+| Raw endpoint (auth) | ✅ | ✅ | ✅ |
+| Stats endpoint | ✅ | ❌ 404 | ✅ |
+| Metadata endpoint | ✅ | ❌ 404 | ✅ |
 
-```
-Request:
-  Authorization: Bearer <ADMIN_API_KEY>
-  Content-Type: application/json
+### 6.3 Publish Endpoint Update
 
-  {
-    "name": "BloxAtlas",
-    "slug": "bloxatlas",
-    "description": "Universal ESP and aimbot for Roblox",
-    "content": "loadstring(game:HttpGet('...'))()",
-    "visibility": "public"
-  }
-
-Success (201):
-  {
-    "success": true,
-    "script": {
-      "id": "uuid",
-      "name": "BloxAtlas",
-      "slug": "bloxatlas",
-      "description": "Universal ESP and aimbot for Roblox",
-      "visibility": "public",
-      "is_published": false,
-      "created_at": "2026-06-07T...",
-      "updated_at": "2026-06-07T..."
-    }
-  }
-
-Error (400):
-  { "success": false, "message": "Name is required" }
-  { "success": false, "message": "Slug is required" }
-  { "success": false, "message": "Content is required" }
-  { "success": false, "message": "Invalid visibility. Must be 'public' or 'private'" }
-  { "success": false, "message": "Slug must be 3-64 alphanumeric characters (a-z, 0-9, hyphens)" }
-
-Error (401):
-  { "success": false, "message": "Unauthorized" }
-
-Error (409):
-  { "success": false, "message": "A script with this slug already exists" }
-
-Error (429):
-  { "success": false, "message": "Too many requests. Please try again later." }
-  Retry-After: <seconds>
-```
-
-**Validation Rules:**
-- `name`: required, 1-100 characters
-- `slug`: required, 3-64 characters, regex `/^[a-z0-9]+(?:-[a-z0-9]+)*$/` (lowercase alphanumeric, hyphens allowed between segments, no leading/trailing hyphens)
-- `content`: required, non-empty, ≤ 62 KB (to fit within 64 KB middleware limit + JSON overhead)
-- `visibility`: optional, defaults to `'public'`, must be `'public'` or `'private'`
-- `description`: optional, defaults to `''`
-- Rate limit: 30 uploads per hour per IP (new limit key: `SCRIPT_UPLOAD`)
-
-#### `GET /api/scripts` — List Scripts
+With the visibility model, the "publish" endpoint becomes a visibility changer:
 
 ```
-Request:
-  GET /api/scripts?visibility=public&published=true&limit=20&offset=0
+POST /api/scripts/[slug]/publish
+Authorization: Bearer <ADMIN_API_KEY>
+Content-Type: application/json
 
-Success (200):
-  {
-    "success": true,
-    "scripts": [
-      {
-        "id": "uuid",
-        "name": "BloxAtlas",
-        "slug": "bloxatlas",
-        "description": "...",
-        "visibility": "public",
-        "is_published": true,
-        "created_at": "...",
-        "updated_at": "..."
-      }
-    ],
-    "total": 42,
-    "limit": 20,
-    "offset": 0
-  }
+{ "visibility": "public" }
 ```
 
-**Query Parameters:**
-- `visibility`: filter by `'public'` or `'private'` (default: `'public'`)
-- `published`: filter by `is_published` (default: `true`)
-- `limit`: max results (default: 20, max: 100)
-- `offset`: pagination offset (default: 0)
-
-**Note:** The `content` field is omitted from list responses to reduce payload size.
-
-#### `GET /api/scripts/[slug]` — Get Script Metadata
-
-```
-Request:
-  GET /api/scripts/bloxatlas
-
-Success (200) — public script:
-  {
-    "success": true,
-    "script": {
-      "id": "uuid",
-      "name": "BloxAtlas",
-      "slug": "bloxatlas",
-      "description": "...",
-      "visibility": "public",
-      "is_published": true,
-      "created_at": "...",
-      "updated_at": "..."
-    }
-  }
-
-Success (200) — private script with Bearer auth:
-  Same as above, includes "content" field.
-
-Error (404):
-  { "success": false, "message": "Script not found" }
-```
-
-**Note:** `content` is only included when the request includes a valid `Authorization: Bearer <ADMIN_API_KEY>` header, or when the script is public (for the `/raw` endpoint, content is always returned — see below).
-
-Actually, reconsidering: For CDN MVP, the metadata endpoint should NOT return content. Content lives exclusively on the `/raw` endpoint. This prevents accidental content exposure.
-
-#### `PATCH /api/scripts/[slug]` — Update Script
-
-```
-Request:
-  Authorization: Bearer <ADMIN_API_KEY>
-  Content-Type: application/json
-
-  {
-    "name": "BloxAtlas v2",
-    "description": "Updated description",
-    "content": "loadstring(game:HttpGet('...'))()",  // triggers version archive
-    "visibility": "public"
-  }
-
-Success (200):
-  {
-    "success": true,
-    "script": {
-      "id": "uuid",
-      "name": "BloxAtlas v2",
-      "slug": "bloxatlas",
-      ...
-      "updated_at": "2026-06-07T..."
-    }
-  }
-```
-
-**Behavior:**
-- If `content` is provided and differs from current content, the OLD content is archived to `script_versions` before the update.
-- All fields are optional — only provided fields are updated.
-- `slug` cannot be changed (it's the permanent identity).
-- Updating `visibility` to `'private'` on a published script automatically unpublishes it.
-
-#### `DELETE /api/scripts/[slug]` — Delete Script
-
-```
-Request:
-  Authorization: Bearer <ADMIN_API_KEY>
-  DELETE /api/scripts/bloxatlas
-
-Success (200):
-  { "success": true, "message": "Script deleted" }
-
-Error (404):
-  { "success": false, "message": "Script not found" }
-```
-
-**Cascade:** Deleting a script removes all associated `script_versions` and `script_downloads` rows.
-
-#### `POST /api/scripts/[slug]/publish` — Toggle Publish
-
-```
-Request:
-  Authorization: Bearer <ADMIN_API_KEY>
-  POST /api/scripts/bloxatlas/publish
-  Content-Type: application/json
-
-  {
-    "publish": true
-  }
-
-Success (200):
-  {
-    "success": true,
-    "script": {
-      ...
-      "is_published": true
-    }
-  }
-```
-
-**Constraints:**
-- Private scripts (`visibility = 'private'`) cannot be published. Returns 400.
-- `publish: false` unpublishes. Effectively sets `is_published = false`.
-
-#### `GET /api/scripts/[slug]/raw` — Raw Content Endpoint
-
-This is the critical endpoint — it replaces GitHub Raw.
-
-```
-Request:
-  GET /api/scripts/bloxatlas/raw
-
-Success (200):
-  Content-Type: text/plain; charset=utf-8
-  Cache-Control: public, max-age=300, s-maxage=3600
-
-  <raw script content>
-
-Error (404):
-  { "success": false, "message": "Script not found" }
-  Content-Type: application/json
-
-Error (403):
-  { "success": false, "message": "This script is private" }
-  Content-Type: application/json
-```
-
-**Key Differences from Other Endpoints:**
-1. Response body is **plain text** (`Content-Type: text/plain`), NOT JSON
-2. Error responses remain JSON (for client compatibility)
-3. **`Cache-Control` header** enables CDN/browser caching. Public scripts are cached for 5 minutes (browser) / 1 hour (shared cache). Private scripts are NOT cached (`Cache-Control: no-store`).
-4. Rate limit: **100 requests per minute per IP** (higher than validate API since this replaces GitHub Raw which had no rate limits)
-5. Downloads are tracked asynchronously (fire-and-forget insert to `script_downloads`)
-
-**Private Script Behavior:**
-- When `visibility = 'private'`, the raw endpoint returns 403 unless the request includes `Authorization: Bearer <ADMIN_API_KEY>`
-- This enables private script distribution to authorized consumers in future phases
-
-**Content Delivery Flow:**
-```
-Roblox Executor
-  │
-  ▼
-GET /api/scripts/bloxatlas/raw
-  │
-  ▼
-Middleware: Security headers, CORS, body limits
-  │
-  ▼
-Rate limiter: checkRateLimit(ip, 'SCRIPT_RAW') — 100/min
-  │
-  ▼
-Route handler:
-  1. Look up script by slug
-  2. Check visibility (public or bearer auth)
-  3. Check is_published (must be published, or bearer auth)
-  4. Fire-and-forget: insert into script_downloads
-  5. Return content as text/plain
-```
-
-#### `GET /api/scripts/[slug]/stats` — Analytics
-
-```
-Request:
-  GET /api/scripts/bloxatlas/stats
-
-Success (200):
-  {
-    "success": true,
-    "stats": {
-      "slug": "bloxatlas",
-      "total_downloads": 1523,
-      "unique_ips": 847,
-      "downloads_today": 42,
-      "downloads_this_week": 287,
-      "last_downloaded_at": "2026-06-07T18:30:00.000Z"
-    }
-  }
-```
-
-**Implementation:**
-```sql
--- total_downloads
-SELECT COUNT(*) FROM script_downloads WHERE script_id = $1;
-
--- unique_ips
-SELECT COUNT(DISTINCT ip) FROM script_downloads WHERE script_id = $1;
-
--- downloads_today
-SELECT COUNT(*) FROM script_downloads
-WHERE script_id = $1 AND downloaded_at >= CURRENT_DATE;
-
--- downloads_this_week
-SELECT COUNT(*) FROM script_downloads
-WHERE script_id = $1 AND downloaded_at >= date_trunc('week', NOW());
-
--- last_downloaded_at
-SELECT MAX(downloaded_at) FROM script_downloads WHERE script_id = $1;
-```
-
-No authentication required (public stats for public scripts).
+Valid transitions:
+- `private` → `public`
+- `private` → `unlisted`  
+- `public` → `private`
+- `public` → `unlisted`
+- `unlisted` → `public`
+- `unlisted` → `private`
 
 ---
 
-## 6. Security Model
+## 7. Security Model (Updated)
 
-### 6.1 Access Matrix
+### 7.1 Access Matrix
 
-| Operation | Public | Bearer Auth | Notes |
-|-----------|--------|-------------|-------|
-| List scripts (directory) | ✅ Published only | ✅ All | Paginated, no content |
-| Get metadata | ✅ Public only | ✅ All | Content never returned |
-| Get raw content | ✅ Published + public | ✅ All | text/plain response |
-| Get stats | ✅ Public only | ✅ All | Public analytics |
+| Operation | No Auth | Bearer Auth | Notes |
+|-----------|---------|-------------|-------|
+| List scripts | ✅ Public only | ✅ All | Paginated, no content |
+| Get metadata | ✅ Public/unlisted only | ✅ All | Content never returned |
+| Get raw content | ✅ Public/unlisted | ✅ All | text/plain response |
+| Get stats | ✅ Public/unlisted only | ✅ All | Public analytics |
 | Upload script | ❌ | ✅ | Rate limited: 30/hour |
 | Update script | ❌ | ✅ | Version archiving on content change |
 | Delete script | ❌ | ✅ | Cascade deletes |
-| Toggle publish | ❌ | ✅ | Private scripts cannot be published |
+| Change visibility | ❌ | ✅ | Any visibility ↔ any visibility |
 | Access private scripts | ❌ | ✅ | All endpoints |
 
-### 6.2 Rate Limit Configuration
+### 7.2 Rate Limit Configuration
 
 | Limit Key | Window | Max | Description |
 |-----------|--------|-----|-------------|
@@ -584,145 +416,74 @@ No authentication required (public stats for public scripts).
 | `SCRIPT_RAW` | 60s | 100 | Raw content delivery |
 | `SCRIPT_STATS` | 60s | 30 | Analytics endpoint |
 
-### 6.3 Schema Snippet for Rate Limiter
-
-Added to `WINDOW_MS` and `MAX_REQUESTS` in `rate-limit-repository.ts`:
-
-```typescript
-const WINDOW_MS: Record<string, number> = {
-  // ... existing entries ...
-  SCRIPT_UPLOAD: 3_600_000,
-  SCRIPT_UPDATE: 3_600_000,
-  SCRIPT_LIST: 60_000,
-  SCRIPT_GET: 60_000,
-  SCRIPT_RAW: 60_000,
-  SCRIPT_STATS: 60_000,
-}
-
-const MAX_REQUESTS: Record<string, number> = {
-  // ... existing entries ...
-  SCRIPT_UPLOAD: 30,
-  SCRIPT_UPDATE: 60,
-  SCRIPT_LIST: 30,
-  SCRIPT_GET: 60,
-  SCRIPT_RAW: 100,
-  SCRIPT_STATS: 30,
-}
-```
-
-### 6.4 Slug Validation
-
-```
-Regex: /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-Min length: 3
-Max length: 64
-
-Valid:   "bloxatlas", "my-script", "esp-v2"
-Invalid: "BLOXATLAS" (uppercase), "-myscript" (leading hyphen),
-         "myscript-" (trailing hyphen), "my--script" (double hyphen),
-         "a" (too short)
-```
-
-Slugs are URL-safe and SEO-friendly. They serve as the permanent public identity of a script.
-
-### 6.5 Admin Auth Verification
-
-```typescript
-function verifyAdminAuth(request: NextRequest): boolean {
-  const adminKey = process.env.ADMIN_API_KEY || process.env.CRON_SECRET
-  if (!adminKey) return false
-  const authHeader = request.headers.get('authorization')
-  return authHeader === `Bearer ${adminKey}`
-}
-```
-
-This mirrors the `CRON_SECRET` auth pattern in `/api/cleanup/route.ts` exactly.
-
 ---
 
-## 7. Analytics Strategy
+## 8. Analytics Strategy (Updated for PII)
 
-### 7.1 Data Collection
-
-Every raw endpoint request fires a background insert to `script_downloads`:
+### 8.1 PII Protection
 
 ```
-Raw Endpoint Request
-  │
-  ▼
-Lookup script by slug
-  │
-  ▼
-Check visibility + auth
-  │
-  ▼
-Fire-and-forget: insert into script_downloads (script_id, ip, user_agent)
-  │ (non-blocking — does not delay the response)
-  ▼
-Return content as text/plain
+downloadRawContent()
+   │
+   ▼
+ip_hash = SHA-256(clientIP + ANALYTICS_PEPPER)
+ua_hash = userAgent ? SHA-256(userAgent + ANALYTICS_PEPPER) : null
+   │
+   ▼
+supabaseAdmin.from('script_downloads').insert({
+  script_id, version_id, ip_hash, user_agent_hash
+})
+   │
+   ▼
+Fire-and-forget (non-blocking)
 ```
 
-Implementation pattern (mirrors `logEvent` in `logger.ts`):
+### 8.2 Query Patterns
 
-```typescript
-// In raw endpoint route handler:
-trackDownload(scriptId, clientIP, userAgent).then(
-  () => {},
-  () => {}  // silent failure — analytics must never block delivery
-)
-
-async function trackDownload(scriptId: string, ip: string, userAgent: string | null) {
-  await supabaseAdmin
-    .from('script_downloads')
-    .insert({ script_id: scriptId, ip, user_agent: userAgent })
-}
-```
-
-### 7.2 Query Patterns
-
-**Total downloads per script:**
 ```sql
+-- Total downloads
 SELECT COUNT(*) FROM script_downloads WHERE script_id = $1;
-```
 
-**Unique IPs (unique visitors):**
-```sql
-SELECT COUNT(DISTINCT ip) FROM script_downloads WHERE script_id = $1;
-```
+-- Unique visitors (same IP always produces same hash)
+SELECT COUNT(DISTINCT ip_hash) FROM script_downloads WHERE script_id = $1;
 
-**Download trend (last 30 days):**
-```sql
-SELECT DATE(downloaded_at) as date, COUNT(*) as downloads
+-- Download trend (30 days)
+SELECT DATE(created_at) as date, COUNT(*) as downloads
 FROM script_downloads
-WHERE script_id = $1 AND downloaded_at >= NOW() - INTERVAL '30 days'
-GROUP BY DATE(downloaded_at)
+WHERE script_id = $1 AND created_at >= NOW() - INTERVAL '30 days'
+GROUP BY DATE(created_at)
 ORDER BY date;
+
+-- Top user agents (hashed — compare against known hashes offline)
+SELECT user_agent_hash, COUNT(*) as count
+FROM script_downloads
+WHERE script_id = $1
+GROUP BY user_agent_hash
+ORDER BY count DESC
+LIMIT 5;
 ```
 
-**Top scripts by downloads:**
+### 8.3 Data Retention
+
+Extend `/api/cleanup` to purge old download records:
+
 ```sql
-SELECT s.slug, s.name, COUNT(*) as downloads
-FROM script_downloads d
-JOIN scripts s ON s.id = d.script_id
-WHERE d.downloaded_at >= NOW() - INTERVAL '7 days'
-GROUP BY s.slug, s.name
-ORDER BY downloads DESC
-LIMIT 10;
+DELETE FROM script_downloads WHERE created_at < NOW() - INTERVAL '90 days';
+-- Limit 10000 per run
 ```
 
-### 7.3 Data Retention
+### 8.4 Pepper Rotation
 
-`script_downloads` rows are kept for analytics. The existing cleanup cron (`/api/cleanup`) should be extended to purge old download records:
-
-```
-Phase: Add to cleanup cron
-Action: DELETE FROM script_downloads WHERE downloaded_at < NOW() - INTERVAL '90 days'
-Limit: 10000 rows per run
-```
+When `ANALYTICS_PEPPER` is rotated:
+- Historical hashes become non-matchable
+- New hashes use the new pepper
+- Unique visitor metrics reset on rotation day
+- Rotation frequency: quarterly or on security incident
+- Documented in `INCIDENT_RESPONSE.md` Section 7.3 for CRON_SECRET rotation (same process)
 
 ---
 
-## 8. File Structure
+## 9. File Structure
 
 ```
 app/
@@ -732,225 +493,120 @@ app/
 │   ├── generate-key/    [EXISTING — UNCHANGED]
 │   ├── verify-workink/  [EXISTING — UNCHANGED]
 │   ├── cleanup/         [EXISTING — UNCHANGED]
-│   └── scripts/
-│       ├── route.ts                   → GET (list), POST (create)
+│   └── scripts/         [NEW — Phase 2B]
+│       ├── route.ts               → GET (list), POST (create)
 │       └── [slug]/
-│           ├── route.ts               → GET (metadata), PATCH (update), DELETE (delete)
-│           ├── raw/
-│           │   └── route.ts           → GET (raw content)
-│           ├── stats/
-│           │   └── route.ts           → GET (analytics)
-│           └── publish/
-│               └── route.ts           → POST (toggle publish)
+│           ├── route.ts           → GET (metadata), PATCH (update), DELETE (delete)
+│           ├── raw/route.ts       → GET (raw content)
+│           ├── stats/route.ts     → GET (analytics)
+│           └── publish/route.ts   → POST (change visibility)
 │
 ├── lib/
-│   ├── supabase.ts                    [EXISTING — UNCHANGED]
-│   ├── rate-limiter.ts                [MODIFIED — add new limit keys]
-│   ├── logger.ts                      [MODIFIED — add CDN log events]
-│   ├── validators.ts                  [MODIFIED — add slug/content validators]
-│   ├── key-generator.ts              [EXISTING — UNCHANGED]
-│   ├── session-generator.ts          [EXISTING — UNCHANGED]
+│   ├── supabase.ts                      [EXISTING — UNCHANGED]
+│   ├── rate-limiter.ts                  [MODIFY — add limit keys]
+│   ├── validators.ts                    [MODIFY — add slug/content/visibility validators]
 │   ├── repositories/
-│   │   ├── key-repository.ts         [EXISTING — UNCHANGED]
-│   │   ├── token-repository.ts       [EXISTING — UNCHANGED]
-│   │   ├── rate-limit-repository.ts  [MODIFIED — add limit configs]
-│   │   └── script-repository.ts      [NEW]
+│   │   ├── rate-limit-repository.ts     [MODIFY — add configs]
+│   │   └── script-repository.ts         [NEW]
 │   └── services/
-│       ├── key-service.ts            [EXISTING — UNCHANGED]
-│       ├── workink-service.ts        [EXISTING — UNCHANGED]
-│       ├── security-service.ts       [EXISTING — UNCHANGED]
-│       └── script-service.ts         [NEW]
-│
-├── middleware.ts                      [EXISTING — UNCHANGED]
+│       └── script-service.ts            [NEW]
 
 migrations/
-├── 001_enable_rls.sql                [EXISTING — UNCHANGED]
-├── 001_enable_rls_rollback.sql       [EXISTING — UNCHANGED]
-├── 002_cdn_tables.sql                [NEW]
-└── 002_cdn_tables_rollback.sql       [NEW]
+├── 001_enable_rls.sql                   [EXISTING]
+├── 001_enable_rls_rollback.sql          [EXISTING]
+├── 002_cdn_tables.sql                   [NEW — Phase 2A]
+└── 002_cdn_tables_rollback.sql          [NEW — Phase 2A]
 
-schema.sql                             [MODIFIED — append CDN tables]
+schema.sql                                [MODIFY — append CDN tables]
 ```
 
-### 8.1 Files Modified
+### Files Modified
+| File | Change | Risk |
+|------|--------|------|
+| `schema.sql` | Append 3 table definitions + FK constraint | Low |
+| `app/lib/rate-limiter.ts` | Re-export — no code change needed | None |
+| `app/lib/repositories/rate-limit-repository.ts` | Add 6 limit configs to `WINDOW_MS`/`MAX_REQUESTS` | Low — additive only |
 
-| File | Change |
-|------|--------|
-| `schema.sql` | Append 3 new table definitions |
-| `app/lib/rate-limiter.ts` | Re-export — no change needed (re-exports from rate-limit-repository) |
-| `app/lib/repositories/rate-limit-repository.ts` | Add 6 new limit keys in `WINDOW_MS` and `MAX_REQUESTS` + add to `LimitKey` type |
-| `app/lib/validators.ts` | Add `isValidSlug()`, `isValidVisibility()`, `isValidScriptContent()` |
-| `app/lib/logger.ts` | Add new `LogEvent` union members: `SCRIPT_CREATED`, `SCRIPT_UPDATED`, `SCRIPT_DELETED`, `SCRIPT_DOWNLOADED` (optional — not critical for MVP) |
-| `app/lib/repositories/rate-limit-repository.ts` | 6 new `WINDOW_MS` + `MAX_REQUESTS` entries |
+### Files Created (Phase 2A)
+| File | Purpose |
+|------|---------|
+| `migrations/002_cdn_tables.sql` | Create 3 tables, 8 indexes, RLS, FK constraint |
+| `migrations/002_cdn_tables_rollback.sql` | Drop FK, RLS policies, indexes, tables |
+| `CDN_DATABASE.md` | ER diagram, table docs, index strategy, RLS strategy |
 
-### 8.2 Files Created
-
+### Files Created (Phase 2B — Future)
 | File | Purpose |
 |------|---------|
 | `app/api/scripts/route.ts` | GET list + POST create |
 | `app/api/scripts/[slug]/route.ts` | GET metadata + PATCH update + DELETE |
 | `app/api/scripts/[slug]/raw/route.ts` | GET raw content |
 | `app/api/scripts/[slug]/stats/route.ts` | GET analytics |
-| `app/api/scripts/[slug]/publish/route.ts` | POST toggle publish |
-| `app/lib/repositories/script-repository.ts` | Database access layer (findBySlug, insert, update, delete, countDownloads, etc.) |
-| `app/lib/services/script-service.ts` | Business logic (archive version on update, slug validation, publish checks) |
-| `migrations/002_cdn_tables.sql` | Create 3 tables + enable RLS |
-| `migrations/002_cdn_tables_rollback.sql` | Drop RLS + drop tables |
+| `app/api/scripts/[slug]/publish/route.ts` | POST change visibility |
+| `app/lib/repositories/script-repository.ts` | Database access layer |
+| `app/lib/services/script-service.ts` | Business logic |
 
 ---
 
-## 9. Migration Path from GitHub Raw
+## 10. Risks & Mitigations
+
+| Risk | Severity | Mitigation |
+|------|----------|------------|
+| **No user auth** — `ADMIN_API_KEY` is shared secret | Medium | Temporary for Phase 2. Phase 3 introduces Supabase Auth + creator ownership. Documented migration path. |
+| **Script content > 64KB** — middleware blocks large payloads | Low | Document 62KB content limit. Phase 5 (Vault) uses Supabase Storage (no middleware limit). |
+| **`script_downloads` table growth** | Medium | Extend cleanup cron to purge > 90 days. Indexed for efficient COUNT queries. |
+| **Raw endpoint abuse** — DDoS via script delivery | Medium | Rate limit 100/min per IP. Cloudflare WAF handles volumetric attacks. Future: edge caching. |
+| **Version archive infinite growth** | Low | Limit 100 versions per script. Cleanup can purge > 1 year old versions. |
+| **Pepper rotation breaks analytics continuity** | Low | Acceptable trade-off for PII protection. Unique visitor metrics reset quarterly. |
+| **`current_version_id` orphaned** — version deleted, pointer null | Low | `ON DELETE SET NULL` prevents FK violation. Raw endpoint checks for null and falls back. |
+| **Breaking the Key System** | Critical | Zero changes to existing routes. Build + lint + typecheck verify. |
+
+---
+
+## 11. Migration Path from GitHub Raw
 
 ### Current State
 ```
 Roblox Executor
-  │
-  ▼
+  ↓
 loadstring(game:HttpGet('https://raw.githubusercontent.com/user/repo/main/script.lua'))()
-  │
-  ▼
-GitHub Raw serves content
 ```
 
 ### Target State (Phase 2)
 ```
 Roblox Executor
-  │
-  ▼
+  ↓
+loadstring(game:HttpGet('https://luxyhub.vercel.app/api/scripts/bloxatlas/raw'))()
+```
+
+### Future State (cdn.luxyhub.space configured)
+```
+Roblox Executor
+  ↓
 loadstring(game:HttpGet('https://cdn.luxyhub.space/raw/bloxatlas'))()
-  │
-  ▼
-LuxyHub CDN serves content
 ```
-
-### Migration Steps (for script authors)
-1. Upload script to LuxyHub CDN (`POST /api/scripts`)
-2. Verify raw endpoint works (`GET /api/scripts/bloxatlas/raw`)
-3. Update script loader URLs in scripts from `raw.githubusercontent.com/...` to `cdn.luxyhub.space/raw/...`
-4. (Future Phase 3) Self-service via Creator Dashboard
-
-### Domain Architecture (Phase 2 MVP)
-
-Since Phase 2 MVP runs on the same Vercel deployment (before DNS subdomain split):
-
-```
-luxyhub.vercel.app/api/scripts/:slug/raw
-```
-
-In future phases when `cdn.luxyhub.space` is configured:
-```
-cdn.luxyhub.space/raw/:slug  →  proxies to  luxyhub.vercel.app/api/scripts/:slug/raw
-```
-
-The `/api/scripts/*` path prefix ensures no collision with existing routes and works immediately on the current deployment.
-
----
-
-## 10. Compatibility Verification
-
-### 10.1 No Existing API Conflicts
-
-| Existing Route | CDN Route | Conflict? |
-|----------------|-----------|-----------|
-| `/api/health` | — | ✅ No |
-| `/api/validate` | — | ✅ No |
-| `/api/generate-key` | — | ✅ No |
-| `/api/verify-workink` | — | ✅ No |
-| `/api/cleanup` | — | ✅ No |
-| — | `/api/scripts` | ✅ No |
-| — | `/api/scripts/[slug]` | ✅ No |
-| — | `/api/scripts/[slug]/raw` | ✅ No |
-| — | `/api/scripts/[slug]/stats` | ✅ No |
-| — | `/api/scripts/[slug]/publish` | ✅ No |
-
-### 10.2 No Existing Database Conflicts
-
-| Existing Table | CDN Table | Conflict? |
-|----------------|-----------|-----------|
-| `keys` | `scripts` | ✅ No — different names, no FK crossing |
-| `used_workink_tokens` | `script_versions` | ✅ No |
-| `rate_limits` | `script_downloads` | ✅ No |
-| `verification_logs` | — | ✅ No |
-| `key_usage` | — | ✅ No |
-
-### 10.3 No Existing Library Conflicts
-
-| Existing File | Change | Risk |
-|---------------|--------|------|
-| `rate-limit-repository.ts` | Add 6 entries to `WINDOW_MS`/`MAX_REQUESTS` | Low — additive only, existing entries unchanged |
-| `validators.ts` | Add 3 new validation functions | Low — additive only |
-| `logger.ts` | Add new LogEvent members | Low — additive, optional |
-| `supabase.ts` | None | None |
-
-### 10.4 Middleware Compatibility
-
-The raw endpoint returns `text/plain` instead of `application/json`. The middleware:
-- Adds CORS headers: ✅ Compatible — these are generic headers
-- Adds security headers: ✅ Compatible — CSP/frame/HSTS apply to text responses without issue
-- Body size check: ✅ Compatible — only applies to POST, raw endpoint is GET
-- No modifications needed to middleware
-
----
-
-## 11. Risks & Mitigations
-
-| Risk | Severity | Mitigation |
-|------|----------|------------|
-| **No user authentication system** — admin API key is a single shared secret | Medium | Phase 3 (Creator Dashboard) introduces proper auth. For MVP, admin key is sufficient for 1-2 creators. Rotate key quarterly. |
-| **Script content > 64KB** — middleware blocks large payloads | Low | Document 62KB content limit (64KB minus JSON overhead). Lua scripts rarely exceed this. If needed, Phase 5 (Vault) introduces Supabase Storage with no middleware limit. |
-| **`script_downloads` table growth** — high-traffic scripts generate many rows | Medium | Extend `/api/cleanup` to purge records older than 90 days. Table uses integer indexes for fast COUNT queries. |
-| **Raw endpoint abuse** — script scraping, DDoS via script delivery | Medium | Rate limit 100/min per IP. Cloudflare WAF handles volumetric attacks. Future: Cloudflare cache absorbs repeated requests. |
-| **Version archive infinite growth** — every content update creates a version row | Low | Limit 100 versions per script. Version content is text (small). Cleanup can purge versions older than 1 year. |
-| **Centralized SPOF** — single Vercel deployment serves all scripts | Medium | Acceptable for MVP. Phase 5 (Vault) introduces signed URLs with edge caching. Cloudflare CDN in front reduces origin load. |
-| **Breaking the Key System** — CDN implementation accidentally modifies key validation path | Critical | Zero changes to existing routes. New code in isolated files. Rate limiter additions are additive only. Build + lint + typecheck verify no regressions. |
 
 ---
 
 ## 12. Implementation Sequence
 
-### Step 1: Database Migration
-1. Create `migrations/002_cdn_tables.sql`
-2. Create `migrations/002_cdn_tables_rollback.sql`
-3. Append 3 tables to `schema.sql`
-4. Run migration verification queries
+### Phase 2A — Database Foundation (CURRENT)
+- [x] Architecture review (CDN_ARCHITECTURE.md v2)
+- [ ] `migrations/002_cdn_tables.sql` — UP migration
+- [ ] `migrations/002_cdn_tables_rollback.sql` — DOWN migration
+- [ ] Update `schema.sql`
+- [ ] `CDN_DATABASE.md` — database documentation
+- [ ] Update `TODO.md`
 
-### Step 2: Library Layer
-1. Add validators: `isValidSlug()`, `isValidVisibility()`, `isValidScriptContent()`
-2. Add rate limit configs: 6 new entries in `rate-limit-repository.ts`
-3. Create `script-repository.ts`: `findBySlug()`, `findAll()`, `insertScript()`, `updateScript()`, `deleteScript()`, `countDownloads()`, `getStats()`, `insertVersion()`
-4. Create `script-service.ts`: `createScript()`, `updateScript()`, `deleteScript()`, `togglePublish()`, `getRawContent()`, `getStats()`
+### Phase 2B — CDN API Implementation
+- [ ] Add validators: `isValidSlug()`, `isValidVisibility()`, `isValidScriptContent()`
+- [ ] Add rate limit configs: 6 entries
+- [ ] Create `script-repository.ts`
+- [ ] Create `script-service.ts`
+- [ ] Create 5 API route files
+- [ ] Extend `/api/cleanup` for `script_downloads`
 
-### Step 3: API Routes
-1. `POST /api/scripts` + `GET /api/scripts`
-2. `GET /api/scripts/[slug]` + `PATCH /api/scripts/[slug]` + `DELETE /api/scripts/[slug]`
-3. `POST /api/scripts/[slug]/publish`
-4. `GET /api/scripts/[slug]/raw`
-5. `GET /api/scripts/[slug]/stats`
-
-### Step 4: Cleanup Integration
-1. Extend `/api/cleanup` to purge old `script_downloads`
-
-### Step 5: Verification
-1. `npm run lint`
-2. `npx tsc --noEmit`
-3. `npm run build`
-4. Regression: verify all existing API routes still work
-5. Migration: verify tables created and RLS enabled
-6. Functional: upload script → get raw → verify content → verify stats
-
----
-
-## 13. Conclusion
-
-**Decision: APPROVED for implementation.**
-
-The CDN architecture:
-- Uses existing patterns (service-role DB, RLS deny-all, INSERT-first rate limiting)
-- Adds zero modifications to existing API routes
-- Creates isolated new code that cannot break the Key System
-- Stores scripts inline in PostgreSQL (adequate for Lua scripts)
-- Tracks analytics via fire-and-forget inserts
-- Provides a clear migration path from GitHub Raw
-- Architects for future phases (version table created now, features in Phase 4)
-
-**Next Action:** Begin Step 1 — Database Migration.
+### Phase 2C — Verification & Integration
+- [ ] Lint, TypeScript, build verification
+- [ ] Schema verification (tables exist, RLS enabled, indexes present)
+- [ ] Functional testing (upload → raw → stats → cleanup)
+- [ ] Update `API_SPEC.md` with CDN endpoints

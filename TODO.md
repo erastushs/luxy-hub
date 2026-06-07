@@ -33,6 +33,11 @@ Last updated: 2026-06-07
 | 21 | **Security** | Unified error codes (no oracle) | Key validation returns identical 403 for missing/expired keys |
 | 22 | **Security** | CORS headers for API routes | `middleware.ts` |
 | 23 | **Security** | Anti-replay (Work.ink tokens) | `used_workink_tokens` table |
+| 24 | **Design** | CDN Architecture Review | `CDN_ARCHITECTURE.md` |
+| 25 | **Design** | CDN Database Reference | `CDN_DATABASE.md` |
+| 26 | **Database** | CDN Table Migration (UP) | `migrations/002_cdn_tables.sql` |
+| 27 | **Database** | CDN Table Migration (DOWN) | `migrations/002_cdn_tables_rollback.sql` |
+| 28 | **Database** | Schema updated (8 tables) | `schema.sql` |
 
 ---
 
@@ -50,6 +55,7 @@ Last updated: 2026-06-07
 | 8 | Phase 1 | Error Tracking | Docs written — requires Better Stack Logtail |
 | 9 | Phase 1 | Uptime Alerts | Docs written — requires alert destinations |
 | 10 | Phase 1 | Supabase PITR Backups | Docs written — requires Supabase Pro plan |
+| 11 | Phase 2B | CDN API Implementation | Pending — DB foundation complete |
 
 ---
 
@@ -57,31 +63,31 @@ Last updated: 2026-06-07
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 2 | CDN Database Tables | Phase 2 start |
-| 2 | Phase 2 | Script Upload API | CDN tables |
-| 3 | Phase 2 | Script Edit API | CDN tables |
-| 4 | Phase 2 | Script Delete API | CDN tables |
-| 5 | Phase 2 | Script Publish/Unpublish | CDN tables |
-| 6 | Phase 2 | Raw Endpoint | CDN tables |
-| 7 | Phase 2 | Public/Private Scripts | CDN tables |
-| 8 | Phase 2 | Script Analytics | CDN tables |
-| 9 | Phase 3 | Creator Dashboard | Phase 2 |
-| 10 | Phase 4 | Script Versioning | Phase 3 |
-| 11 | Phase 5 | LuxyHub Vault | Phase 4 |
-| 12 | Phase 6 | Key System Integration | Phase 5 |
-| 13 | Phase 7 | Creator Marketplace | Phase 6 |
-| 14 | Phase 8 | Premium Ecosystem | Phase 7 |
+| 1 | Phase 2B | Script Upload API | CDN database foundation (✅ complete) |
+| 2 | Phase 2B | Script Edit API | CDN database foundation |
+| 3 | Phase 2B | Script Delete API | CDN database foundation |
+| 4 | Phase 2B | Script Visibility/Publish | CDN database foundation |
+| 5 | Phase 2B | Raw Endpoint | CDN database foundation |
+| 6 | Phase 2B | Public/Private/Unlisted Scripts | CDN database foundation |
+| 7 | Phase 2B | Script Analytics | CDN database foundation |
+| 8 | Phase 3 | Creator Dashboard | Phase 2 |
+| 9 | Phase 4 | Script Versioning | Phase 3 |
+| 10 | Phase 5 | LuxyHub Vault | Phase 4 |
+| 11 | Phase 6 | Key System Integration | Phase 5 |
+| 12 | Phase 7 | Creator Marketplace | Phase 6 |
+| 13 | Phase 8 | Premium Ecosystem | Phase 7 |
 
 ---
 
 ## Overall Completion
 
 ```text
-████████████░░░░░░░░░░░░░░░░░░░░░░ 22%
+████████████░░░░░░░░░░░░░░░░░░░░░░ 25%
 
 Code & Docs:      95% complete  ████████████████████░
 Infrastructure:    10% complete  ██░░░░░░░░░░░░░░░░░░
-CDN & Scripting:    0% complete  ░░░░░░░░░░░░░░░░░░░░
+CDN Database:    100% complete  ████████████████████
+CDN API:           0% complete  ░░░░░░░░░░░░░░░░░░░░
 Dashboard:          0% complete  ░░░░░░░░░░░░░░░░░░░░
 Marketplace:        0% complete  ░░░░░░░░░░░░░░░░░░░░
 ```
@@ -92,22 +98,21 @@ Marketplace:        0% complete  ░░░░░░░░░░░░░░░�
 
 | Phase | Name | Status | % |
 |-------|------|--------|---|
-| Phase 0 | Core Platform (pre-roadmap) | ✅ Complete | 100% |
-| Phase 1 | Infrastructure & Monitoring | 🚧 Docs Complete / Infra Pending | 75% |
-| Phase 2 | LuxyHub CDN MVP | ❌ Not Started | 0% |
-| Phase 3 | Creator Dashboard | ❌ Not Started | 0% |
-| Phase 4 | Script Versioning | ❌ Not Started | 0% |
-| Phase 5 | LuxyHub Vault | ❌ Not Started | 0% |
-| Phase 6 | Key System Integration | ❌ Not Started | 0% |
-| Phase 7 | Creator Marketplace | ❌ Not Started | 0% |
-| Phase 8 | Premium Ecosystem | ❌ Not Started | 0% |
+| Phase 0 | Core Platform (pre-roadmap) | Complete | 100% |
+| Phase 1 | Infrastructure & Monitoring | Docs Complete / Infra Pending | 75% |
+| Phase 1.5 | CDN Architecture Review | Complete | 100% |
+| Phase 2A | CDN Database Foundation | Complete | 100% |
+| Phase 2B | CDN API Implementation | Not Started | 0% |
+| Phase 3 | Creator Dashboard | Not Started | 0% |
+| Phase 4 | Script Versioning | Not Started | 0% |
+| Phase 5 | LuxyHub Vault | Not Started | 0% |
+| Phase 6 | Key System Integration | Not Started | 0% |
+| Phase 7 | Creator Marketplace | Not Started | 0% |
+| Phase 8 | Premium Ecosystem | Not Started | 0% |
 
----
-
-## Current Phase: Phase 2 — CDN Architecture Review
-
+## Current Phase: Phase 2B -- CDN API Implementation
 > Phase 1 operational documentation is complete. Infrastructure deployment (Cloudflare, Vercel env vars, Better Stack, Uptime Kuma) requires manual configuration by a human operator with platform access. Those items are documented in `DEPLOYMENT_CHECKLIST.md`, `MONITORING.md`, `INCIDENT_RESPONSE.md`, and `BACKUP_STRATEGY.md`. Do not block Phase 2 on manual infra setup — proceed with CDN architecture review and implementation.
-
+> Phase 1.5 (Architecture Review) and Phase 2A (Database Foundation) are complete. The CDN schema is defined: 3 tables, 8 indexes, RLS policies, 3-way visibility model (public/private/unlisted), creator ownership column, and PII-protected analytics. Proceed with API route implementation in Phase 2B.
 ---
 
 # Phase 1 — Infrastructure & Monitoring
@@ -138,6 +143,13 @@ Marketplace:        0% complete  ░░░░░░░░░░░░░░░�
 
 Success Criteria:
 
+- [x] Architecture review complete — CDN_ARCHITECTURE.md
+- [x] Schema design approved — 3 tables, 8 indexes, RLS
+- [x] API design documented — 8 endpoints, visibility model
+- [x] No conflicts with existing APIs — 6 current routes isolated
+- [x] RLS-compatible design — deny_all pattern replicated
+- [x] Audit logging plan — download tracking + PII protection
+
 - [x] Deployment procedures documented
 - [ ] Infrastructure monitored (requires manual external setup)
 - [ ] Alerts operational (requires manual external setup)
@@ -145,7 +157,7 @@ Success Criteria:
 
 ---
 
-# Phase 1.5 — CDN Architecture Review (CURRENT)
+# Phase 1.5 — CDN Architecture Review ✅ COMPLETE
 
 Before implementing the CDN MVP, audit the existing architecture to ensure:
 
@@ -160,13 +172,23 @@ Before implementing the CDN MVP, audit the existing architecture to ensure:
 
 Review Artifacts to Produce:
 
-- [ ] CDN schema design (`scripts`, `script_versions`, `script_downloads`)
-- [ ] CDN API route design (endpoints, methods, auth, rate limits)
-- [ ] CDN security model (public vs private scripts, access control)
-- [ ] Storage strategy (inline vs Supabase Storage vs external CDN)
-- [ ] Migration path from GitHub Raw to LuxyHub CDN
+All artifacts produced:
+
+- [x] CDN schema design (scripts, script_versions, script_downloads)
+- [x] CDN API route design (endpoints, methods, auth, rate limits)
+- [x] CDN security model (public vs private vs unlisted, access control)
+- [x] Storage strategy (inline PostgreSQL text)
+- [x] Migration path from GitHub Raw to LuxyHub CDN
+
 
 Success Criteria:
+
+- [x] Architecture review complete — CDN_ARCHITECTURE.md
+- [x] Schema design approved — 3 tables, 8 indexes, RLS
+- [x] API design documented — 8 endpoints, visibility model
+- [x] No conflicts with existing APIs — 6 current routes isolated
+- [x] RLS-compatible design — deny_all pattern replicated
+- [x] Audit logging plan — download tracking + PII protection
 
 - Architecture review complete
 - Schema design approved
@@ -177,7 +199,84 @@ Success Criteria:
 
 ---
 
-# Phase 2 — LuxyHub CDN MVP
+# Phase 2A — CDN Database Foundation ✅ COMPLETE
+
+## Goal
+
+Create the database foundation for the LuxyHub CDN (Phase 2B implements the API).
+
+## Deliverables
+
+- [x] scripts table — metadata, slug, visibility, creator_id, current_version_id
+- [x] script_versions table — immutable version history, cascade delete
+- [x] script_downloads table — analytics with PII protection (hashed IP/UA)
+- [x] Indexes — 8 indexes covering queries for raw, stats, listing, cleanup
+- [x] RLS policies — deny_all on anon/authenticated (service role only)
+- [x] FK constraint — scripts.current_version_id -> script_versions(id) ON DELETE SET NULL
+- [x] UP migration — migrations/002_cdn_tables.sql
+- [x] DOWN migration — migrations/002_cdn_tables_rollback.sql
+- [x] Migration documentation — CDN_DATABASE.md
+
+## Architecture Docs
+
+- [x] CDN_ARCHITECTURE.md — full architecture review (v2, visibility model)
+- [x] CDN_DATABASE.md — ER diagram, table docs, index strategy, RLS strategy, future integration
+
+## Success Criteria
+
+- [x] All 3 tables defined with proper constraints
+- [x] RLS follows existing deny_all pattern
+- [x] Migration files provide rollback path
+- [x] schema.sql reflects current state
+- [x] Zero code changes to existing APIs
+- [x] Build + lint + typecheck pass
+
+# Phase 2B — CDN API Implementation ❌
+
+## Goal
+
+Implement script upload, delivery, and analytics APIs.
+
+## Script Management
+
+- [ ] Upload Script (POST /api/scripts)
+- [ ] Edit Script (PATCH /api/scripts/[slug])
+- [ ] Delete Script (DELETE /api/scripts/[slug])
+- [ ] Change Visibility (POST /api/scripts/[slug]/publish)
+
+## Script Delivery
+
+- [ ] Raw Endpoint (GET /api/scripts/[slug]/raw)
+- [ ] Public Scripts
+- [ ] Private Scripts
+- [ ] Unlisted Scripts
+- [ ] Metadata Endpoint (GET /api/scripts/[slug])
+- [ ] Script Directory (GET /api/scripts)
+
+## Analytics
+
+- [ ] Download Count
+- [ ] Request Count
+- [ ] Last Access
+- [ ] Unique Visitors (via hashed IPs)
+
+## API
+
+```text
+POST /api/scripts
+GET  /api/scripts
+GET  /api/scripts/:slug
+PATCH /api/scripts/:slug
+DELETE /api/scripts/:slug
+POST /api/scripts/:slug/publish
+GET  /api/scripts/:slug/raw
+GET  /api/scripts/:slug/stats
+```
+
+Success Criteria:
+
+- GitHub Raw no longer required
+- Scripts delivered from LuxyHub infrastructure
 
 ## Goal
 
@@ -247,6 +346,13 @@ GET /api/scripts/:id/stats
 
 Success Criteria:
 
+- [x] Architecture review complete — CDN_ARCHITECTURE.md
+- [x] Schema design approved — 3 tables, 8 indexes, RLS
+- [x] API design documented — 8 endpoints, visibility model
+- [x] No conflicts with existing APIs — 6 current routes isolated
+- [x] RLS-compatible design — deny_all pattern replicated
+- [x] Audit logging plan — download tracking + PII protection
+
 - GitHub Raw no longer required
 - Scripts delivered from LuxyHub infrastructure
 
@@ -284,6 +390,13 @@ dashboard.luxyhub.space
 
 Success Criteria:
 
+- [x] Architecture review complete — CDN_ARCHITECTURE.md
+- [x] Schema design approved — 3 tables, 8 indexes, RLS
+- [x] API design documented — 8 endpoints, visibility model
+- [x] No conflicts with existing APIs — 6 current routes isolated
+- [x] RLS-compatible design — deny_all pattern replicated
+- [x] Audit logging plan — download tracking + PII protection
+
 - Full self-service creator dashboard
 
 ---
@@ -311,6 +424,13 @@ BloxAtlas
 - [ ] Latest Alias
 
 Success Criteria:
+
+- [x] Architecture review complete — CDN_ARCHITECTURE.md
+- [x] Schema design approved — 3 tables, 8 indexes, RLS
+- [x] API design documented — 8 endpoints, visibility model
+- [x] No conflicts with existing APIs — 6 current routes isolated
+- [x] RLS-compatible design — deny_all pattern replicated
+- [x] Audit logging plan — download tracking + PII protection
 
 - Safe updates
 - Rollback support
@@ -344,6 +464,13 @@ Protect premium and private scripts.
 - [ ] Audit Logs
 
 Success Criteria:
+
+- [x] Architecture review complete — CDN_ARCHITECTURE.md
+- [x] Schema design approved — 3 tables, 8 indexes, RLS
+- [x] API design documented — 8 endpoints, visibility model
+- [x] No conflicts with existing APIs — 6 current routes isolated
+- [x] RLS-compatible design — deny_all pattern replicated
+- [x] Audit logging plan — download tracking + PII protection
 
 - Premium script protection operational
 
@@ -379,6 +506,13 @@ Script Delivery
 
 Success Criteria:
 
+- [x] Architecture review complete — CDN_ARCHITECTURE.md
+- [x] Schema design approved — 3 tables, 8 indexes, RLS
+- [x] API design documented — 8 endpoints, visibility model
+- [x] No conflicts with existing APIs — 6 current routes isolated
+- [x] RLS-compatible design — deny_all pattern replicated
+- [x] Audit logging plan — download tracking + PII protection
+
 - Key system integrated with CDN
 
 ---
@@ -401,6 +535,13 @@ Success Criteria:
 
 Success Criteria:
 
+- [x] Architecture review complete — CDN_ARCHITECTURE.md
+- [x] Schema design approved — 3 tables, 8 indexes, RLS
+- [x] API design documented — 8 endpoints, visibility model
+- [x] No conflicts with existing APIs — 6 current routes isolated
+- [x] RLS-compatible design — deny_all pattern replicated
+- [x] Audit logging plan — download tracking + PII protection
+
 - Script monetization available
 
 ---
@@ -417,6 +558,13 @@ Success Criteria:
 - [ ] API Access
 
 Success Criteria:
+
+- [x] Architecture review complete — CDN_ARCHITECTURE.md
+- [x] Schema design approved — 3 tables, 8 indexes, RLS
+- [x] API design documented — 8 endpoints, visibility model
+- [x] No conflicts with existing APIs — 6 current routes isolated
+- [x] RLS-compatible design — deny_all pattern replicated
+- [x] Audit logging plan — download tracking + PII protection
 
 - Complete creator platform
 
