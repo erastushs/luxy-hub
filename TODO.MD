@@ -1,254 +1,430 @@
-# LuxyHub CDN & Vault Roadmap
+# LuxyHub Roadmap 2026
 
-## Project Vision
+## Current Status
 
-Build a secure script hosting and delivery platform for LuxyHub.
+### Completed
 
-Goals:
+- Website Platform
+- SEO Optimization
+- Work.ink Integration
+- Key Generation System
+- Key Validation API
+- Security Hardening
+- Security Headers
+- Rate Limiting
+- RLS Protection
+- API Documentation
+- Integration Documentation
+- Health Monitoring Endpoint
 
-- Replace third-party services such as Lua.Services.
-- Provide script hosting under LuxyHub infrastructure.
-- Support script delivery through API endpoints.
-- Offer private and public script distribution.
-- Protect creators from simple source code exposure.
-- Create a foundation for future premium features.
+Current Status:
+
+```text
+Website           ✅
+Key System        ✅
+Security          ✅
+Work.ink          ✅
+Validation API    ✅
+RLS               ✅
+Documentation     ✅
+```
 
 ---
 
-# Phase 1 - Foundation
+# Platform Architecture
 
-## Infrastructure Setup
-
-- [ ] Register subdomains
+## Public Platform
 
 ```text
-paste.luxyhub.space
-cdn.luxyhub.space
-vault.luxyhub.space
-api.luxyhub.space
+www.luxyhub.space
 ```
 
-- [ ] Configure Cloudflare
-- [ ] Enable SSL/TLS
-- [ ] Enable DDoS protection
-- [ ] Configure DNS records
+Purpose:
 
-## Backend Setup
+- Landing Page
+- Script Directory
+- Public Documentation
+- API Documentation
+- Blog / Updates
+- Public Content
 
-- [ ] Create Next.js application
-- [ ] Configure TypeScript
-- [ ] Configure Prisma ORM
-- [ ] Setup PostgreSQL database
-- [ ] Setup Supabase project
-- [ ] Configure environment variables
+---
 
 ## Authentication
 
-- [ ] Admin login
-- [ ] Session management
-- [ ] Role system
-- [ ] API key generation
+```text
+login.luxyhub.space
+```
 
-Success Criteria:
+Purpose:
 
-- Infrastructure online
-- Database connected
-- Admin dashboard accessible
+- Login
+- Registration
+- Password Reset
+- Session Management
+- OAuth (Future)
 
 ---
 
-# Phase 2 - LuxyHub Paste
+## Creator Dashboard
 
-## Script Upload
+```text
+dashboard.luxyhub.space
+```
 
-- [ ] Create upload page
-- [ ] Lua syntax highlighting
-- [ ] Code editor
-- [ ] Copy button
-- [ ] Raw endpoint
+Purpose:
 
-## Script Visibility
+- Script Management
+- Analytics
+- Version Control
+- Key Management
+- Creator Tools
 
-- [ ] Public scripts
-- [ ] Private scripts
-- [ ] Password protected scripts
-- [ ] Expiring scripts
+Important Rule:
+
+Dashboard must remain completely separate from the public website.
+
+Do NOT build:
+
+```text
+www.luxyhub.space/dashboard
+```
+
+Build:
+
+```text
+dashboard.luxyhub.space
+```
+
+instead.
+
+---
+
+## API Services
+
+```text
+api.luxyhub.space
+```
+
+Purpose:
+
+- Key Validation API
+- CDN API
+- Vault API
+- Marketplace API
+
+---
+
+## Script CDN
+
+```text
+cdn.luxyhub.space
+```
+
+Purpose:
+
+- Script Delivery
+- Raw Endpoints
+- Public Downloads
+
+Examples:
+
+```text
+cdn.luxyhub.space/raw/bloxatlas
+cdn.luxyhub.space/raw/myscript
+```
+
+---
+
+## Secure Vault
+
+```text
+vault.luxyhub.space
+```
+
+Purpose:
+
+- Premium Scripts
+- Signed URLs
+- Temporary Access Tokens
+- Secure Delivery
+
+---
+
+# Phase 1 - Infrastructure & Monitoring
+
+## Infrastructure
+
+- [ ] Configure Cloudflare
+- [ ] Configure DNS Records
+- [ ] Configure SSL/TLS
+- [ ] Configure DDoS Protection
+- [ ] Configure Production Environment Variables
+
+## Monitoring
+
+- [ ] Uptime Kuma
+- [ ] Better Stack
+- [ ] API Monitoring
+- [ ] Error Tracking
+- [ ] Uptime Alerts
+
+## Operational Documentation
+
+- [ ] Create DEPLOYMENT_CHECKLIST.md
+- [ ] Create INCIDENT_RESPONSE.md
+- [ ] Create BACKUP_STRATEGY.md
+
+Success Criteria:
+
+- Infrastructure monitored
+- Alerts operational
+- Deployment procedures documented
+
+---
+
+# Phase 2 - LuxyHub CDN MVP
+
+## Goal
+
+Replace GitHub Raw URLs.
+
+Current:
+
+```text
+User
+ ↓
+GitHub Raw
+ ↓
+Script
+```
+
+Target:
+
+```text
+User
+ ↓
+LuxyHub CDN
+ ↓
+Script
+```
+
+## Database
+
+Create:
+
+```text
+scripts
+script_versions
+script_downloads
+```
 
 ## Script Management
 
-- [ ] Edit script
-- [ ] Delete script
-- [ ] Duplicate script
-- [ ] Archive script
-
-Success Criteria:
-
-- Alternative to GitHub Gist
-- Alternative to Pastebin
-- Script sharing functional
-
----
-
-# Phase 3 - LuxyHub CDN
-
-## CDN API
-
-Endpoints:
-
-```text
-GET /v1/load/:scriptId
-POST /v1/auth
-GET /v1/stats
-```
+- [ ] Upload Script
+- [ ] Edit Script
+- [ ] Delete Script
+- [ ] Publish Script
+- [ ] Unpublish Script
 
 ## Script Delivery
 
-- [ ] Load script by ID
-- [ ] Token validation
-- [ ] Rate limiting
-- [ ] Request logging
-- [ ] Access tracking
+- [ ] Raw Endpoint
+- [ ] Public Scripts
+- [ ] Private Scripts
+- [ ] Script IDs
+- [ ] Metadata Endpoint
 
 ## Analytics
 
-- [ ] Request count
-- [ ] Daily usage
-- [ ] Active users
-- [ ] Error tracking
+- [ ] Download Count
+- [ ] Request Count
+- [ ] Last Access
+- [ ] Unique Visitors
+
+## API
+
+```text
+POST /api/scripts/upload
+GET /api/scripts/:id
+GET /api/scripts/:id/raw
+GET /api/scripts/:id/stats
+```
 
 Success Criteria:
 
-- Scripts load through API
-- Usage statistics available
+- GitHub Raw no longer required
+- Scripts delivered from LuxyHub infrastructure
 
 ---
 
-# Phase 4 - LuxyHub Vault
+# Phase 3 - Creator Dashboard
+
+Domain:
+
+```text
+dashboard.luxyhub.space
+```
+
+## Features
+
+- [ ] Script List
+- [ ] Upload Script
+- [ ] Edit Script
+- [ ] Delete Script
+- [ ] Publish Script
+- [ ] Version History
+
+## Analytics
+
+- [ ] Downloads
+- [ ] Views
+- [ ] API Requests
+- [ ] Script Performance
+
+## Account Features
+
+- [ ] Creator Profile
+- [ ] Session Management
+- [ ] Security Settings
+
+Success Criteria:
+
+- Full self-service creator dashboard
+
+---
+
+# Phase 4 - Script Versioning
+
+## Version Management
+
+Example:
+
+```text
+BloxAtlas
+├── v1.0.0
+├── v1.0.1
+├── v1.1.0
+└── latest
+```
+
+## Features
+
+- [ ] Semantic Versioning
+- [ ] Changelog Support
+- [ ] Rollback Support
+- [ ] Release Notes
+- [ ] Latest Alias
+
+Success Criteria:
+
+- Safe updates
+- Rollback support
+
+---
+
+# Phase 5 - LuxyHub Vault
+
+## Goal
+
+Protect premium and private scripts.
 
 ## Secure Storage
 
-- [ ] Encrypt script contents
-- [ ] Encrypt sensitive metadata
-- [ ] Store encrypted payloads
+- [ ] Encrypted Script Storage
+- [ ] Encrypted Metadata
+- [ ] Secure Retrieval
 
 ## Access Control
 
-- [ ] Temporary access tokens
-- [ ] Token expiration
-- [ ] Download limits
-- [ ] Access restrictions
-
-## Security Layer
-
-- [ ] Signed URLs
-- [ ] IP logging
-- [ ] Abuse detection
-- [ ] Audit logs
-
-Success Criteria:
-
-- Scripts not stored as plain text
-- Controlled script access
-
----
-
-# Phase 5 - Script Modules
-
-## Modular Delivery
-
-Modules:
-
-```text
-UI Module
-Farm Module
-Webhook Module
-Config Module
-Utilities Module
-```
-
-## Dynamic Loading
-
-- [ ] Bootstrap endpoint
-- [ ] Module loader
-- [ ] Module versioning
-- [ ] Dependency management
-
-Success Criteria:
-
-- No monolithic script delivery
-- Modules can be updated independently
-
----
-
-# Phase 6 - Creator Dashboard
-
-## Creator Features
-
-- [ ] Upload scripts
-- [ ] Create versions
-- [ ] View analytics
-- [ ] Manage access
-
-## Dashboard Analytics
-
-- [ ] Views
-- [ ] Downloads
-- [ ] API requests
-- [ ] Geographic statistics
-
-Success Criteria:
-
-- Full self-service dashboard
-
----
-
-# Phase 7 - Key System
-
-## License Management
-
-- [ ] Generate keys
-- [ ] Revoke keys
-- [ ] Expire keys
-- [ ] Renew keys
-
-## Validation API
-
-```text
-POST /v1/license/validate
-POST /v1/license/create
-POST /v1/license/revoke
-```
+- [ ] Temporary Access Tokens
+- [ ] Expiring URLs
+- [ ] Download Limits
+- [ ] Access Restrictions
 
 ## Security
 
-- [ ] Device binding
-- [ ] Session tracking
-- [ ] Abuse detection
+- [ ] Signed URLs
+- [ ] Access Logs
+- [ ] Abuse Detection
+- [ ] Audit Logs
 
 Success Criteria:
 
-- Commercial script distribution supported
+- Premium script protection operational
 
 ---
 
-# Phase 8 - Premium Features
+# Phase 6 - Key System Integration
 
-## Creator Marketplace
+## Loader Flow
 
-- [ ] Paid scripts
-- [ ] Subscription plans
-- [ ] Revenue tracking
+```text
+User
+ ↓
+Work.ink
+ ↓
+Get Key
+ ↓
+Validate Key
+ ↓
+Generate Session Token
+ ↓
+LuxyHub CDN
+ ↓
+Script Delivery
+```
 
-## Advanced Features
+## Features
 
-- [ ] Scheduled script releases
-- [ ] Team collaboration
-- [ ] Private repositories
-- [ ] Access groups
+- [ ] Session Tokens
+- [ ] Device Binding
+- [ ] Session Expiration
+- [ ] Usage Tracking
+- [ ] Abuse Detection
 
 Success Criteria:
 
-- Monetization ready
+- Key system integrated with CDN
+
+---
+
+# Phase 7 - Creator Marketplace
+
+## Creator Economy
+
+- [ ] Paid Scripts
+- [ ] Subscription Plans
+- [ ] Revenue Tracking
+- [ ] Creator Profiles
+
+## Commerce
+
+- [ ] License Management
+- [ ] Purchase History
+- [ ] Sales Analytics
+- [ ] Creator Earnings
+
+Success Criteria:
+
+- Script monetization available
+
+---
+
+# Phase 8 - Premium Ecosystem
+
+## Advanced Features
+
+- [ ] Team Collaboration
+- [ ] Private Organizations
+- [ ] Access Groups
+- [ ] Scheduled Releases
+- [ ] Premium Analytics
+- [ ] API Access
+
+Success Criteria:
+
+- Complete creator platform
 
 ---
 
@@ -267,7 +443,6 @@ Backend
 ```text
 Next.js API Routes
 TypeScript
-Prisma
 ```
 
 Database
@@ -281,29 +456,38 @@ Infrastructure
 
 ```text
 Cloudflare
-VPS
 Docker
+VPS
 ```
 
 Monitoring
 
 ```text
+Uptime Kuma
 Better Stack
 Grafana
-Uptime Kuma
 ```
 
 ---
 
-# Long-Term Goal
+# Immediate Priority
 
-Create a platform that combines:
+Current Sprint:
 
-- GitHub Gist
-- Pastebin
-- Lua.Services
-- ScriptBlox delivery
+```text
+1. Deployment Checklist
+2. Monitoring Setup
+3. LuxyHub CDN MVP
+```
 
-into a single LuxyHub ecosystem.
+Next Sprint:
 
-The final product should become the default script hosting and delivery platform for LuxyHub creators.
+```text
+1. Creator Dashboard
+2. Script Versioning
+3. GitHub Raw Migration
+```
+
+Long-Term Goal:
+
+Build LuxyHub into a complete ecosystem for script hosting, secure delivery, analytics, licensing, creator tools, and monetization.
