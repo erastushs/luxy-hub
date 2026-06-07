@@ -344,8 +344,5 @@ export async function trackDownload(
 }
 
 function trackDownloadAsync(scriptId: string, versionId: string, ip: string): void {
-  trackDownload(scriptId, versionId, ip).then(
-    () => {},
-    () => {}
-  )
+  void trackDownload(scriptId, versionId, ip)
 }
