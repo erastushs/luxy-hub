@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import DocsCursorReset from './docs-cursor-reset'
 
 export const metadata: Metadata = {
   title: 'API Integration | LuxyHub',
@@ -11,10 +10,5 @@ export default function DocsLayout({
 }: {
   children: React.ReactNode
 }) {
-  return (
-    <>
-      <DocsCursorReset />
-      <div className="docs-layout">{children}</div>
-    </>
-  )
+  return <div className="docs-layout">{children}</div>
 }

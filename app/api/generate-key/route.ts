@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/app/lib/supabase'
-import { generateKey } from '@/app/lib/key-generator'
 import { checkRateLimit, getClientIP } from '@/app/lib/rate-limiter'
 import { logEvent } from '@/app/lib/logger'
+import { verifyWorkinkToken } from '@/app/lib/services/workink-service'
+import { createKey } from '@/app/lib/services/key-service'
+import { isValidToken } from '@/app/lib/validators'
 
 export async function POST(req: NextRequest) {
   const clientIP = getClientIP(req)
@@ -11,50 +12,58 @@ export async function POST(req: NextRequest) {
     const rateLimit = await checkRateLimit(clientIP, 'GENERATE')
 
     if (!rateLimit.allowed) {
-      await logEvent({ event: 'RATE_LIMITED', ip: clientIP, message: 'generate-key rate limit exceeded' })
+      await logEvent({
+        event: 'RATE_LIMITED',
+        ip: clientIP,
+        message: 'generate-key rate limit exceeded',
+      })
 
       return NextResponse.json(
         { success: false, message: 'Too many keys generated. Try again tomorrow.' },
-        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
       )
     }
 
-    let key
-    let exists = true
+    const body = await req.json()
+    const { token } = body || {}
 
-    while (exists) {
-      key = generateKey()
-
-      const { data } = await supabase.from('keys').select('id').eq('key', key).maybeSingle()
-
-      exists = !!data
+    if (!isValidToken(token)) {
+      return NextResponse.json(
+        { success: false, message: 'Work.ink verification token required' },
+        { status: 400 }
+      )
     }
+
+    const workinkResult = await verifyWorkinkToken(token, clientIP)
+
+    if (!workinkResult.success) {
+      return NextResponse.json(
+        { success: false, message: workinkResult.message },
+        { status: 403 }
+      )
+    }
+
+    const key = await createKey()
+
+    await logEvent({
+      event: 'KEY_GENERATED',
+      ip: clientIP,
+      key,
+      message: 'Key generated via generate-key API',
+    })
 
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + 1)
 
-    const { error } = await supabase.from('keys').insert({
-      key,
-      expires_at: expiresAt.toISOString(),
-    })
-
-    if (error) {
-      throw error
-    }
-
-    await logEvent({ event: 'KEY_GENERATED', ip: clientIP, key, message: 'Key generated via generate-key API' })
-
     return NextResponse.json({
       success: true,
       key,
-      expires_at: expiresAt,
+      expires_at: expiresAt.toISOString(),
     })
-  } catch (error) {
-    console.error('generate-key error:', error)
-
+  } catch {
     return NextResponse.json(
       { success: false, message: 'Failed to generate key' },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

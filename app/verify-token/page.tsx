@@ -1,8 +1,10 @@
 import { KeyRound, AlertTriangle, RefreshCw, ArrowLeft } from 'lucide-react'
 import CopyKeyButton from '@/app/components/CopyKeyButton'
-import { verifyWorkinkToken } from '@/app/lib/verify-workink'
+import { verifyWorkinkToken } from '@/app/lib/services/workink-service'
+import { createKey } from '@/app/lib/services/key-service'
 import Navbar from '@/app/components/Navbar'
 import Footer from '@/app/components/Footer'
+import { headers } from 'next/headers'
 
 type TokenStatus = {
   success: boolean
@@ -11,7 +13,11 @@ type TokenStatus = {
   expires_at?: string
 }
 
-export default async function VerifyTokenPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
+export default async function VerifyTokenPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string }>
+}) {
   const { token } = await searchParams
 
   if (!token) {
@@ -27,7 +33,8 @@ export default async function VerifyTokenPage({ searchParams }: { searchParams: 
             <h1 className="mb-3 text-3xl font-bold">No Token Found</h1>
 
             <p className="mb-8 text-zinc-400">
-              No verification token was provided. Please go through the Work.ink flow to get a key.
+              No verification token was provided. Please go through the Work.ink flow to
+              get a key.
             </p>
 
             <a
@@ -45,10 +52,27 @@ export default async function VerifyTokenPage({ searchParams }: { searchParams: 
   }
 
   let status: TokenStatus
+  const headersList = await headers()
+  const forwarded = headersList.get('x-forwarded-for')
+  const clientIP = forwarded ? forwarded.split(',')[0].trim() : '127.0.0.1'
 
   try {
-    const result = await verifyWorkinkToken('127.0.0.1', token)
-    status = result
+    const workinkResult = await verifyWorkinkToken(token, clientIP)
+
+    if (!workinkResult.success) {
+      status = { success: false, message: workinkResult.message }
+    } else {
+      const key = await createKey()
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + 1)
+
+      status = {
+        success: true,
+        message: 'Key generated successfully',
+        key,
+        expires_at: expiresAt.toISOString(),
+      }
+    }
   } catch {
     status = { success: false, message: 'Verification service unavailable' }
   }
@@ -63,10 +87,14 @@ export default async function VerifyTokenPage({ searchParams }: { searchParams: 
           <div className="mx-auto max-w-md text-center">
             <div
               className={`mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border ${
-                isAlreadyUsed ? 'border-yellow-500/30 bg-yellow-500/10' : 'border-red-500/30 bg-red-500/10'
+                isAlreadyUsed
+                  ? 'border-yellow-500/30 bg-yellow-500/10'
+                  : 'border-red-500/30 bg-red-500/10'
               }`}
             >
-              <AlertTriangle className={`h-8 w-8 ${isAlreadyUsed ? 'text-yellow-400' : 'text-red-400'}`} />
+              <AlertTriangle
+                className={`h-8 w-8 ${isAlreadyUsed ? 'text-yellow-400' : 'text-red-400'}`}
+              />
             </div>
 
             <h1 className="mb-3 text-3xl font-bold">
@@ -78,12 +106,6 @@ export default async function VerifyTokenPage({ searchParams }: { searchParams: 
                 ? 'This verification token has already been redeemed. Each offer can only be used once.'
                 : 'This token is invalid or expired. Please complete a new Work.ink offer to receive a valid key.'}
             </p>
-
-            {!isAlreadyUsed && (
-              <p className="mb-8 text-xs text-zinc-600">
-                Server response: {status.message}
-              </p>
-            )}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
               <a
@@ -113,14 +135,20 @@ export default async function VerifyTokenPage({ searchParams }: { searchParams: 
 
             <h1 className="mb-3 text-3xl font-bold">Your Key is Ready</h1>
 
-            <p className="mb-10 text-zinc-400">Copy your key and paste it into the LuxyHub script to get started.</p>
+            <p className="mb-10 text-zinc-400">
+              Copy your key and paste it into the LuxyHub script to get started.
+            </p>
           </div>
 
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 sm:p-8">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">Your Access Key</p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              Your Access Key
+            </p>
 
             <div className="mb-6 rounded-xl border border-zinc-700 bg-black p-4">
-              <code className="break-all text-lg font-medium text-green-400">{status.key}</code>
+              <code className="break-all text-lg font-medium text-green-400">
+                {status.key}
+              </code>
             </div>
 
             <CopyKeyButton value={status.key!} />

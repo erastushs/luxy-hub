@@ -1,62 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/app/lib/supabase'
+import { supabaseAdmin, supabase } from '@/app/lib/supabase'
 
 export async function POST(req: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET
+
+  if (!cronSecret) {
+    return NextResponse.json(
+      { success: false, message: 'CRON_SECRET not configured' },
+      { status: 500 }
+    )
+  }
+
   const authHeader = req.headers.get('authorization')
 
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json(
+      { success: false, message: 'Unauthorized' },
+      { status: 401 }
+    )
   }
 
   try {
+    const admin = supabaseAdmin || supabase
     const now = new Date().toISOString()
 
-    const { error: keysError } = await supabase
+    const { error: keysError } = await admin
       .from('keys')
       .update({ is_active: false })
       .lt('expires_at', now)
       .eq('is_active', true)
 
     if (keysError) {
-      console.error('Cleanup keys error:', keysError)
-    } else {
-      console.log(`[cleanup] Expired keys deactivated at ${now}`)
+      console.error('Cleanup keys error')
     }
 
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+    const threeDaysAgo = new Date(
+      Date.now() - 3 * 24 * 60 * 60 * 1000
+    ).toISOString()
 
-    const { error: tokensError } = await supabase
+    const { error: tokensError } = await admin
       .from('used_workink_tokens')
       .delete()
       .lt('used_at', threeDaysAgo)
       .limit(5000)
 
     if (tokensError) {
-      console.error('Cleanup tokens error:', tokensError)
-    } else {
-      console.log(`[cleanup] Old tokens purged at ${now}`)
+      console.error('Cleanup tokens error')
     }
 
-    const { error: rateLimitError } = await supabase
+    const { error: rateLimitError } = await admin
       .from('rate_limits')
       .delete()
       .lt('created_at', threeDaysAgo)
       .limit(10000)
 
     if (rateLimitError) {
-      console.error('Cleanup rate_limits error:', rateLimitError)
+      console.error('Cleanup rate_limits error')
     }
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const thirtyDaysAgo = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1000
+    ).toISOString()
 
-    const { error: logsError } = await supabase
+    const { error: logsError } = await admin
       .from('verification_logs')
       .delete()
       .lt('created_at', thirtyDaysAgo)
       .limit(5000)
 
     if (logsError) {
-      console.error('Cleanup logs error:', logsError)
+      console.error('Cleanup logs error')
     }
 
     return NextResponse.json({
@@ -64,12 +77,10 @@ export async function POST(req: NextRequest) {
       message: 'Cleanup completed',
       timestamp: now,
     })
-  } catch (error) {
-    console.error('Cleanup error:', error)
-
+  } catch {
     return NextResponse.json(
       { success: false, message: 'Cleanup failed' },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

@@ -74,41 +74,4 @@ html {
   }
 }
 
-@media (min-width: 768px) {
-  html,
-  body,
-  *,
-  *::before,
-  *::after,
-  a,
-  button,
-  input,
-  textarea,
-  select {
-    cursor: none !important;
-  }
-}
 
-html[data-hide-cursor='true'] #custom-cursor {
-  display: none !important;
-}
-
-@media (min-width: 768px) {
-  html[data-hide-cursor='true'],
-  html[data-hide-cursor='true'] body,
-  html[data-hide-cursor='true'] *,
-  html[data-hide-cursor='true'] *::before,
-  html[data-hide-cursor='true'] *::after,
-  html[data-hide-cursor='true'] a,
-  html[data-hide-cursor='true'] button,
-  html[data-hide-cursor='true'] input,
-  html[data-hide-cursor='true'] textarea,
-  html[data-hide-cursor='true'] select {
-    cursor: auto !important;
-  }
-
-  html[data-hide-cursor='true'] a,
-  html[data-hide-cursor='true'] button {
-    cursor: pointer !important;
-  }
-}

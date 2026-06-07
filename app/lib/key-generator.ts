@@ -1,8 +1,18 @@
-export function generateKey() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+const CHARS_LENGTH = CHARS.length
 
-  const random = (length: number) =>
-    Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+export function generateKey(): string {
+  const bytes = new Uint8Array(12)
+  crypto.getRandomValues(bytes)
 
-  return `LUXY-${random(4)}-${random(4)}-${random(4)}`
+  let key = 'LUXY'
+
+  for (let i = 0; i < 12; i++) {
+    if (i % 4 === 0) {
+      key += '-'
+    }
+    key += CHARS[bytes[i] % CHARS_LENGTH]
+  }
+
+  return key
 }
