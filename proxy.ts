@@ -1,19 +1,37 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { updateSession } from '@/app/lib/supabase/proxy'
 
 const API_MAX_BODY = 64 * 1024
 
-export function middleware(request: NextRequest) {
-  const response = NextResponse.next()
+export async function proxy(request: NextRequest) {
+  if (request.method === 'OPTIONS' && request.nextUrl.pathname.startsWith('/api/')) {
+    const response = new NextResponse(null, { status: 204 })
+    response.headers.set('Access-Control-Allow-Origin', '*')
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    return response
+  }
+
+  if (request.method === 'POST' && request.nextUrl.pathname.startsWith('/api/')) {
+    const contentLength = request.headers.get('content-length')
+    if (contentLength) {
+      const size = parseInt(contentLength, 10)
+      if (!isNaN(size) && size > API_MAX_BODY) {
+        return NextResponse.json(
+          { success: false, message: 'Payload too large' },
+          { status: 413 }
+        )
+      }
+    }
+  }
+
+  const response = await updateSession(request)
 
   if (request.nextUrl.pathname.startsWith('/api/')) {
     response.headers.set('Access-Control-Allow-Origin', '*')
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-    if (request.method === 'OPTIONS') {
-      return new NextResponse(null, { status: 204, headers: response.headers })
-    }
   }
 
   const csp = [
@@ -40,19 +58,6 @@ export function middleware(request: NextRequest) {
     'Permissions-Policy',
     'camera=(), microphone=(), geolocation=()'
   )
-
-  if (request.method === 'POST' && request.nextUrl.pathname.startsWith('/api/')) {
-    const contentLength = request.headers.get('content-length')
-    if (contentLength) {
-      const size = parseInt(contentLength, 10)
-      if (!isNaN(size) && size > API_MAX_BODY) {
-        return NextResponse.json(
-          { success: false, message: 'Payload too large' },
-          { status: 413 }
-        )
-      }
-    }
-  }
 
   return response
 }

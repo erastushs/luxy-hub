@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from '@/app/lib/supabase'
+import { createSupabaseServerClient } from '@/app/lib/supabase/server'
 import { getProfile, ensureProfile, type ProfileResult } from '@/app/lib/services/profile-service'
 import type { ProfileRole } from '@/app/lib/validators'
 
