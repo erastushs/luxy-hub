@@ -11,15 +11,20 @@ import {
   getScriptStatsForOwner,
   recordDownload,
   hashIdentifier,
+  listVersionsForScript,
+  getVersionById,
   ScriptConflictError,
   type ScriptRow,
   type ScriptStats,
   type ListScriptsResult,
+  type VersionRow,
+  type VersionListResult,
 } from '@/app/lib/repositories/script-repository'
 import { assertScriptOwner, OwnershipError } from '@/app/lib/auth/ownership'
 import { isValidSlug, isValidScriptName, isValidVisibility, isValidScriptContent, type Visibility } from '@/app/lib/validators'
+import { logAuditEvent } from '@/app/lib/services/audit-service'
 
-export type { ScriptRow, ScriptStats, ListScriptsResult, Visibility }
+export type { ScriptRow, ScriptStats, ListScriptsResult, Visibility, VersionRow }
 
 export type ScriptResult =
   | { success: true; script: ScriptRow }
@@ -39,6 +44,14 @@ export type StatsResult =
 
 export type DeleteResult =
   | { success: true; message: string }
+  | { success: false; message: string; status: number }
+
+export type VersionListResultType =
+  | { success: true; versions: VersionRow[]; total: number }
+  | { success: false; message: string; status: number }
+
+export type VersionDetailResult =
+  | { success: true; version: VersionRow }
   | { success: false; message: string; status: number }
 
 function parseVersion(version: string): { major: number; minor: number; patch: number } {
@@ -62,6 +75,7 @@ export async function createScript(params: {
   visibility?: unknown
   content: unknown
   creatorId: string
+  creatorRole?: string
 }): Promise<ScriptResult> {
   if (!isValidSlug(params.slug)) {
     return { success: false, message: 'Slug must be 3-64 lowercase alphanumeric characters (hyphens allowed between segments)', status: 400 }
@@ -107,6 +121,20 @@ export async function createScript(params: {
     if (!updated) {
       return { success: false, message: 'Failed to link version to script', status: 500 }
     }
+
+    logAuditEvent({
+      actor_id: params.creatorId,
+      actor_role: params.creatorRole ?? 'creator',
+      action: 'script.created',
+      resource_type: 'script',
+      resource_id: script.id,
+      resource_slug: params.slug as string,
+      metadata: {
+        name: params.name,
+        visibility,
+        version_id: version.id,
+      },
+    })
 
     return { success: true, script: updated }
   } catch (error) {
@@ -236,7 +264,8 @@ export async function updateScript(
     description?: unknown
     visibility?: unknown
     content?: unknown
-  }
+  },
+  actorRole: string = 'creator'
 ): Promise<ScriptResult> {
   if (!isValidSlug(slug)) {
     return { success: false, message: 'Invalid slug format', status: 400 }
@@ -294,6 +323,19 @@ export async function updateScript(
       return { success: false, message: 'Failed to update script', status: 500 }
     }
 
+    logAuditEvent({
+      actor_id: ownerId,
+      actor_role: actorRole,
+      action: 'script.updated',
+      resource_type: 'script',
+      resource_id: existing.id,
+      resource_slug: slug as string,
+      metadata: {
+        changed: Object.keys(updateFields),
+        has_content_update: params.content !== undefined && params.content !== '',
+      },
+    })
+
     return { success: true, script: updated }
   } catch (error) {
     if (error instanceof OwnershipError) {
@@ -306,18 +348,31 @@ export async function updateScript(
   }
 }
 
-export async function deleteScript(slug: unknown, ownerId: string): Promise<DeleteResult> {
+export async function deleteScript(slug: unknown, ownerId: string, actorRole: string = 'creator'): Promise<DeleteResult> {
   if (!isValidSlug(slug)) {
     return { success: false, message: 'Invalid slug format', status: 400 }
   }
 
   try {
-    await assertScriptOwner(slug, ownerId)
+    const script = await assertScriptOwner(slug, ownerId)
 
     const deleted = await deleteScriptRepo(slug, ownerId)
     if (!deleted) {
       return { success: false, message: 'Failed to delete script', status: 500 }
     }
+
+    logAuditEvent({
+      actor_id: ownerId,
+      actor_role: actorRole,
+      action: 'script.deleted',
+      resource_type: 'script',
+      resource_id: script.id,
+      resource_slug: slug as string,
+      metadata: {
+        name: script.name,
+        visibility: script.visibility,
+      },
+    })
 
     return { success: true, message: 'Script deleted' }
   } catch (error) {
@@ -332,7 +387,8 @@ export async function deleteScript(slug: unknown, ownerId: string): Promise<Dele
 export async function changeVisibility(
   slug: unknown,
   ownerId: string,
-  visibility: unknown
+  visibility: unknown,
+  actorRole: string = 'creator'
 ): Promise<ScriptResult> {
   if (!isValidSlug(slug)) {
     return { success: false, message: 'Invalid slug format', status: 400 }
@@ -343,12 +399,25 @@ export async function changeVisibility(
   }
 
   try {
-    await assertScriptOwner(slug, ownerId)
+    const script = await assertScriptOwner(slug, ownerId)
 
     const updated = await updateScriptRepo(slug, { visibility }, ownerId)
     if (!updated) {
       return { success: false, message: 'Failed to update visibility', status: 500 }
     }
+
+    logAuditEvent({
+      actor_id: ownerId,
+      actor_role: actorRole,
+      action: 'script.visibility_changed',
+      resource_type: 'script',
+      resource_id: script.id,
+      resource_slug: slug as string,
+      metadata: {
+        previous_visibility: script.visibility,
+        new_visibility: visibility,
+      },
+    })
 
     return { success: true, script: updated }
   } catch (error) {
@@ -435,4 +504,71 @@ export async function trackDownload(
 
 function trackDownloadAsync(scriptId: string, versionId: string, ip: string): void {
   void trackDownload(scriptId, versionId, ip)
+}
+
+export async function listVersions(
+  ownerId: string,
+  slug: string,
+  limit?: unknown,
+  offset?: unknown
+): Promise<VersionListResultType> {
+  if (!isValidSlug(slug)) {
+    return { success: false, message: 'Invalid slug format', status: 400 }
+  }
+
+  const parsedLimit = typeof limit === 'string' ? parseInt(limit, 10) : (typeof limit === 'number' ? limit : 20)
+  const parsedOffset = typeof offset === 'string' ? parseInt(offset, 10) : (typeof offset === 'number' ? offset : 0)
+
+  if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
+    return { success: false, message: 'Limit must be a number between 1 and 100', status: 400 }
+  }
+
+  if (isNaN(parsedOffset) || parsedOffset < 0) {
+    return { success: false, message: 'Offset must be a non-negative number', status: 400 }
+  }
+
+  try {
+    const script = await assertScriptOwner(slug, ownerId)
+    const result = await listVersionsForScript(script.id, parsedLimit, parsedOffset)
+    return { success: true, versions: result.versions, total: result.total }
+  } catch (error) {
+    if (error instanceof OwnershipError) {
+      return { success: false, message: error.message, status: error.status }
+    }
+    return { success: false, message: 'Failed to list versions', status: 500 }
+  }
+}
+
+export async function getVersionDetail(
+  ownerId: string,
+  slug: string,
+  versionId: string
+): Promise<VersionDetailResult> {
+  if (!isValidSlug(slug)) {
+    return { success: false, message: 'Invalid slug format', status: 400 }
+  }
+
+  if (!versionId || typeof versionId !== 'string' || versionId.length === 0) {
+    return { success: false, message: 'Version ID is required', status: 400 }
+  }
+
+  try {
+    const script = await assertScriptOwner(slug, ownerId)
+    const version = await getVersionById(versionId)
+
+    if (!version) {
+      return { success: false, message: 'Version not found', status: 404 }
+    }
+
+    if (version.script_id !== script.id) {
+      return { success: false, message: 'Version not found', status: 404 }
+    }
+
+    return { success: true, version }
+  } catch (error) {
+    if (error instanceof OwnershipError) {
+      return { success: false, message: error.message, status: error.status }
+    }
+    return { success: false, message: 'Failed to fetch version', status: 500 }
+  }
 }

@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
       visibility,
       content,
       creatorId: actor.id,
+      creatorRole: actor.role,
     })
 
     if (!result.success) {

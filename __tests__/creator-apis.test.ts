@@ -27,6 +27,10 @@ const mockStats: ScriptStats = {
 const OWNER_A = '00000000-0000-0000-0000-00000000000a'
 const OWNER_B = '00000000-0000-0000-0000-00000000000b'
 
+vi.mock('@/app/lib/services/audit-service', () => ({
+  logAuditEvent: vi.fn(),
+}))
+
 vi.mock('@/app/lib/repositories/script-repository', () => ({
   listScriptsForOwner: vi.fn(),
   findScriptBySlug: vi.fn(),

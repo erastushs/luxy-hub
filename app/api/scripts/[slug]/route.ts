@@ -73,7 +73,7 @@ export async function PATCH(
     const body = await req.json().catch(() => ({}))
     const { name, description, visibility, content } = body || {}
 
-    const result = await updateScript(slug, actor.id, { name, description, visibility, content })
+    const result = await updateScript(slug, actor.id, { name, description, visibility, content }, actor.role)
 
     if (!result.success) {
       return NextResponse.json(
@@ -111,7 +111,7 @@ export async function DELETE(
   try {
     const actor = await requireAuth()
     const { slug } = await params
-    const result = await deleteScript(slug, actor.id)
+    const result = await deleteScript(slug, actor.id, actor.role)
 
     if (!result.success) {
       return NextResponse.json(

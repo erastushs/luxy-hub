@@ -279,6 +279,34 @@ export async function getLatestVersion(scriptId: string): Promise<VersionRow | n
   return data
 }
 
+export type VersionListResult = {
+  versions: VersionRow[]
+  total: number
+}
+
+export async function listVersionsForScript(scriptId: string, limit: number, offset: number): Promise<VersionListResult> {
+  const { data, error, count } = await supabaseAdmin
+    .from('script_versions')
+    .select('id, script_id, version, content, changelog, created_at', { count: 'exact' })
+    .eq('script_id', scriptId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) return { versions: [], total: 0 }
+  return { versions: data ?? [], total: count ?? 0 }
+}
+
+export async function getVersionById(versionId: string): Promise<VersionRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('script_versions')
+    .select('id, script_id, version, content, changelog, created_at')
+    .eq('id', versionId)
+    .single()
+
+  if (error) return null
+  return data
+}
+
 export async function getScriptStats(slug: string): Promise<ScriptStats | null> {
   const script = await findScriptBySlug(slug)
   if (!script) return null
