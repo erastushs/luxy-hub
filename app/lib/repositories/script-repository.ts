@@ -67,6 +67,18 @@ export async function findScriptBySlug(slug: string): Promise<ScriptRow | null> 
   return data
 }
 
+export async function findScriptBySlugForOwner(slug: string, ownerId: string): Promise<ScriptRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('scripts')
+    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at')
+    .eq('slug', slug)
+    .eq('creator_id', ownerId)
+    .single()
+
+  if (error) return null
+  return data
+}
+
 export async function listScripts(
   visibility: string = 'public',
   limit: number = 20,
@@ -90,7 +102,7 @@ export async function createScript(params: {
   name: string
   description?: string
   visibility?: string
-  creator_id?: string
+  creator_id: string
 }): Promise<ScriptRow> {
   const now = new Date().toISOString()
   const { data, error } = await supabaseAdmin
@@ -100,7 +112,7 @@ export async function createScript(params: {
       name: params.name,
       description: params.description ?? '',
       visibility: params.visibility ?? 'private',
-      creator_id: params.creator_id ?? null,
+      creator_id: params.creator_id,
       created_at: now,
       updated_at: now,
     })
@@ -131,7 +143,8 @@ export async function updateScript(
     description?: string
     visibility?: 'public' | 'private' | 'unlisted'
     current_version_id?: string
-  }
+  },
+  ownerId?: string
 ): Promise<ScriptRow | null> {
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (params.name !== undefined) updates.name = params.name
@@ -139,10 +152,16 @@ export async function updateScript(
   if (params.visibility !== undefined) updates.visibility = params.visibility
   if (params.current_version_id !== undefined) updates.current_version_id = params.current_version_id
 
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('scripts')
     .update(updates)
     .eq('slug', slug)
+
+  if (ownerId) {
+    query = query.eq('creator_id', ownerId)
+  }
+
+  const { data, error } = await query
     .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at')
     .single()
 
@@ -150,11 +169,17 @@ export async function updateScript(
   return data
 }
 
-export async function deleteScript(slug: string): Promise<boolean> {
-  const { error } = await supabaseAdmin
+export async function deleteScript(slug: string, ownerId?: string): Promise<boolean> {
+  let query = supabaseAdmin
     .from('scripts')
     .delete()
     .eq('slug', slug)
+
+  if (ownerId) {
+    query = query.eq('creator_id', ownerId)
+  }
+
+  const { error } = await query
 
   if (error) return false
   return true
@@ -230,6 +255,53 @@ export async function getScriptStats(slug: string): Promise<ScriptStats | null> 
 
   return {
     slug,
+    total_downloads: totalError ? 0 : (total ?? 0),
+    unique_ips: uniqueIps,
+    downloads_today: todayError ? 0 : (todayCount ?? 0),
+    downloads_this_week: 0,
+    last_downloaded_at: lastError ? null : (lastData?.created_at ?? null),
+  }
+}
+
+export async function getScriptStatsForOwner(slug: string, ownerId: string): Promise<ScriptStats | null> {
+  const script = await findScriptBySlugForOwner(slug, ownerId)
+  if (!script) return null
+
+  return getScriptStatsForScript(script)
+}
+
+async function getScriptStatsForScript(script: ScriptRow): Promise<ScriptStats> {
+  const scriptId = script.id
+  const today = new Date().toISOString().slice(0, 10)
+
+  const { count: total, error: totalError } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .eq('script_id', scriptId)
+
+  const { count: todayCount, error: todayError } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .eq('script_id', scriptId)
+    .gte('created_at', today)
+
+  const { data: uniqueData } = await supabaseAdmin
+    .from('script_downloads')
+    .select('ip_hash')
+    .eq('script_id', scriptId)
+
+  const uniqueIps = new Set((uniqueData ?? []).map((r) => r.ip_hash)).size
+
+  const { data: lastData, error: lastError } = await supabaseAdmin
+    .from('script_downloads')
+    .select('created_at')
+    .eq('script_id', scriptId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  return {
+    slug: script.slug,
     total_downloads: totalError ? 0 : (total ?? 0),
     unique_ips: uniqueIps,
     downloads_today: todayError ? 0 : (todayCount ?? 0),

@@ -1,12 +1,13 @@
 import {
   findScriptBySlug,
+  findScriptBySlugForOwner,
   listScripts,
   createScript as createScriptRepo,
   updateScript as updateScriptRepo,
   deleteScript as deleteScriptRepo,
   createVersion,
   getLatestVersion,
-  getScriptStats,
+  getScriptStatsForOwner,
   recordDownload,
   hashIdentifier,
   ScriptConflictError,
@@ -14,6 +15,7 @@ import {
   type ScriptStats,
   type ListScriptsResult,
 } from '@/app/lib/repositories/script-repository'
+import { assertScriptOwner, OwnershipError } from '@/app/lib/auth/ownership'
 import { isValidSlug, isValidScriptName, isValidVisibility, isValidScriptContent, type Visibility } from '@/app/lib/validators'
 
 export type { ScriptRow, ScriptStats, ListScriptsResult, Visibility }
@@ -58,7 +60,7 @@ export async function createScript(params: {
   description?: unknown
   visibility?: unknown
   content: unknown
-  creator_id?: string
+  creatorId: string
 }): Promise<ScriptResult> {
   if (!isValidSlug(params.slug)) {
     return { success: false, message: 'Slug must be 3-64 lowercase alphanumeric characters (hyphens allowed between segments)', status: 400 }
@@ -87,7 +89,7 @@ export async function createScript(params: {
       name: params.name.trim(),
       description: typeof params.description === 'string' ? params.description : undefined,
       visibility,
-      creator_id: params.creator_id,
+      creator_id: params.creatorId,
     })
 
     const version = await createVersion({
@@ -96,13 +98,21 @@ export async function createScript(params: {
       content: params.content,
     })
 
-    const updated = await updateScriptRepo(params.slug, { current_version_id: version.id })
+    const updated = await updateScriptRepo(
+      params.slug,
+      { current_version_id: version.id },
+      params.creatorId
+    )
     if (!updated) {
       return { success: false, message: 'Failed to link version to script', status: 500 }
     }
 
     return { success: true, script: updated }
   } catch (error) {
+    if (error instanceof OwnershipError) {
+      return { success: false, message: error.message, status: error.status }
+    }
+
     if (error instanceof ScriptConflictError) {
       return { success: false, message: error.message, status: 409 }
     }
@@ -120,6 +130,30 @@ export async function getScript(slug: unknown): Promise<ScriptResult> {
     if (!script) {
       return { success: false, message: 'Script not found', status: 404 }
     }
+    return { success: true, script }
+  } catch {
+    return { success: false, message: 'Failed to fetch script', status: 500 }
+  }
+}
+
+export async function getVisibleScript(slug: unknown, ownerId?: string): Promise<ScriptResult> {
+  if (!isValidSlug(slug)) {
+    return { success: false, message: 'Invalid slug format', status: 400 }
+  }
+
+  try {
+    const script = ownerId
+      ? await findScriptBySlugForOwner(slug, ownerId)
+      : await findScriptBySlug(slug)
+
+    if (!script) {
+      return { success: false, message: 'Script not found', status: 404 }
+    }
+
+    if (!ownerId && script.visibility === 'private') {
+      return { success: false, message: 'Script not found', status: 404 }
+    }
+
     return { success: true, script }
   } catch {
     return { success: false, message: 'Failed to fetch script', status: 500 }
@@ -148,6 +182,7 @@ export async function listPublicScripts(limit?: unknown, offset?: unknown): Prom
 
 export async function updateScript(
   slug: unknown,
+  ownerId: string,
   params: {
     name?: unknown
     description?: unknown
@@ -176,10 +211,7 @@ export async function updateScript(
   }
 
   try {
-    const existing = await findScriptBySlug(slug)
-    if (!existing) {
-      return { success: false, message: 'Script not found', status: 404 }
-    }
+    const existing = await assertScriptOwner(slug, ownerId)
 
     const updateFields: { name?: string; description?: string; visibility?: Visibility } = {}
     if (params.name !== undefined) updateFields.name = (params.name as string).trim()
@@ -201,10 +233,14 @@ export async function updateScript(
       currentVersionId = version.id
     }
 
-    const updated = await updateScriptRepo(slug, {
-      ...updateFields,
-      current_version_id: currentVersionId ?? undefined,
-    })
+    const updated = await updateScriptRepo(
+      slug,
+      {
+        ...updateFields,
+        current_version_id: currentVersionId ?? undefined,
+      },
+      ownerId
+    )
 
     if (!updated) {
       return { success: false, message: 'Failed to update script', status: 500 }
@@ -219,30 +255,32 @@ export async function updateScript(
   }
 }
 
-export async function deleteScript(slug: unknown): Promise<DeleteResult> {
+export async function deleteScript(slug: unknown, ownerId: string): Promise<DeleteResult> {
   if (!isValidSlug(slug)) {
     return { success: false, message: 'Invalid slug format', status: 400 }
   }
 
   try {
-    const existing = await findScriptBySlug(slug)
-    if (!existing) {
-      return { success: false, message: 'Script not found', status: 404 }
-    }
+    await assertScriptOwner(slug, ownerId)
 
-    const deleted = await deleteScriptRepo(slug)
+    const deleted = await deleteScriptRepo(slug, ownerId)
     if (!deleted) {
       return { success: false, message: 'Failed to delete script', status: 500 }
     }
 
     return { success: true, message: 'Script deleted' }
-  } catch {
+  } catch (error) {
+    if (error instanceof OwnershipError) {
+      return { success: false, message: error.message, status: error.status }
+    }
+
     return { success: false, message: 'Failed to delete script', status: 500 }
   }
 }
 
 export async function changeVisibility(
   slug: unknown,
+  ownerId: string,
   visibility: unknown
 ): Promise<ScriptResult> {
   if (!isValidSlug(slug)) {
@@ -254,18 +292,19 @@ export async function changeVisibility(
   }
 
   try {
-    const existing = await findScriptBySlug(slug)
-    if (!existing) {
-      return { success: false, message: 'Script not found', status: 404 }
-    }
+    await assertScriptOwner(slug, ownerId)
 
-    const updated = await updateScriptRepo(slug, { visibility })
+    const updated = await updateScriptRepo(slug, { visibility }, ownerId)
     if (!updated) {
       return { success: false, message: 'Failed to update visibility', status: 500 }
     }
 
     return { success: true, script: updated }
-  } catch {
+  } catch (error) {
+    if (error instanceof OwnershipError) {
+      return { success: false, message: error.message, status: error.status }
+    }
+
     return { success: false, message: 'Failed to update visibility', status: 500 }
   }
 }
@@ -305,13 +344,13 @@ export async function getRawContent(
   }
 }
 
-export async function getStats(slug: unknown): Promise<StatsResult> {
+export async function getStats(slug: unknown, ownerId: string): Promise<StatsResult> {
   if (!isValidSlug(slug)) {
     return { success: false, message: 'Invalid slug format', status: 400 }
   }
 
   try {
-    const stats = await getScriptStats(slug)
+    const stats = await getScriptStatsForOwner(slug, ownerId)
     if (!stats) {
       return { success: false, message: 'Script not found', status: 404 }
     }

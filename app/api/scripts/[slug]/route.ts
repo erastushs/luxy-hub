@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/app/lib/rate-limiter'
 import { logEvent } from '@/app/lib/logger'
-import { verifyAdminAuth } from '@/app/lib/auth/admin-auth'
-import { getScript, updateScript, deleteScript } from '@/app/lib/services/script-service'
+import { getCurrentUser, requireAuth, AuthError } from '@/app/lib/auth/session-auth'
+import { getVisibleScript, updateScript, deleteScript } from '@/app/lib/services/script-service'
 
 export async function GET(
   req: NextRequest,
@@ -27,7 +27,8 @@ export async function GET(
     }
 
     const { slug } = await params
-    const result = await getScript(slug)
+    const actor = await getCurrentUser()
+    const result = await getVisibleScript(slug, actor?.id)
 
     if (!result.success) {
       return NextResponse.json(
@@ -51,14 +52,8 @@ export async function PATCH(
 ) {
   const clientIP = getClientIP(req)
 
-  if (!verifyAdminAuth(req)) {
-    return NextResponse.json(
-      { success: false, message: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-
   try {
+    const actor = await requireAuth()
     const rateLimit = await checkRateLimit(clientIP, 'SCRIPT_UPDATE')
 
     if (!rateLimit.allowed) {
@@ -78,7 +73,7 @@ export async function PATCH(
     const body = await req.json().catch(() => ({}))
     const { name, description, visibility, content } = body || {}
 
-    const result = await updateScript(slug, { name, description, visibility, content })
+    const result = await updateScript(slug, actor.id, { name, description, visibility, content })
 
     if (!result.success) {
       return NextResponse.json(
@@ -94,7 +89,14 @@ export async function PATCH(
     })
 
     return NextResponse.json({ success: true, script: result.script })
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: error.status }
+      )
+    }
+
     return NextResponse.json(
       { success: false, message: 'Failed to update script' },
       { status: 500 }
@@ -106,16 +108,10 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  if (!verifyAdminAuth(req)) {
-    return NextResponse.json(
-      { success: false, message: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-
   try {
+    const actor = await requireAuth()
     const { slug } = await params
-    const result = await deleteScript(slug)
+    const result = await deleteScript(slug, actor.id)
 
     if (!result.success) {
       return NextResponse.json(
@@ -125,7 +121,14 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true, message: result.message })
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: error.status }
+      )
+    }
+
     return NextResponse.json(
       { success: false, message: 'Failed to delete script' },
       { status: 500 }

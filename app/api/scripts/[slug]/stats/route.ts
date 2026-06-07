@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/app/lib/rate-limiter'
 import { logEvent } from '@/app/lib/logger'
+import { requireAuth, AuthError } from '@/app/lib/auth/session-auth'
 import { getStats } from '@/app/lib/services/script-service'
 
 export async function GET(
@@ -10,6 +11,7 @@ export async function GET(
   const clientIP = getClientIP(req)
 
   try {
+    const actor = await requireAuth()
     const rateLimit = await checkRateLimit(clientIP, 'SCRIPT_STATS')
 
     if (!rateLimit.allowed) {
@@ -26,7 +28,7 @@ export async function GET(
     }
 
     const { slug } = await params
-    const result = await getStats(slug)
+    const result = await getStats(slug, actor.id)
 
     if (!result.success) {
       return NextResponse.json(
@@ -36,7 +38,14 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, stats: result.stats })
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: error.status }
+      )
+    }
+
     return NextResponse.json(
       { success: false, message: 'Failed to fetch stats' },
       { status: 500 }

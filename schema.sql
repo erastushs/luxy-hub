@@ -142,3 +142,23 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 CREATE INDEX IF NOT EXISTS idx_profiles_role
   ON profiles (role);
+
+-- ============================================================================
+-- LuxyHub Creator Ownership — Phase 3B
+-- Apply migrations/004_script_ownership.sql after running this section
+-- ============================================================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'fk_scripts_creator'
+      AND conrelid = 'public.scripts'::regclass
+  ) THEN
+    ALTER TABLE scripts
+      ADD CONSTRAINT fk_scripts_creator
+      FOREIGN KEY (creator_id) REFERENCES auth.users(id)
+      ON DELETE SET NULL;
+  END IF;
+END $$;

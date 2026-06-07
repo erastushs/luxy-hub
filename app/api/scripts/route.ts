@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/app/lib/rate-limiter'
 import { logEvent } from '@/app/lib/logger'
-import { verifyAdminAuth } from '@/app/lib/auth/admin-auth'
+import { requireAuth, AuthError } from '@/app/lib/auth/session-auth'
 import { listPublicScripts, createScript } from '@/app/lib/services/script-service'
 
 export async function GET(req: NextRequest) {
@@ -54,14 +54,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const clientIP = getClientIP(req)
 
-  if (!verifyAdminAuth(req)) {
-    return NextResponse.json(
-      { success: false, message: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-
   try {
+    const actor = await requireAuth()
     const rateLimit = await checkRateLimit(clientIP, 'SCRIPT_UPLOAD')
 
     if (!rateLimit.allowed) {
@@ -80,7 +74,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { slug, name, description, visibility, content } = body || {}
 
-    const result = await createScript({ slug, name, description, visibility, content })
+    const result = await createScript({
+      slug,
+      name,
+      description,
+      visibility,
+      content,
+      creatorId: actor.id,
+    })
 
     if (!result.success) {
       return NextResponse.json(
@@ -96,7 +97,14 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ success: true, script: result.script }, { status: 201 })
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: error.status }
+      )
+    }
+
     return NextResponse.json(
       { success: false, message: 'Failed to create script' },
       { status: 500 }
