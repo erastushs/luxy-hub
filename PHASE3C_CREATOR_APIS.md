@@ -434,12 +434,12 @@ npx vitest run
 
 ---
 
-## Remaining Work for Phase 3C.2 (Analytics APIs)
+## Remaining Work for Phase 3C.3 (Version History APIs)
 
-- [ ] `GET /api/dashboard/scripts/[slug]/stats` — creator analytics detail
-- [ ] `GET /api/dashboard/analytics/overview` — portfolio-level analytics
-- [ ] `GET /api/dashboard/analytics/downloads` — time-series download data
-- [ ] Aggregation by day/week/month for chart rendering
-- [ ] Top scripts by downloads endpoint
+- [ ] `GET /api/dashboard/scripts/[slug]/versions` — version listing
+- [ ] `GET /api/dashboard/scripts/[slug]/versions/[version]` — version detail
+- [ ] Ownership enforcement on version queries
+
+Phase 3C.2 Analytics APIs are complete — see PHASE3C_ANALYTICS_APIS.md.
 
 (End of file)

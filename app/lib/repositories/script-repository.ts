@@ -39,6 +39,34 @@ export type ScriptStats = {
   last_downloaded_at: string | null
 }
 
+export type ScriptAnalytics = {
+  slug: string
+  total_downloads: number
+  downloads_today: number
+  downloads_7d: number
+  downloads_30d: number
+  last_downloaded_at: string | null
+}
+
+export type CreatorAnalyticsOverview = {
+  total_scripts: number
+  published_scripts: number
+  private_scripts: number
+  total_downloads: number
+  downloads_today: number
+  downloads_7d: number
+  downloads_30d: number
+}
+
+export type DownloadTrendPoint = {
+  day: string
+  downloads: number
+}
+
+export type DownloadTrendsResult = {
+  points: DownloadTrendPoint[]
+}
+
 export type ListScriptsResult = {
   scripts: ScriptRow[]
   total: number
@@ -356,4 +384,196 @@ export async function recordDownload(params: {
   })
 
   return !error
+}
+
+export async function getCreatorAnalyticsOverview(ownerId: string): Promise<CreatorAnalyticsOverview> {
+  const scripts = await supabaseAdmin
+    .from('scripts')
+    .select('id, visibility')
+    .eq('creator_id', ownerId)
+
+  if (scripts.error || !scripts.data) {
+    return {
+      total_scripts: 0, published_scripts: 0, private_scripts: 0,
+      total_downloads: 0, downloads_today: 0, downloads_7d: 0, downloads_30d: 0,
+    }
+  }
+
+  const scriptIds = scripts.data.map((s) => s.id)
+  const publishedCount = scripts.data.filter((s) => s.visibility === 'public').length
+  const privateCount = scripts.data.filter((s) => s.visibility === 'private').length
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const days7 = new Date(now.getTime() - 7 * 86400000).toISOString()
+  const days30 = new Date(now.getTime() - 30 * 86400000).toISOString()
+
+  if (scriptIds.length === 0) {
+    return {
+      total_scripts: 0, published_scripts: 0, private_scripts: 0,
+      total_downloads: 0, downloads_today: 0, downloads_7d: 0, downloads_30d: 0,
+    }
+  }
+
+  const { count: total, error: totalErr } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .in('script_id', scriptIds)
+
+  const { count: todayCount, error: todayErr } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .in('script_id', scriptIds)
+    .gte('created_at', today)
+
+  const { count: d7Count, error: d7Err } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .in('script_id', scriptIds)
+    .gte('created_at', days7)
+
+  const { count: d30Count, error: d30Err } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .in('script_id', scriptIds)
+    .gte('created_at', days30)
+
+  return {
+    total_scripts: scripts.data.length,
+    published_scripts: publishedCount,
+    private_scripts: privateCount,
+    total_downloads: totalErr ? 0 : (total ?? 0),
+    downloads_today: todayErr ? 0 : (todayCount ?? 0),
+    downloads_7d: d7Err ? 0 : (d7Count ?? 0),
+    downloads_30d: d30Err ? 0 : (d30Count ?? 0),
+  }
+}
+
+export async function getScriptAnalyticsForOwner(slug: string, ownerId: string): Promise<ScriptAnalytics | null> {
+  const script = await findScriptBySlugForOwner(slug, ownerId)
+  if (!script) return null
+
+  const scriptId = script.id
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const days7 = new Date(now.getTime() - 7 * 86400000).toISOString()
+  const days30 = new Date(now.getTime() - 30 * 86400000).toISOString()
+
+  const { count: total, error: totalErr } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .eq('script_id', scriptId)
+
+  const { count: todayCount, error: todayErr } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .eq('script_id', scriptId)
+    .gte('created_at', today)
+
+  const { count: d7Count, error: d7Err } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .eq('script_id', scriptId)
+    .gte('created_at', days7)
+
+  const { count: d30Count, error: d30Err } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .eq('script_id', scriptId)
+    .gte('created_at', days30)
+
+  const { data: lastData } = await supabaseAdmin
+    .from('script_downloads')
+    .select('created_at')
+    .eq('script_id', scriptId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  return {
+    slug,
+    total_downloads: totalErr ? 0 : (total ?? 0),
+    downloads_today: todayErr ? 0 : (todayCount ?? 0),
+    downloads_7d: d7Err ? 0 : (d7Count ?? 0),
+    downloads_30d: d30Err ? 0 : (d30Count ?? 0),
+    last_downloaded_at: lastData?.created_at ?? null,
+  }
+}
+
+export async function getDownloadTrendsForOwner(ownerId: string, rangeDays: 7 | 30): Promise<DownloadTrendsResult> {
+  const scripts = await supabaseAdmin
+    .from('scripts')
+    .select('id')
+    .eq('creator_id', ownerId)
+
+  if (scripts.error || !scripts.data || scripts.data.length === 0) {
+    return { points: [] }
+  }
+
+  const scriptIds = scripts.data.map((s) => s.id)
+  const since = new Date(Date.now() - rangeDays * 86400000).toISOString().slice(0, 10)
+
+  const { data, error } = await supabaseAdmin
+    .from('script_downloads')
+    .select('created_at')
+    .in('script_id', scriptIds)
+    .gte('created_at', since)
+    .order('created_at', { ascending: true })
+
+  if (error || !data) {
+    return { points: [] }
+  }
+
+  const dayMap = new Map<string, number>()
+  for (const row of data) {
+    const day = row.created_at.slice(0, 10)
+    dayMap.set(day, (dayMap.get(day) ?? 0) + 1)
+  }
+
+  const points: DownloadTrendPoint[] = []
+  const start = new Date(since + 'T00:00:00Z')
+  for (let i = 0; i < rangeDays; i++) {
+    const d = new Date(start.getTime() + i * 86400000)
+    const dayStr = d.toISOString().slice(0, 10)
+    points.push({ day: dayStr, downloads: dayMap.get(dayStr) ?? 0 })
+  }
+
+  return { points }
+}
+
+export async function getScriptDownloadTrendsForOwner(
+  slug: string,
+  ownerId: string,
+  rangeDays: 7 | 30
+): Promise<DownloadTrendsResult | null> {
+  const script = await findScriptBySlugForOwner(slug, ownerId)
+  if (!script) return null
+
+  const since = new Date(Date.now() - rangeDays * 86400000).toISOString().slice(0, 10)
+
+  const { data, error } = await supabaseAdmin
+    .from('script_downloads')
+    .select('created_at')
+    .eq('script_id', script.id)
+    .gte('created_at', since)
+    .order('created_at', { ascending: true })
+
+  if (error || !data) {
+    return { points: [] }
+  }
+
+  const dayMap = new Map<string, number>()
+  for (const row of data) {
+    const day = row.created_at.slice(0, 10)
+    dayMap.set(day, (dayMap.get(day) ?? 0) + 1)
+  }
+
+  const points: DownloadTrendPoint[] = []
+  const start = new Date(since + 'T00:00:00Z')
+  for (let i = 0; i < rangeDays; i++) {
+    const d = new Date(start.getTime() + i * 86400000)
+    const dayStr = d.toISOString().slice(0, 10)
+    points.push({ day: dayStr, downloads: dayMap.get(dayStr) ?? 0 })
+  }
+
+  return { points }
 }
