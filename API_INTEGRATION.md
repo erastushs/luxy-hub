@@ -6,7 +6,7 @@ Last Updated: June 2026
 ## Base URL
 
 ```
-https://luxyhub.space"
+https://luxyhub.vercel.app
 ```
 
 All requests use `Content-Type: application/json`.
@@ -19,12 +19,11 @@ All requests use `Content-Type: application/json`.
 GET /api/health
 ```
 
-**Response:**
-
+**Response (200):**
 ```json
 {
   "status": "ok",
-  "timestamp": "2026-06-07T01:30:00Z"
+  "timestamp": "2026-06-07T09:00:00.000Z"
 }
 ```
 
@@ -39,7 +38,6 @@ POST /api/validate
 ```
 
 **Request body:**
-
 ```json
 {
   "key": "LUXY-ABCD-EFGH-IJKL"
@@ -48,40 +46,29 @@ POST /api/validate
 
 ### Response Table
 
-| Status | Body / Message                                                                  | Arti / Meaning                                                                 |
-| ------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| 200    | `{ "success": true }`                                                           | Key valid, script boleh jalan / key is valid, script can run                   |
-| 400    | `{ "success": false, "message": "Key is required" }`                            | Body tidak mengirim field `key` / request body missing `key` field             |
-| 400    | `{ "success": false, "message": "Invalid key format" }`                         | Format key tidak cocok regex / key format does not match `LUXY-XXXX-XXXX-XXXX` |
-| 404    | `{ "success": false, "message": "Invalid key" }`                                | Key tidak ditemukan di database / key not found in database                    |
-| 403    | `{ "success": false, "message": "Key expired" }`                                | Key sudah lewat masa berlaku / key past expiration date                        |
-| 403    | `{ "success": false, "message": "Key disabled" }`                               | Key dinonaktifkan (banned / revoked) / key disabled by admin                   |
-| 429    | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit tercapai (30 req/menit) / rate limit hit (30 req/min)               |
-| 500    | `{ "success": false, "message": "Server error" }`                               | Internal server error, coba lagi nanti / try again later                       |
+| Status | Body / Message | Meaning |
+|--------|---------------|---------|
+| 200 | `{ "success": true }` | Key valid, script can run |
+| 400 | `{ "success": false, "message": "Key is required" }` | Request body missing `key` field |
+| 403 | `{ "success": false, "message": "Invalid key" }` | Key format invalid, not found, expired, or disabled |
+| 413 | `{ "success": false, "message": "Payload too large" }` | Request body exceeds 64 KB (middleware) |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded (30 req/min) |
+| 500 | `{ "success": false, "message": "Server error" }` | Internal server error |
 
-**Critical difference from old spec:** The API **does not** wrap responses in a `data` envelope. Success is `{ "success": true }` — flat, no nested object. All responses are JSON objects with `success` (boolean) and optionally `message` (string) fields.
+**Critical change from older versions:** The API returns HTTP 403 with message `"Invalid key"` for all validation failures (not found, expired, disabled). It no longer distinguishes between 400 (format), 404 (not found), or 403 (expired/disabled). This prevents key enumeration attacks. Client-side format validation is still recommended to save API calls.
 
 ---
 
 ## Key Format
 
-**Pattern:**
+**Pattern:** `LUXY-XXXX-XXXX-XXXX`
 
-```
-LUXY-XXXX-XXXX-XXXX
-```
-
-**Regex:**
-
-```
-/^LUXY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
-```
+**Regex:** `/^LUXY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/`
 
 - 4 segments separated by hyphens
-- First segment always `LUXY`
+- First segment always `LUXY` (case-sensitive, uppercase)
 - Remaining 3 segments: exactly 4 uppercase alphanumeric characters each
-- Example valid: `LUXY-ABCD-EFGH-IJKL`
-- Example invalid: `luxy-abcd-efgh-ijkl` (lowercase), `LUXY-ABC-DEFG-HIJK` (wrong segment length)
+- Example valid: `LUXY-ABCD-EFGH-IJKL`, `LUXY-0T2L-V9YT-Q1NA`
 
 Validate format **client-side before sending** to reduce wasted API calls.
 
@@ -89,17 +76,15 @@ Validate format **client-side before sending** to reduce wasted API calls.
 
 ## Rate Limits
 
-| Limit       | Window   | Scope  |
-| ----------- | -------- | ------ |
+| Limit | Window | Scope |
+|-------|--------|-------|
 | 30 requests | 1 minute | Per IP |
 
 **When rate-limited (HTTP 429):**
-
 - Response body: `{ "success": false, "message": "Too many requests. Please try again later." }`
-- Response includes `Retry-After` header with seconds until the limit resets
+- Response includes `Retry-After` header with seconds until reset
 
-**Retry-After handling:**
-
+**Retry-After handling (Luau example):**
 ```lua
 local retryAfter = tonumber(response.Headers["retry-after"])
 if retryAfter then
@@ -111,11 +96,11 @@ end
 
 ## Integration Examples
 
-### a) Roblox Luau — Basic Validation (syn.request)
+### Roblox Luau — Basic Validation
 
 ```lua
 local HttpService = game:GetService("HttpService")
-local BASE_URL = "https://luxyhub.space"
+local BASE_URL = "https://luxyhub.vercel.app"
 
 local function validateKey(key: string): (boolean, string?)
     -- Client-side format check first
@@ -133,52 +118,32 @@ local function validateKey(key: string): (boolean, string?)
     end)
 
     if not success then
-        return false, "Network error: tidak bisa konek ke server / cannot reach server"
+        return false, "Cannot reach server"
     end
 
     local status = response.StatusCode
 
-    local data = HttpService:JSONDecode(response.Body)
-
     if status == 200 then
         return true, nil
     elseif status == 400 then
-        if data.message == "Key is required" then
-            return false, "Key harus diisi / key is required"
-        else
-            return false, "Format key salah / invalid key format"
-        end
-    elseif status == 404 then
-        return false, "Key tidak valid / invalid key"
+        return false, "Key is required"
     elseif status == 403 then
-        if data.message == "Key expired" then
-            return false, "Key sudah expired / key expired"
-        else
-            return false, "Key dinonaktifkan / key disabled"
-        end
+        return false, "Invalid key"
     elseif status == 429 then
-        return false, "Terlalu banyak request, coba lagi nanti / too many requests"
+        return false, "Too many requests"
     elseif status == 500 then
-        return false, "Server error, coba lagi nanti / server error"
+        return false, "Server error"
     else
         return false, "Unknown error (HTTP " .. tostring(status) .. ")"
     end
 end
-
--- Usage
-local valid, err = validateKey("LUXY-ABCD-EFGH-IJKL")
-if valid then
-    print("Key valid, running script...")
-else
-    warn("Validation failed:", err)
-end
 ```
 
-### b) Roblox Luau — With Retry Logic for Rate Limiting
+### Roblox Luau — With Retry Logic
 
 ```lua
 local HttpService = game:GetService("HttpService")
-local BASE_URL = "https://luxyhub.space"
+local BASE_URL = "https://luxyhub.vercel.app"
 
 local MAX_RETRIES = 3
 
@@ -199,10 +164,10 @@ local function validateKeyWithRetry(key: string): (boolean, string?)
 
         if not success then
             if attempt < MAX_RETRIES then
-                task.wait(2 ^ attempt) -- Exponential backoff: 2s, 4s, 8s
+                task.wait(2 ^ attempt)
                 continue
             end
-            return false, "Network error: tidak bisa konek / unreachable after " .. MAX_RETRIES .. " attempts"
+            return false, "Cannot reach server after " .. MAX_RETRIES .. " attempts"
         end
 
         local status = response.StatusCode
@@ -212,28 +177,12 @@ local function validateKeyWithRetry(key: string): (boolean, string?)
         elseif status == 429 then
             local retryAfter = tonumber(response.Headers["retry-after"])
             if retryAfter and attempt < MAX_RETRIES then
-                task.wait(retryAfter + 1) -- Wait Retry-After seconds + 1s buffer
+                task.wait(retryAfter + 1)
             else
-                return false, "Rate limited, coba lagi nanti / rate limited"
+                return false, "Rate limited"
             end
         else
-            -- Non-retryable errors
-            local data = HttpService:JSONDecode(response.Body)
-            if status == 400 then
-                return false, "Format key salah / invalid format"
-            elseif status == 404 then
-                return false, "Key tidak valid / invalid key"
-            elseif status == 403 then
-                if data.message == "Key expired" then
-                    return false, "Key expired / sudah expired"
-                else
-                    return false, "Key disabled / dinonaktifkan"
-                end
-            elseif status == 500 then
-                return false, "Server error"
-            else
-                return false, "Error (HTTP " .. tostring(status) .. ")"
-            end
+            return false, "Validation failed (HTTP " .. tostring(status) .. ")"
         end
     end
 
@@ -241,94 +190,7 @@ local function validateKeyWithRetry(key: string): (boolean, string?)
 end
 ```
 
-### c) Roblox Luau — UI Feedback (PlayerAdded, show errors to user)
-
-```lua
-local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
-local BASE_URL = "https://luxyhub.space"
-
--- Assumes you have a ScreenGui with a TextLabel named "StatusLabel"
--- and a TextBox for key input named "KeyInput"
-local screenGui = script.Parent -- or wherever your GUI is
-local statusLabel = screenGui:WaitForChild("StatusLabel")
-local keyInput = screenGui:WaitForChild("KeyInput")
-
-local function showError(message: string)
-    statusLabel.Text = message
-    statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-end
-
-local function showSuccess(message: string)
-    statusLabel.Text = message
-    statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
-end
-
-local function showLoading()
-    statusLabel.Text = "Validating key..."
-    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-end
-
-local function showBanned()
-    -- Kick with a clear message
-    local player = Players.LocalPlayer
-    player:Kick("Key dinonaktifkan / Key disabled. Hubungi admin.")
-end
-
-local function validateKey(key: string)
-    showLoading()
-
-    if not key:match("^LUXY%-[A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9]%-[A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9]%-[A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9]$") then
-        showError("Format salah! Harus: LUXY-XXXX-XXXX-XXXX")
-        return
-    end
-
-    local success, response = pcall(function()
-        return syn.request({
-            Url = BASE_URL .. "/api/validate",
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = HttpService:JSONEncode({ key = key }),
-        })
-    end)
-
-    if not success then
-        showError("Tidak bisa konek ke server / Cannot connect. Coba lagi.")
-        return
-    end
-
-    local status = response.StatusCode
-    local data = HttpService:JSONDecode(response.Body)
-
-    if status == 200 then
-        showSuccess("Key valid! Loading script...")
-        task.wait(1)
-        -- Proceed to load main script
-        -- loadstring(game:HttpGet("..."))()
-    elseif status == 404 then
-        showError("Key salah. Cek lagi key kamu.")
-    elseif status == 403 then
-        if data.message == "Key expired" then
-            showError("Key sudah expired. Cek lagi key kamu.")
-        else
-            showBanned()
-        end
-    elseif status == 429 then
-        showError("Terlalu banyak percobaan. Tunggu sebentar ya.")
-    else
-        showError("Error tidak diketahui (code: " .. tostring(status) .. ")")
-    end
-end
-
--- Hook to UI button or remote event
-keyInput.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        validateKey(keyInput.Text)
-    end
-end)
-```
-
-### d) cURL
+### cURL
 
 ```bash
 # Health check
@@ -339,20 +201,20 @@ curl -s -X POST https://luxyhub.vercel.app/api/validate \
   -H "Content-Type: application/json" \
   -d '{"key":"LUXY-ABCD-EFGH-IJKL"}'
 
-# Validate with verbose (see status code & Retry-After header)
+# Validate with verbose (see status code and Retry-After header)
 curl -v -X POST https://luxyhub.vercel.app/api/validate \
   -H "Content-Type: application/json" \
   -d '{"key":"LUXY-ABCD-EFGH-IJKL"}'
 ```
 
-### e) Python
+### Python
 
 ```python
 import re
 import time
 import requests
 
-BASE_URL = "https://luxyhub.space"
+BASE_URL = "https://luxyhub.vercel.app"
 KEY_REGEX = re.compile(r"^LUXY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$")
 
 def validate_key(key: str, max_retries: int = 3) -> tuple[bool, str | None]:
@@ -387,30 +249,21 @@ def validate_key(key: str, max_retries: int = 3) -> tuple[bool, str | None]:
                 continue
             return False, "Rate limited"
         elif status == 400:
-            return False, "Invalid key format or missing key"
-        elif status == 404:
-            return False, "Invalid key"
+            return False, "Key is required"
         elif status == 403:
-            return False, "Key expired or disabled"
+            return False, "Invalid key"
         elif status == 500:
             return False, "Server error"
         else:
             return False, f"Unexpected status {status}"
 
     return False, "Max retries exceeded"
-
-# Usage
-valid, error = validate_key("LUXY-ABCD-EFGH-IJKL")
-if valid:
-    print("Key valid")
-else:
-    print(f"Validation failed: {error}")
 ```
 
-### f) Node.js / TypeScript
+### Node.js / TypeScript
 
 ```typescript
-const BASE_URL = 'https://luxyhub.space'
+const BASE_URL = 'https://luxyhub.vercel.app'
 const KEY_REGEX = /^LUXY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
 
 interface ValidationResult {
@@ -418,7 +271,10 @@ interface ValidationResult {
   error?: string
 }
 
-async function validateKey(key: string, maxRetries: number = 3): Promise<ValidationResult> {
+async function validateKey(
+  key: string,
+  maxRetries: number = 3
+): Promise<ValidationResult> {
   if (!KEY_REGEX.test(key)) {
     return { valid: false, error: 'Invalid key format' }
   }
@@ -442,7 +298,10 @@ async function validateKey(key: string, maxRetries: number = 3): Promise<Validat
       }
 
       if (response.status === 429) {
-        const retryAfter = parseInt(response.headers.get('Retry-After') || '60', 10)
+        const retryAfter = parseInt(
+          response.headers.get('Retry-After') || '60',
+          10
+        )
         if (attempt < maxRetries - 1) {
           await new Promise((r) => setTimeout(r, (retryAfter + 1) * 1000))
           continue
@@ -450,15 +309,11 @@ async function validateKey(key: string, maxRetries: number = 3): Promise<Validat
         return { valid: false, error: 'Rate limited' }
       }
 
-      const body = await response.json()
-
       switch (response.status) {
         case 400:
-          return { valid: false, error: 'Invalid format or missing key' }
-        case 404:
-          return { valid: false, error: 'Invalid key' }
+          return { valid: false, error: 'Key is required' }
         case 403:
-          return { valid: false, error: body.message === 'Key expired' ? 'Key expired' : 'Key disabled' }
+          return { valid: false, error: 'Invalid key' }
         case 500:
           return { valid: false, error: 'Server error' }
         default:
@@ -478,14 +333,6 @@ async function validateKey(key: string, maxRetries: number = 3): Promise<Validat
 
   return { valid: false, error: 'Max retries exceeded' }
 }
-
-// Usage
-const result = await validateKey('LUXY-ABCD-EFGH-IJKL')
-if (result.valid) {
-  console.log('Key valid')
-} else {
-  console.error('Validation failed:', result.error)
-}
 ```
 
 ---
@@ -494,7 +341,7 @@ if (result.valid) {
 
 ### 1. Cache validation results
 
-Do not call `/api/validate` every frame or every time a function runs. Cache the result for the session lifetime — validate once on script start.
+Do not call `/api/validate` every frame. Validate once on script start and cache:
 
 ```lua
 local keyValid = false
@@ -510,15 +357,9 @@ local function isKeyValid(): boolean
 end
 ```
 
-### 2. Set HTTP timeouts
+### 2. Client-side format validation first
 
-Always set a timeout (5 seconds recommended) so a downed server doesn't hang the script indefinitely.
-
-```lua
--- syn.request does not natively support timeouts — wrap in coroutine or spawn
--- Python: requests.post(..., timeout=5)
--- Node.js: AbortController with setTimeout
-```
+Check the key format regex before sending. Saves API calls for obviously malformed keys.
 
 ### 3. Implement exponential backoff for retries
 
@@ -526,29 +367,15 @@ On 429 or network failures, wait `2^attempt` seconds before retrying (2s, 4s, 8s
 
 ### 4. Never hardcode API keys
 
-Keys should come from:
-
-- User input (TextBox in GUI)
-- Configuration file (user-editable, not compiled in)
-- Environment variable (server-side only)
-
-Never ship a script with a baked-in key.
+Keys should come from user input, configuration files, or environment variables. Never ship a script with a baked-in key.
 
 ### 5. Graceful degradation
 
-If the API is unreachable, default to **blocking** the script rather than letting it run. Never skip validation because the server is down — that's a common bypass vector.
+If the API is unreachable, block the script rather than allowing execution. Never skip validation on failure.
 
-### 6. Client-side format validation first
+### 6. Set HTTP timeouts
 
-Check the regex before sending a request. This saves API calls and gives instant feedback for obviously malformed keys.
-
-### 7. Log failures for debugging
-
-On non-200 responses, log the status code and body to help with support tickets.
-
-```lua
-warn("[LuxyHub] Validation failed — status:", status, "body:", response.Body)
-```
+Always set a timeout (5 seconds recommended) so a downed server does not hang the script indefinitely.
 
 ---
 
@@ -565,66 +392,54 @@ warn("[LuxyHub] Validation failed — status:", status, "body:", response.Body)
                    └────────┬──────────┘
                             │
                             ▼
-                   ┌───────────────────┐     ┌─────────────────────────────┐
-                   │ Client-side regex │────▶│ Show: "Invalid key format"  │
-                   │ check             │ NO  │ Stop.                       │
-                   └────────┬──────────┘     └─────────────────────────────┘
+                   ┌───────────────────┐     ┌──────────────────────┐
+                   │ Client-side regex │────▶│ Invalid key format   │
+                   │ check             │ NO  │ Stop.                │
+                   └────────┬──────────┘     └──────────────────────┘
                             │ YES
                             ▼
                    ┌───────────────────┐
                    │ POST /api/validate│
                    └────────┬──────────┘
                             │
-              ┌─────────────┼─────────────┐
-              ▼             ▼             ▼
-     ┌────────────┐ ┌────────────┐ ┌────────────┐
-     │ HTTP 200   │ │ HTTP 429   │ │ Network    │
-     │ success:true│ │ Rate limit │ │ error      │
-     └─────┬──────┘ └─────┬──────┘ └─────┬──────┘
-           │              │              │
-           ▼              ▼              ▼
-     ┌────────────┐ ┌────────────┐ ┌────────────┐
-     │ Run script │ │ Retry with │ │ Retry with │
-     │            │ │ Retry-After│ │ backoff    │
-     └────────────┘ └─────┬──────┘ └─────┬──────┘
-                          │              │
-                          ▼              ▼
-                   ┌───────────────────────────┐
-                   │ Retries exhausted?        │
-                   └─────────┬─────────────────┘
-                             │
-                   ┌─────────┴─────────┐
-                   ▼                   ▼
-            ┌────────────┐     ┌────────────┐
-            │ YES: Show  │     │ NO: Retry  │
-            │ error, stop│     │ loop back  │
-            └────────────┘     └────────────┘
+           ┌────────────────┼────────────────┐
+           ▼                ▼                ▼
+   ┌────────────┐   ┌────────────┐   ┌────────────┐
+   │ HTTP 200   │   │ HTTP 429   │   │ Network    │
+   │ ✓ Valid    │   │ Rate limit │   │ error      │
+   └─────┬──────┘   └─────┬──────┘   └─────┬──────┘
+         │                │                │
+         ▼                ▼                ▼
+   ┌────────────┐   ┌────────────┐   ┌────────────┐
+   │ Run script │   │ Retry with │   │ Retry with │
+   │            │   │ Retry-After│   │ backoff    │
+   └────────────┘   └────────────┘   └────────────┘
 
-              ┌─────────────┼─────────────┐
-              ▼             ▼             ▼
-      ┌────────────┐ ┌────────────┐ ┌────────────┐
-      │ HTTP 400   │ │ HTTP 404   │ │ HTTP 403   │
-      │ Bad req    │ │ Not found  │ │ Forbidden  │
-     └─────┬──────┘ └─────┬──────┘ └─────┬──────┘
-           │              │              │
-           ▼              ▼              ▼
-      ┌────────────┐ ┌────────────┐ ┌────────────┐
-      │ Show format│ │ Show: key  │ │ Show: key  │
-      │ error. Stop│ │ invalid.   │ │ expired or │
-      │            │ │ Stop.      │ │ disabled   │
-      └────────────┘ └────────────┘ └────────────┘
-
-              ┌─────────────┐
-              ▼             ▼
-     ┌────────────┐ ┌────────────┐
-     │ HTTP 500   │ │ Unknown    │
-     │ Server err │ │ status     │
-     └─────┬──────┘ └─────┬──────┘
-           │              │
-           ▼              ▼
-     ┌────────────┐ ┌────────────┐
-     │ Show: try  │ │ Log & show │
-     │ again later│ │ generic    │
-     │ Stop.      │ │ error. Stop│
-     └────────────┘ └────────────┘
+   ┌──────────────────────────────────────────────┐
+   ▼                ▼                             │
+HTTP 400        HTTP 403                          │
+Missing key     Invalid key                       │
+────► Stop      (not found/expired/disabled)      │
+                 ────► Stop                       │
+                                                   │
+   ┌──────────────────────────────────────────────┘
+   ▼
+HTTP 500
+Server error
+────► Stop
 ```
+
+**Note:** HTTP 404 is no longer returned. All validation failures use HTTP 403.
+
+---
+
+## Breaking Changes from Older Versions
+
+| Change | Old | New |
+|--------|-----|-----|
+| Validate error codes | 400 (format), 404 (not found), 403 (expired/disabled) | 400 (missing key), 403 (all other failures) |
+| Base URL | `https://luxyhub.space`, `https://api.luxyhub.space` | `https://luxyhub.vercel.app` |
+| Response envelope | `{ "success": true, "data": { ... } }` | `{ "success": true }` (flat) |
+| Key generation | `POST /api/generate` with `checkpoint_token` | `POST /api/generate-key` or `POST /api/verify-workink` with `token` |
+| Key type field | `key_type` query param | Removed (not implemented) |
+| Error codes in body | `{ "code": "INVALID_KEY" }` | Removed (not implemented) |
