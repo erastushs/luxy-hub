@@ -123,3 +123,22 @@ CREATE INDEX IF NOT EXISTS idx_script_downloads_created_at
 
 CREATE INDEX IF NOT EXISTS idx_script_downloads_script_time
   ON script_downloads (script_id, created_at);
+
+-- ============================================================================
+-- LuxyHub Creator Identity — Phase 3A
+-- Apply migrations/003_profiles.sql after running this section
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username text UNIQUE,
+  display_name text NOT NULL,
+  avatar_url text,
+  role text NOT NULL DEFAULT 'creator'
+    CHECK (role IN ('creator', 'admin')),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_role
+  ON profiles (role);
