@@ -97,6 +97,37 @@ export async function listScripts(
   return { scripts: data ?? [], total: count ?? 0 }
 }
 
+export async function listScriptsForOwner(params: {
+  ownerId: string
+  visibility?: string | null
+  search?: string | null
+  limit?: number
+  offset?: number
+}): Promise<ListScriptsResult> {
+  let query = supabaseAdmin
+    .from('scripts')
+    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at', { count: 'exact' })
+    .eq('creator_id', params.ownerId)
+    .order('updated_at', { ascending: false })
+
+  if (params.visibility && params.visibility !== 'all') {
+    query = query.eq('visibility', params.visibility)
+  }
+
+  if (params.search) {
+    query = query.or(`name.ilike.*${params.search}*,slug.ilike.*${params.search}*`)
+  }
+
+  const limit = params.limit ?? 20
+  const offset = params.offset ?? 0
+  query = query.range(offset, offset + limit - 1)
+
+  const { data, error, count } = await query
+
+  if (error) return { scripts: [], total: 0 }
+  return { scripts: data ?? [], total: count ?? 0 }
+}
+
 export async function createScript(params: {
   slug: string
   name: string

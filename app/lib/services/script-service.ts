@@ -2,6 +2,7 @@ import {
   findScriptBySlug,
   findScriptBySlugForOwner,
   listScripts,
+  listScriptsForOwner,
   createScript as createScriptRepo,
   updateScript as updateScriptRepo,
   deleteScript as deleteScriptRepo,
@@ -180,6 +181,53 @@ export async function listPublicScripts(limit?: unknown, offset?: unknown): Prom
   }
 }
 
+export async function listCreatorScripts(
+  ownerId: string,
+  params: {
+    visibility?: unknown
+    search?: unknown
+    limit?: unknown
+    offset?: unknown
+  }
+): Promise<ScriptListResult> {
+  const parsedLimit = typeof params.limit === 'string' ? parseInt(params.limit, 10) : (typeof params.limit === 'number' ? params.limit : 20)
+  const parsedOffset = typeof params.offset === 'string' ? parseInt(params.offset, 10) : (typeof params.offset === 'number' ? params.offset : 0)
+
+  if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
+    return { success: false, message: 'Limit must be a number between 1 and 100', status: 400 }
+  }
+
+  if (isNaN(parsedOffset) || parsedOffset < 0) {
+    return { success: false, message: 'Offset must be a non-negative number', status: 400 }
+  }
+
+  let visibilityFilter: string | null = null
+  if (params.visibility !== undefined && params.visibility !== null) {
+    const vis = String(params.visibility)
+    if (vis !== 'all' && !isValidVisibility(vis)) {
+      return { success: false, message: 'Invalid visibility filter. Must be public, private, unlisted, or all', status: 400 }
+    }
+    visibilityFilter = vis
+  }
+
+  const search = params.search !== undefined && params.search !== null && String(params.search).trim().length > 0
+    ? String(params.search).trim()
+    : null
+
+  try {
+    const result = await listScriptsForOwner({
+      ownerId,
+      visibility: visibilityFilter,
+      search,
+      limit: parsedLimit,
+      offset: parsedOffset,
+    })
+    return { success: true, scripts: result.scripts, total: result.total }
+  } catch {
+    return { success: false, message: 'Failed to list scripts', status: 500 }
+  }
+}
+
 export async function updateScript(
   slug: unknown,
   ownerId: string,
@@ -248,6 +296,9 @@ export async function updateScript(
 
     return { success: true, script: updated }
   } catch (error) {
+    if (error instanceof OwnershipError) {
+      return { success: false, message: error.message, status: error.status }
+    }
     if (error instanceof ScriptConflictError) {
       return { success: false, message: error.message, status: 409 }
     }
