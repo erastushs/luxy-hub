@@ -71,6 +71,20 @@ export async function POST(req: NextRequest) {
       console.error('Cleanup logs error')
     }
 
+    const ninetyDaysAgo = new Date(
+      Date.now() - 90 * 24 * 60 * 60 * 1000
+    ).toISOString()
+
+    const { error: downloadsError } = await supabaseAdmin
+      .from('script_downloads')
+      .delete()
+      .lt('created_at', ninetyDaysAgo)
+      .limit(10000)
+
+    if (downloadsError) {
+      console.error('Cleanup script_downloads error')
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Cleanup completed',

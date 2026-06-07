@@ -1,0 +1,256 @@
+import { supabaseAdmin } from '@/app/lib/supabase'
+
+export type ScriptRow = {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  visibility: 'public' | 'private' | 'unlisted'
+  creator_id: string | null
+  current_version_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type VersionRow = {
+  id: string
+  script_id: string
+  version: string
+  content: string
+  changelog: string | null
+  created_at: string
+}
+
+export type DownloadRow = {
+  id: string
+  script_id: string
+  version_id: string | null
+  ip_hash: string
+  user_agent_hash: string | null
+  created_at: string
+}
+
+export type ScriptStats = {
+  slug: string
+  total_downloads: number
+  unique_ips: number
+  downloads_today: number
+  downloads_this_week: number
+  last_downloaded_at: string | null
+}
+
+export type ListScriptsResult = {
+  scripts: ScriptRow[]
+  total: number
+}
+
+function getPepper(): string {
+  return process.env.ANALYTICS_PEPPER || process.env.CRON_SECRET || 'dev-pepper'
+}
+
+export async function hashIdentifier(value: string): Promise<string> {
+  const pepper = getPepper()
+  const data = new TextEncoder().encode(value + ':' + pepper)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+export async function findScriptBySlug(slug: string): Promise<ScriptRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('scripts')
+    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at')
+    .eq('slug', slug)
+    .single()
+
+  if (error) return null
+  return data
+}
+
+export async function listScripts(
+  visibility: string = 'public',
+  limit: number = 20,
+  offset: number = 0
+): Promise<ListScriptsResult> {
+  const query = supabaseAdmin
+    .from('scripts')
+    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at', { count: 'exact' })
+    .eq('visibility', visibility)
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  const { data, error, count } = await query
+
+  if (error) return { scripts: [], total: 0 }
+  return { scripts: data ?? [], total: count ?? 0 }
+}
+
+export async function createScript(params: {
+  slug: string
+  name: string
+  description?: string
+  visibility?: string
+  creator_id?: string
+}): Promise<ScriptRow> {
+  const now = new Date().toISOString()
+  const { data, error } = await supabaseAdmin
+    .from('scripts')
+    .insert({
+      slug: params.slug,
+      name: params.name,
+      description: params.description ?? '',
+      visibility: params.visibility ?? 'private',
+      creator_id: params.creator_id ?? null,
+      created_at: now,
+      updated_at: now,
+    })
+    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at')
+    .single()
+
+  if (error) {
+    if (error.code === '23505') {
+      throw new ScriptConflictError(params.slug)
+    }
+    throw error
+  }
+
+  return data
+}
+
+export class ScriptConflictError extends Error {
+  constructor(slug: string) {
+    super(`A script with slug "${slug}" already exists`)
+    this.name = 'ScriptConflictError'
+  }
+}
+
+export async function updateScript(
+  slug: string,
+  params: {
+    name?: string
+    description?: string
+    visibility?: 'public' | 'private' | 'unlisted'
+    current_version_id?: string
+  }
+): Promise<ScriptRow | null> {
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (params.name !== undefined) updates.name = params.name
+  if (params.description !== undefined) updates.description = params.description
+  if (params.visibility !== undefined) updates.visibility = params.visibility
+  if (params.current_version_id !== undefined) updates.current_version_id = params.current_version_id
+
+  const { data, error } = await supabaseAdmin
+    .from('scripts')
+    .update(updates)
+    .eq('slug', slug)
+    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at')
+    .single()
+
+  if (error) return null
+  return data
+}
+
+export async function deleteScript(slug: string): Promise<boolean> {
+  const { error } = await supabaseAdmin
+    .from('scripts')
+    .delete()
+    .eq('slug', slug)
+
+  if (error) return false
+  return true
+}
+
+export async function createVersion(params: {
+  script_id: string
+  version: string
+  content: string
+  changelog?: string
+}): Promise<VersionRow> {
+  const { data, error } = await supabaseAdmin
+    .from('script_versions')
+    .insert({
+      script_id: params.script_id,
+      version: params.version,
+      content: params.content,
+      changelog: params.changelog ?? null,
+      created_at: new Date().toISOString(),
+    })
+    .select('id, script_id, version, content, changelog, created_at')
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function getLatestVersion(scriptId: string): Promise<VersionRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('script_versions')
+    .select('id, script_id, version, content, changelog, created_at')
+    .eq('script_id', scriptId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (error) return null
+  return data
+}
+
+export async function getScriptStats(slug: string): Promise<ScriptStats | null> {
+  const script = await findScriptBySlug(slug)
+  if (!script) return null
+
+  const scriptId = script.id
+  const today = new Date().toISOString().slice(0, 10)
+
+  const { count: total, error: totalError } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .eq('script_id', scriptId)
+
+  const { count: todayCount, error: todayError } = await supabaseAdmin
+    .from('script_downloads')
+    .select('id', { count: 'exact', head: true })
+    .eq('script_id', scriptId)
+    .gte('created_at', today)
+
+  const { data: uniqueData } = await supabaseAdmin
+    .from('script_downloads')
+    .select('ip_hash')
+    .eq('script_id', scriptId)
+
+  const uniqueIps = new Set((uniqueData ?? []).map((r) => r.ip_hash)).size
+
+  const { data: lastData, error: lastError } = await supabaseAdmin
+    .from('script_downloads')
+    .select('created_at')
+    .eq('script_id', scriptId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  return {
+    slug,
+    total_downloads: totalError ? 0 : (total ?? 0),
+    unique_ips: uniqueIps,
+    downloads_today: todayError ? 0 : (todayCount ?? 0),
+    downloads_this_week: 0,
+    last_downloaded_at: lastError ? null : (lastData?.created_at ?? null),
+  }
+}
+
+export async function recordDownload(params: {
+  script_id: string
+  version_id?: string | null
+  ip_hash: string
+  user_agent_hash?: string | null
+}): Promise<boolean> {
+  const { error } = await supabaseAdmin.from('script_downloads').insert({
+    script_id: params.script_id,
+    version_id: params.version_id ?? null,
+    ip_hash: params.ip_hash,
+    user_agent_hash: params.user_agent_hash ?? null,
+    created_at: new Date().toISOString(),
+  })
+
+  return !error
+}

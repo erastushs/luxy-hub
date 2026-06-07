@@ -15,3 +15,33 @@ export function validateRequestSize(contentLength: string | null): boolean {
   const size = parseInt(contentLength, 10)
   return !isNaN(size) && size <= MAX_BODY_SIZE
 }
+
+const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const MAX_SLUG_LENGTH = 64
+const MAX_NAME_LENGTH = 100
+const MAX_CONTENT_LENGTH = 62 * 1024
+export const VALID_VISIBILITIES = ['public', 'private', 'unlisted'] as const
+export type Visibility = (typeof VALID_VISIBILITIES)[number]
+
+export function isValidSlug(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length >= 3 &&
+    value.length <= MAX_SLUG_LENGTH &&
+    SLUG_REGEX.test(value)
+  )
+}
+
+export function isValidScriptName(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0 && value.length <= MAX_NAME_LENGTH
+}
+
+export function isValidVisibility(value: unknown): value is Visibility {
+  return typeof value === 'string' && VALID_VISIBILITIES.includes(value as Visibility)
+}
+
+export function isValidScriptContent(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length === 0) return false
+  const byteLength = new TextEncoder().encode(value).length
+  return byteLength <= MAX_CONTENT_LENGTH
+}
