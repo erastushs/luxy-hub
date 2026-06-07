@@ -38,28 +38,35 @@ export async function checkRateLimit(ip: string, limitKey: LimitKey) {
   const now = new Date()
   const windowStart = new Date(now.getTime() - windowMs)
 
-  const { data: recentRequests, error } = await supabaseAdmin
+  const { error: insertError } = await supabaseAdmin
     .from('rate_limits')
-    .select('id')
+    .insert({
+      ip,
+      endpoint: limitKey,
+      created_at: now.toISOString(),
+    })
+
+  if (insertError) {
+    console.error(`[rate-limiter] DB insert error — denying request (fail-closed): ${ip}`)
+    return { allowed: false, retryAfter: Math.ceil(windowMs / 1000) }
+  }
+
+  const { count, error } = await supabaseAdmin
+    .from('rate_limits')
+    .select('id', { count: 'exact', head: true })
     .eq('ip', ip)
     .eq('endpoint', limitKey)
     .gte('created_at', windowStart.toISOString())
     .lte('created_at', now.toISOString())
 
-  if (error) {
-    console.error(`[rate-limiter] DB error — denying request (fail-closed): ${ip}`)
+  if (error || count === null) {
+    console.error(`[rate-limiter] DB count error — denying request (fail-closed): ${ip}`)
     return { allowed: false, retryAfter: Math.ceil(windowMs / 1000) }
   }
 
-  if (recentRequests && recentRequests.length >= maxRequests) {
+  if (count > maxRequests) {
     return { allowed: false, retryAfter: Math.ceil(windowMs / 1000) }
   }
-
-  await supabaseAdmin.from('rate_limits').insert({
-    ip,
-    endpoint: limitKey,
-    created_at: now.toISOString(),
-  })
 
   return { allowed: true }
 }
