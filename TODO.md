@@ -117,6 +117,8 @@ Last updated: 2026-06-08
 | 105 | **UI** | Phase 6E Loader Copy Workflow | `CopyLoaderButton`, `LoaderSnippetCard`, script metadata summary |
 | 106 | **Tests** | Phase 6E Dashboard UX Polish Tests | `__tests__/dashboard-ux-polish.test.tsx` |
 | 107 | **Docs** | Phase 6E UX Polish Documentation | `PHASE6E_UX_POLISH.md` |
+| 108 | **Docs** | Phase 6F Runtime Adapter Audit | `LOADER_RUNTIME_ADAPTER_AUDIT.md` |
+| 109 | **Docs** | Phase 6F Runtime Validation Plan | `PHASE6F_RUNTIME_VALIDATION.md` |
 
 ---
 
@@ -130,9 +132,10 @@ Last updated: 2026-06-08
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 7 | License & Key Management | Phase 6 |
-| 2 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
-| 3 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
+| 1 | Phase 6G | Runtime Adapter Implementation & Executor Validation | Phase 6F |
+| 2 | Phase 7 | License & Key Management | Phase 6G |
+| 3 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
+| 4 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
 
 ---
 
@@ -148,7 +151,7 @@ CDN API:          100% complete  ███████████████�
 Dashboard Backend: 100% complete  ████████████████████
 Dashboard UI:     100% complete  ████████████████████
 Secure Delivery:    85% complete  █████████████████░░░
-Loader Integration: 75% complete  ███████████████░░░░░
+Loader Integration: 85% complete  █████████████████░░░
 Key Management:      0% complete  ░░░░░░░░░░░░░░░░░░░░
 Operations:          0% complete  ░░░░░░░░░░░░░░░░░░░░
 Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░░░░░░
@@ -192,13 +195,14 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 6C | Build Automation | Complete | 100% |
 | Phase 6D | Production Loader | Complete | 100% |
 | Phase 6E | Dashboard UX Polish | Complete | 100% |
-| Phase 6 | Loader Integration | Production Loader + UX Polish Complete / Executor Verification Pending | 80% |
+| Phase 6F | Runtime Validation | Complete | 100% |
+| Phase 6 | Loader Integration | Runtime Validation Complete / Adapter Implementation + Executor Verification Pending | 85% |
 | Phase 7 | License & Key Management | Not Started | 0% |
 | Phase 8 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 9 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 6E Complete — Transitioning to Phase 7
-> Phase 6E adds dashboard action tooltips, loader copy workflow, loader snippet visibility, slug safety guidance, and accessibility polish. Next: Phase 7 — License & Key Management.
+## Current Phase: Phase 6F Complete — Runtime Adapter Implementation Pending
+> Phase 6F documents the current runtime adapter contract, identifies the missing production adapter and loader-side AES key material strategy as execution blockers, and recommends embedded runtime distribution. Next: Phase 6G — Runtime Adapter Implementation & Executor Validation.
 ---
 
 # Phase 1 — Infrastructure & Monitoring
@@ -527,6 +531,14 @@ Integrate LuxyHub delivery system with script loaders.
 - [x] Loader snippet card and script metadata summary card
 - [x] Slug safety guidance for loader URLs
 - [x] Dashboard UX polish documentation and tests
+- [x] Runtime adapter contract audit
+- [x] Runtime distribution strategy selected
+- [x] Proof-of-execution blocker documented
+- [x] Executor compatibility assumptions reviewed
+- [x] Runtime packaging plan documented
+- [x] Minimal real-world validation procedure documented
+- [ ] Production runtime adapter implementation
+- [ ] Loader-side AES key material strategy
 - [ ] Executor compatibility testing
 
 Success Criteria:
@@ -545,6 +557,11 @@ Success Criteria:
 - [x] Loader URL is easy to discover and copy
 - [x] Slug risks are clearly communicated
 - [x] No delivery/security behavior changed by UX polish
+- [x] Real execution path is understood
+- [x] Runtime requirements are documented
+- [x] Execution blocker identified
+- [x] Recommended runtime architecture chosen
+- [ ] Production runtime adapter exists
 - [ ] Executor compatibility verified
 
 ---
