@@ -92,7 +92,10 @@ get script_versions row
 normalize source
   |
   v
-create delivery_builds row as building
+create delivery_builds row as pending
+  |
+  v
+mark delivery_builds row building
   |
   v
 compress normalized source
@@ -110,7 +113,10 @@ mark delivery_builds row ready
 Failed build:
 
 ```text
-create delivery_builds row as building
+create delivery_builds row as pending
+  |
+  v
+mark delivery_builds row building
   |
   v
 pipeline error
@@ -154,7 +160,8 @@ app/lib/repositories/delivery-build-repository.ts
 
 Functions:
 
-- `createBuild()` creates a building artifact row with source hash and compatibility metadata.
+- `createBuild()` creates a pending artifact row with source hash and compatibility metadata.
+- `markBuildBuilding()` records the transition from pending to active build execution.
 - `getBuildByVersion()` returns the newest build for a version.
 - `getReadyBuild()` returns the newest ready inline build for a version.
 - `markBuildReady()` stores encrypted payload data and marks the row ready.

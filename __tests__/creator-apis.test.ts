@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { listCreatorScripts, createScript, updateScript, deleteScript, getVisibleScript, getStats } from '@/app/lib/services/script-service'
+import { listCreatorScripts, createScript, updateScript, deleteScript, getVisibleScript, getStats, changeVisibility } from '@/app/lib/services/script-service'
 import type { ScriptRow, ScriptStats } from '@/app/lib/repositories/script-repository'
 
 const mockScriptRow = (overrides: Partial<ScriptRow> = {}): ScriptRow => ({
@@ -29,6 +29,10 @@ const OWNER_B = '00000000-0000-0000-0000-00000000000b'
 
 vi.mock('@/app/lib/services/audit-service', () => ({
   logAuditEvent: vi.fn(),
+}))
+
+vi.mock('@/app/lib/services/build-automation-service', () => ({
+  runAutoBuildForVersion: vi.fn(),
 }))
 
 vi.mock('@/app/lib/repositories/script-repository', () => ({
@@ -68,6 +72,7 @@ import {
   getLatestVersion,
   getScriptStatsForOwner,
 } from '@/app/lib/repositories/script-repository'
+import { runAutoBuildForVersion } from '@/app/lib/services/build-automation-service'
 
 const mockedListScriptsForOwner = listScriptsForOwner as ReturnType<typeof vi.fn>
 const mockedFindScriptBySlug = findScriptBySlug as ReturnType<typeof vi.fn>
@@ -78,6 +83,7 @@ const mockedDeleteScriptRepo = deleteScriptRepo as ReturnType<typeof vi.fn>
 const mockedCreateVersion = createVersion as ReturnType<typeof vi.fn>
 const mockedGetLatestVersion = getLatestVersion as ReturnType<typeof vi.fn>
 const mockedGetScriptStatsForOwner = getScriptStatsForOwner as ReturnType<typeof vi.fn>
+const mockedRunAutoBuildForVersion = runAutoBuildForVersion as ReturnType<typeof vi.fn>
 
 describe('Phase 3C Creator API Layer', () => {
   beforeEach(() => {
@@ -269,6 +275,7 @@ describe('Phase 3C Creator API Layer', () => {
         { current_version_id: 'version-uuid-2' },
         OWNER_A
       )
+      expect(mockedRunAutoBuildForVersion).toHaveBeenCalledWith('version-uuid-2', 'version_created')
     })
 
     it('returns 404 for foreign script update', async () => {
@@ -279,6 +286,57 @@ describe('Phase 3C Creator API Layer', () => {
       if (!result.success) {
         expect(result.status).toBe(404)
       }
+    })
+  })
+
+  describe('createScript — build automation', () => {
+    it('auto-builds the initial script version after creation', async () => {
+      mockedCreateScriptRepo.mockResolvedValue(mockScriptRow({ slug: 'new-script', id: 'script-uuid-1' }))
+      mockedCreateVersion.mockResolvedValue({
+        id: 'version-uuid-1',
+        script_id: 'script-uuid-1',
+        version: '1.0.0',
+        content: 'print("hello")',
+        changelog: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+      })
+      mockedUpdateScriptRepo.mockResolvedValue(mockScriptRow({
+        slug: 'new-script',
+        id: 'script-uuid-1',
+        current_version_id: 'version-uuid-1',
+      }))
+
+      const result = await createScript({
+        slug: 'new-script',
+        name: 'New Script',
+        visibility: 'private',
+        content: 'print("hello")',
+        creatorId: OWNER_A,
+        creatorRole: 'creator',
+      })
+
+      expect(result.success).toBe(true)
+      expect(mockedRunAutoBuildForVersion).toHaveBeenCalledWith('version-uuid-1', 'script_created')
+    })
+  })
+
+  describe('changeVisibility — build automation', () => {
+    it('auto-builds the current version when publishing visibility changes', async () => {
+      mockedFindScriptBySlugForOwner.mockResolvedValue(mockScriptRow({
+        creator_id: OWNER_A,
+        visibility: 'private',
+        current_version_id: 'version-uuid-1',
+      }))
+      mockedUpdateScriptRepo.mockResolvedValue(mockScriptRow({
+        creator_id: OWNER_A,
+        visibility: 'public',
+        current_version_id: 'version-uuid-1',
+      }))
+
+      const result = await changeVisibility('my-script', OWNER_A, 'public')
+
+      expect(result.success).toBe(true)
+      expect(mockedRunAutoBuildForVersion).toHaveBeenCalledWith('version-uuid-1', 'script_published')
     })
   })
 

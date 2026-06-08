@@ -9,6 +9,7 @@ vi.mock('@/app/lib/repositories/script-repository', () => ({
 vi.mock('@/app/lib/repositories/delivery-build-repository', () => ({
   createBuild: vi.fn(),
   getReadyBuild: vi.fn(),
+  markBuildBuilding: vi.fn(),
   markBuildReady: vi.fn(),
   markBuildFailed: vi.fn(),
   markBuildInvalidated: vi.fn(),
@@ -27,6 +28,7 @@ import { getVersionById } from '@/app/lib/repositories/script-repository'
 import {
   createBuild,
   getReadyBuild,
+  markBuildBuilding,
   markBuildReady,
   markBuildFailed,
   markBuildInvalidated,
@@ -35,6 +37,7 @@ import {
 const mockedGetVersionById = vi.mocked(getVersionById)
 const mockedCreateBuild = vi.mocked(createBuild)
 const mockedGetReadyBuild = vi.mocked(getReadyBuild)
+const mockedMarkBuildBuilding = vi.mocked(markBuildBuilding)
 const mockedMarkBuildReady = vi.mocked(markBuildReady)
 const mockedMarkBuildFailed = vi.mocked(markBuildFailed)
 const mockedMarkBuildInvalidated = vi.mocked(markBuildInvalidated)
@@ -56,7 +59,7 @@ function mockBuildRow(overrides: Partial<DeliveryBuildRow> = {}): DeliveryBuildR
     id: 'build-uuid-1',
     script_id: 'script-uuid-1',
     version_id: 'version-uuid-1',
-    build_status: 'building',
+    build_status: 'pending',
     payload_storage_kind: 'inline_encrypted',
     payload_ciphertext: null,
     payload_content_type: PAYLOAD_CONTENT_TYPE,
@@ -103,6 +106,17 @@ describe('Phase 5B delivery build service', () => {
         encryption_key_id: params.encryptionKeyId ?? null,
         payload_content_type: params.payloadContentType,
         metadata: params.metadata ?? {},
+      })
+      buildRows.set(row.id, row)
+      return row
+    })
+
+    mockedMarkBuildBuilding.mockImplementation(async (buildId) => {
+      const previous = buildRows.get(buildId) ?? mockBuildRow({ id: buildId })
+      const row = mockBuildRow({
+        ...previous,
+        build_status: 'building',
+        updated_at: '2026-01-01T00:00:30.000Z',
       })
       buildRows.set(row.id, row)
       return row
@@ -160,6 +174,7 @@ describe('Phase 5B delivery build service', () => {
 
     expect(result.success).toBe(true)
     expect(mockedCreateBuild).toHaveBeenCalledTimes(1)
+    expect(mockedMarkBuildBuilding).toHaveBeenCalledWith('build-uuid-1')
     expect(mockedMarkBuildReady).toHaveBeenCalledTimes(1)
 
     const createParams = mockedCreateBuild.mock.calls[0][0]
@@ -187,6 +202,7 @@ describe('Phase 5B delivery build service', () => {
 
     expect(result.success).toBe(false)
     expect(mockedCreateBuild).toHaveBeenCalledTimes(1)
+    expect(mockedMarkBuildBuilding).toHaveBeenCalledWith('build-uuid-1')
     expect(mockedMarkBuildReady).not.toHaveBeenCalled()
     expect(mockedMarkBuildFailed).toHaveBeenCalledWith('build-uuid-1', {
       errorCode: 'empty_source',

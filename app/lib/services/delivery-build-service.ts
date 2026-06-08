@@ -4,6 +4,7 @@ import { getVersionById } from '@/app/lib/repositories/script-repository'
 import {
   createBuild,
   getReadyBuild,
+  markBuildBuilding,
   markBuildFailed,
   markBuildInvalidated,
   markBuildReady,
@@ -149,6 +150,7 @@ export async function buildVersion(versionId: string): Promise<BuildVersionResul
         normalized_byte_size: Buffer.byteLength(normalizedSource, 'utf8'),
       },
     })
+    build = await markBuildBuilding(build.id)
 
     if (normalizedSource.trim().length === 0) {
       throw new BuildInputError('empty_source', 'Source content is empty after normalization')

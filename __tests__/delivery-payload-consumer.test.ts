@@ -9,6 +9,7 @@ vi.mock('@/app/lib/repositories/script-repository', () => ({
 vi.mock('@/app/lib/repositories/delivery-build-repository', () => ({
   createBuild: vi.fn(),
   getReadyBuild: vi.fn(),
+  markBuildBuilding: vi.fn(),
   markBuildReady: vi.fn(),
   markBuildFailed: vi.fn(),
   markBuildInvalidated: vi.fn(),
@@ -18,6 +19,7 @@ import { buildVersion, normalizeSource } from '@/app/lib/services/delivery-build
 import { getVersionById } from '@/app/lib/repositories/script-repository'
 import {
   createBuild,
+  markBuildBuilding,
   markBuildReady,
 } from '@/app/lib/repositories/delivery-build-repository'
 import {
@@ -29,6 +31,7 @@ import {
 
 const mockedGetVersionById = vi.mocked(getVersionById)
 const mockedCreateBuild = vi.mocked(createBuild)
+const mockedMarkBuildBuilding = vi.mocked(markBuildBuilding)
 const mockedMarkBuildReady = vi.mocked(markBuildReady)
 
 const TEST_SECRET = 'test-delivery-secret'
@@ -50,7 +53,7 @@ function mockBuildRow(overrides: Partial<DeliveryBuildRow> = {}): DeliveryBuildR
     id: 'build-uuid-1',
     script_id: 'script-uuid-1',
     version_id: 'version-uuid-1',
-    build_status: 'building',
+    build_status: 'pending',
     payload_storage_kind: 'inline_encrypted',
     payload_ciphertext: null,
     payload_content_type: 'application/vnd.luxyhub.delivery-payload.v1+json',
@@ -89,6 +92,15 @@ async function buildPayloadFromSource(source: string): Promise<DeliveryBuildRow>
       encryption_key_id: params.encryptionKeyId ?? null,
       payload_content_type: params.payloadContentType,
       metadata: params.metadata ?? {},
+    })
+    buildRows.set(row.id, row)
+    return row
+  })
+  mockedMarkBuildBuilding.mockImplementation(async (buildId) => {
+    const previous = buildRows.get(buildId) ?? mockBuildRow({ id: buildId })
+    const row = mockBuildRow({
+      ...previous,
+      build_status: 'building',
     })
     buildRows.set(row.id, row)
     return row

@@ -73,6 +73,11 @@ export type ReadyBuildParams = {
   payloadFormatVersion?: string
 }
 
+export type LatestBuildParams = {
+  buildVersion?: string
+  payloadFormatVersion?: string
+}
+
 const BUILD_SELECT = [
   'id',
   'script_id',
@@ -176,7 +181,7 @@ export async function createBuild(params: CreateBuildParams): Promise<DeliveryBu
     .insert({
       script_id: params.scriptId,
       version_id: params.versionId,
-      build_status: 'building',
+      build_status: 'pending',
       payload_storage_kind: 'inline_encrypted',
       payload_ciphertext: null,
       payload_content_type: params.payloadContentType,
@@ -222,6 +227,32 @@ export async function getLatestBuild(versionId: string): Promise<DeliveryBuildDa
 
   if (error) return null
   return data as unknown as DeliveryBuildDashboardRow
+}
+
+export async function getLatestBuildRow(
+  versionId: string,
+  params: LatestBuildParams = {}
+): Promise<DeliveryBuildRow | null> {
+  let query = supabaseAdmin
+    .from('delivery_builds')
+    .select(BUILD_SELECT)
+    .eq('version_id', versionId)
+
+  if (params.buildVersion) {
+    query = query.eq('build_version', params.buildVersion)
+  }
+
+  if (params.payloadFormatVersion) {
+    query = query.eq('payload_format_version', params.payloadFormatVersion)
+  }
+
+  const { data, error } = await query
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (error) return null
+  return data as unknown as DeliveryBuildRow
 }
 
 export async function listLatestBuildSummariesByVersionIds(
@@ -339,6 +370,21 @@ export async function markBuildReady(
       build_error_message: null,
       built_at: now,
       updated_at: now,
+    })
+    .eq('id', buildId)
+    .select(BUILD_SELECT)
+    .single()
+
+  if (error) throw error
+  return data as unknown as DeliveryBuildRow
+}
+
+export async function markBuildBuilding(buildId: string): Promise<DeliveryBuildRow> {
+  const { data, error } = await supabaseAdmin
+    .from('delivery_builds')
+    .update({
+      build_status: 'building',
+      updated_at: new Date().toISOString(),
     })
     .eq('id', buildId)
     .select(BUILD_SELECT)

@@ -9,6 +9,10 @@ vi.mock('@/app/lib/repositories/audit-repository', () => ({
   listAuditLogsForActor: vi.fn(),
 }))
 
+vi.mock('@/app/lib/services/build-automation-service', () => ({
+  runAutoBuildForVersion: vi.fn(),
+}))
+
 vi.mock('@/app/lib/repositories/script-repository', () => ({
   findScriptBySlug: vi.fn(),
   findScriptBySlugForOwner: vi.fn(),

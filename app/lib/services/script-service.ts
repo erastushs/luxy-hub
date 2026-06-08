@@ -25,6 +25,7 @@ import { assertScriptOwner, OwnershipError } from '@/app/lib/auth/ownership'
 import { isValidSlug, isValidScriptName, isValidVisibility, isValidScriptContent, type Visibility } from '@/app/lib/validators'
 import { logAuditEvent } from '@/app/lib/services/audit-service'
 import { createUploadChangelog, sanitizeSourceFilename } from '@/app/lib/source-file-metadata'
+import { runAutoBuildForVersion } from '@/app/lib/services/build-automation-service'
 
 export type { ScriptRow, ScriptStats, ListScriptsResult, Visibility, VersionRow, VersionSummaryRow }
 
@@ -129,6 +130,8 @@ export async function createScript(params: {
     if (!updated) {
       return { success: false, message: 'Failed to link version to script', status: 500 }
     }
+
+    await runAutoBuildForVersion(version.id, 'script_created')
 
     logAuditEvent({
       actor_id: params.creatorId,
@@ -306,6 +309,7 @@ export async function updateScript(
     if (params.visibility !== undefined) updateFields.visibility = params.visibility as Visibility
 
     let currentVersionId = existing.current_version_id
+    let createdVersionId: string | null = null
 
     if (params.content !== undefined && params.content !== '') {
       const latestVersion = await getLatestVersion(existing.id)
@@ -319,6 +323,7 @@ export async function updateScript(
       })
 
       currentVersionId = version.id
+      createdVersionId = version.id
     }
 
     const updated = await updateScriptRepo(
@@ -332,6 +337,10 @@ export async function updateScript(
 
     if (!updated) {
       return { success: false, message: 'Failed to update script', status: 500 }
+    }
+
+    if (createdVersionId) {
+      await runAutoBuildForVersion(createdVersionId, 'version_created')
     }
 
     logAuditEvent({
@@ -416,6 +425,10 @@ export async function changeVisibility(
     const updated = await updateScriptRepo(slug, { visibility }, ownerId)
     if (!updated) {
       return { success: false, message: 'Failed to update visibility', status: 500 }
+    }
+
+    if (updated.current_version_id) {
+      await runAutoBuildForVersion(updated.current_version_id, 'script_published')
     }
 
     logAuditEvent({

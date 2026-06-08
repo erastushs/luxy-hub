@@ -6,6 +6,10 @@ vi.mock('@/app/lib/services/audit-service', () => ({
   logAuditEvent: vi.fn(),
 }))
 
+vi.mock('@/app/lib/services/build-automation-service', () => ({
+  runAutoBuildForVersion: vi.fn(),
+}))
+
 vi.mock('@/app/lib/repositories/script-repository', () => {
   const mockVersionRow = (overrides: Partial<VersionRow> = {}): VersionRow => ({
     id: 'version-uuid-1',

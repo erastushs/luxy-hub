@@ -8,10 +8,11 @@ vi.mock('@/app/lib/supabase', () => ({
 }))
 
 import { supabaseAdmin } from '@/app/lib/supabase'
-import { createBuild, getReadyBuild } from '@/app/lib/repositories/delivery-build-repository'
+import { createBuild, getReadyBuild, markBuildBuilding } from '@/app/lib/repositories/delivery-build-repository'
 
 type QueryChain = {
   insert: Mock
+  update: Mock
   select: Mock
   eq: Mock
   order: Mock
@@ -50,6 +51,7 @@ function mockBuildRow(overrides: Partial<DeliveryBuildRow> = {}): DeliveryBuildR
 function createQueryChain(data: DeliveryBuildRow | null, error: unknown = null): QueryChain {
   const chain = {} as QueryChain
   chain.insert = vi.fn(() => chain)
+  chain.update = vi.fn(() => chain)
   chain.select = vi.fn(() => chain)
   chain.eq = vi.fn(() => chain)
   chain.order = vi.fn(() => chain)
@@ -66,7 +68,7 @@ describe('delivery build repository', () => {
   })
 
   it('creates inline encrypted build rows without source metadata', async () => {
-    const row = mockBuildRow({ build_status: 'building', payload_ciphertext: null })
+    const row = mockBuildRow({ build_status: 'pending', payload_ciphertext: null })
     const chain = createQueryChain(row)
     mockedFrom.mockReturnValue(chain)
 
@@ -88,6 +90,7 @@ describe('delivery build repository', () => {
 
     expect(result).toEqual(row)
     const inserted = chain.insert.mock.calls[0][0]
+    expect(inserted.build_status).toBe('pending')
     expect(inserted.payload_storage_kind).toBe('inline_encrypted')
     expect(inserted.payload_ciphertext).toBeNull()
     expect(inserted.metadata).toEqual({ normalized_byte_size: 14 })
@@ -111,6 +114,20 @@ describe('delivery build repository', () => {
     expect(chain.eq).toHaveBeenCalledWith('build_version', 'delivery-build-v1')
     expect(chain.eq).toHaveBeenCalledWith('payload_format_version', 'inline-json-v1')
     expect(chain.order).toHaveBeenCalledWith('built_at', { ascending: false })
+  })
+
+  it('marks a pending build as building', async () => {
+    const row = mockBuildRow({ build_status: 'building', payload_ciphertext: null })
+    const chain = createQueryChain(row)
+    mockedFrom.mockReturnValue(chain)
+
+    const result = await markBuildBuilding('build-uuid-1')
+
+    expect(result).toEqual(row)
+    expect(chain.update).toHaveBeenCalledWith(expect.objectContaining({
+      build_status: 'building',
+    }))
+    expect(chain.eq).toHaveBeenCalledWith('id', 'build-uuid-1')
   })
 
   it('excludes invalidated builds by filtering only ready status', async () => {

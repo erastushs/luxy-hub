@@ -103,6 +103,11 @@ Last updated: 2026-06-08
 | 91 | **Code** | Phase 6B Creator Rebuild Action | `app/actions/builds.ts` |
 | 92 | **Tests** | Phase 6B Build Operations Tests | `__tests__/build-operations-service.test.ts` |
 | 93 | **Docs** | Phase 6B Build Operations Documentation | `PHASE6B_BUILD_OPERATIONS.md` |
+| 94 | **Code** | Phase 6C Build Automation Service | `app/lib/services/build-automation-service.ts` |
+| 95 | **Code** | Phase 6C Automatic Build Triggers | `createScript`, `updateScript`, `changeVisibility` |
+| 96 | **Code** | Phase 6C Build Lifecycle Consistency | `pending → building → ready/failed` |
+| 97 | **Tests** | Phase 6C Build Automation Tests | `__tests__/build-automation-service.test.ts` |
+| 98 | **Docs** | Phase 6C Build Automation Documentation | `PHASE6C_BUILD_AUTOMATION.md` |
 
 ---
 
@@ -116,18 +121,17 @@ Last updated: 2026-06-08
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 6C | Build Automation | Phase 6B |
-| 2 | Phase 6D | Production Loader Integration | Phase 6C |
-| 3 | Phase 7 | License & Key Management | Phase 6 |
-| 4 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
-| 5 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
+| 1 | Phase 6D | Production Loader Integration | Phase 6C |
+| 2 | Phase 7 | License & Key Management | Phase 6 |
+| 3 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
+| 4 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
 
 ---
 
 ## Overall Completion
 
 ```text
-████████████████████████████████░░░░ 84%
+█████████████████████████████████░░░ 86%
 
 Code & Docs:       99% complete  ████████████████████░
 Infrastructure:     10% complete  ██░░░░░░░░░░░░░░░░░░
@@ -136,7 +140,7 @@ CDN API:          100% complete  ███████████████�
 Dashboard Backend: 100% complete  ████████████████████
 Dashboard UI:     100% complete  ████████████████████
 Secure Delivery:    85% complete  █████████████████░░░
-Loader Integration: 40% complete  ████████░░░░░░░░░░░░
+Loader Integration: 50% complete  ██████████░░░░░░░░░░
 Key Management:      0% complete  ░░░░░░░░░░░░░░░░░░░░
 Operations:          0% complete  ░░░░░░░░░░░░░░░░░░░░
 Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░░░░░░
@@ -177,13 +181,14 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 5 | Secure Script Delivery | Foundation Complete / Production Cutover Pending | 85% |
 | Phase 6A | Dashboard V2 Upload + Build Visibility | Complete | 100% |
 | Phase 6B | Build Operations + Delivery Visibility | Complete | 100% |
-| Phase 6 | Loader Integration | Build Operations Complete / Build Automation Pending | 40% |
+| Phase 6C | Build Automation | Complete | 100% |
+| Phase 6 | Loader Integration | Build Automation Complete / Production Loader Pending | 50% |
 | Phase 7 | License & Key Management | Not Started | 0% |
 | Phase 8 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 9 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 6B Complete — Transitioning to Phase 6C
-> Phase 6B adds build history/detail dashboards, creator rebuild actions, safe failure visibility, version-level build status, and build operations documentation. Next: Phase 6C — Build Automation.
+## Current Phase: Phase 6C Complete — Transitioning to Phase 6D
+> Phase 6C adds automatic build triggers for create/update/publish flows, consistent pending-to-building lifecycle tracking, duplicate prevention for latest builds, and build automation documentation. Latest validation: 115 tests pass, build passes, lint has 0 errors with existing warnings. Next: Phase 6D — Production Loader Integration.
 ---
 
 # Phase 1 — Infrastructure & Monitoring
@@ -497,6 +502,11 @@ Integrate LuxyHub delivery system with script loaders.
 - [x] Build detail page
 - [x] Creator-triggered rebuild for current version
 - [x] Build status visible on version pages
+- [x] Automatic build trigger on script creation
+- [x] Automatic build trigger on content/version replacement
+- [x] Automatic build trigger on publish/change visibility
+- [x] Consistent `pending → building → ready/failed` lifecycle
+- [x] Duplicate build prevention for latest compatible builds
 - [ ] Production loader validation flow
 - [ ] Production delivery authorization flow
 - [ ] Production session validation
@@ -512,6 +522,9 @@ Success Criteria:
 - [x] Build status visible in dashboard
 - [x] Build history visible
 - [x] Rebuild works for current version
+- [x] Builds happen automatically
+- [x] Manual rebuild remains available
+- [x] Build lifecycle is consistent
 - [ ] Production loader can retrieve scripts securely
 - [ ] Executor compatibility verified
 
