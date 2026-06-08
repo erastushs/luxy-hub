@@ -18,13 +18,13 @@ import {
   type ScriptStats,
   type ListScriptsResult,
   type VersionRow,
-  type VersionListResult,
+  type VersionSummaryRow,
 } from '@/app/lib/repositories/script-repository'
 import { assertScriptOwner, OwnershipError } from '@/app/lib/auth/ownership'
 import { isValidSlug, isValidScriptName, isValidVisibility, isValidScriptContent, type Visibility } from '@/app/lib/validators'
 import { logAuditEvent } from '@/app/lib/services/audit-service'
 
-export type { ScriptRow, ScriptStats, ListScriptsResult, Visibility, VersionRow }
+export type { ScriptRow, ScriptStats, ListScriptsResult, Visibility, VersionRow, VersionSummaryRow }
 
 export type ScriptResult =
   | { success: true; script: ScriptRow }
@@ -47,7 +47,7 @@ export type DeleteResult =
   | { success: false; message: string; status: number }
 
 export type VersionListResultType =
-  | { success: true; versions: VersionRow[]; total: number }
+  | { success: true; versions: VersionSummaryRow[]; total: number }
   | { success: false; message: string; status: number }
 
 export type VersionDetailResult =

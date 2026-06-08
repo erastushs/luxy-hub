@@ -1,7 +1,5 @@
-'use client'
-
+import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { formatDateTime } from '@/app/dashboard/lib/format-date'
 
 type VersionRow = {
@@ -19,17 +17,15 @@ type VersionDetailProps = {
 }
 
 export function VersionDetail({ version, scriptSlug }: VersionDetailProps) {
-  const router = useRouter()
-
   return (
     <div className="space-y-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-      <button
-        onClick={() => router.push(`/dashboard/versions/${scriptSlug}`)}
+      <Link
+        href={`/dashboard/versions/${scriptSlug}`}
         className="inline-flex items-center gap-1.5 text-xs text-zinc-500 transition hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 rounded"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
         Back to versions
-      </button>
+      </Link>
 
       <div className="flex items-start justify-between">
         <div>

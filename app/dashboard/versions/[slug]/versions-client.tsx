@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { VersionList } from '@/app/dashboard/components/VersionList'
 import { Pagination } from '@/app/dashboard/components/Pagination'
-import type { VersionRow, ScriptRow } from '@/app/lib/services/script-service'
+import type { VersionSummaryRow, ScriptRow } from '@/app/lib/services/script-service'
 
 type VersionsHistoryClientProps = {
   slug: string
-  versions: VersionRow[]
+  versions: VersionSummaryRow[]
   total: number
   page: number
   totalPages: number

@@ -1,6 +1,6 @@
 import { getCurrentUser } from '@/app/lib/auth/session-auth'
 import { listVersions, listCreatorScripts } from '@/app/lib/services/script-service'
-import type { VersionRow } from '@/app/lib/services/script-service'
+import type { VersionSummaryRow } from '@/app/lib/services/script-service'
 import { notFound } from 'next/navigation'
 import VersionsHistoryClient from './versions-client'
 
@@ -27,7 +27,7 @@ export default async function ScriptVersionsPage({
     notFound()
   }
 
-  const versions: VersionRow[] = result.versions
+  const versions: VersionSummaryRow[] = result.versions
   const total = result.total
   const totalPages = Math.max(1, Math.ceil(total / limit))
 

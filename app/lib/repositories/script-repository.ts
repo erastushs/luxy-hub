@@ -21,6 +21,8 @@ export type VersionRow = {
   created_at: string
 }
 
+export type VersionSummaryRow = Omit<VersionRow, 'content'>
+
 export type DownloadRow = {
   id: string
   script_id: string
@@ -280,14 +282,14 @@ export async function getLatestVersion(scriptId: string): Promise<VersionRow | n
 }
 
 export type VersionListResult = {
-  versions: VersionRow[]
+  versions: VersionSummaryRow[]
   total: number
 }
 
 export async function listVersionsForScript(scriptId: string, limit: number, offset: number): Promise<VersionListResult> {
   const { data, error, count } = await supabaseAdmin
     .from('script_versions')
-    .select('id, script_id, version, content, changelog, created_at', { count: 'exact' })
+    .select('id, script_id, version, changelog, created_at', { count: 'exact' })
     .eq('script_id', scriptId)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
