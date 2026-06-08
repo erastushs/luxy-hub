@@ -184,6 +184,33 @@ CREATE INDEX IF NOT EXISTS idx_delivery_builds_created_at
   ON delivery_builds (created_at DESC);
 
 -- ============================================================================
+-- LuxyHub Secure Delivery - Phase 5C
+-- Apply migrations/007_delivery_sessions.sql after running this section
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS delivery_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  script_id uuid NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
+  build_id uuid NOT NULL REFERENCES delivery_builds(id) ON DELETE CASCADE,
+  session_token_hash text NOT NULL UNIQUE
+    CHECK (session_token_hash ~ '^[a-f0-9]{64}$'),
+  expires_at timestamp with time zone NOT NULL,
+  consumed_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT delivery_sessions_expires_after_created
+    CHECK (expires_at > created_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_sessions_token_hash
+  ON delivery_sessions (session_token_hash);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_sessions_expires_at
+  ON delivery_sessions (expires_at);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_sessions_build_id
+  ON delivery_sessions (build_id);
+
+-- ============================================================================
 -- LuxyHub Creator Identity — Phase 3A
 -- Apply migrations/003_profiles.sql after running this section
 -- ============================================================================

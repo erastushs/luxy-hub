@@ -145,6 +145,17 @@ export async function getBuildByVersion(versionId: string): Promise<DeliveryBuil
   return data as unknown as DeliveryBuildRow
 }
 
+export async function getBuildById(buildId: string): Promise<DeliveryBuildRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('delivery_builds')
+    .select(BUILD_SELECT)
+    .eq('id', buildId)
+    .single()
+
+  if (error) return null
+  return data as unknown as DeliveryBuildRow
+}
+
 export async function getReadyBuild(
   versionId: string,
   params: ReadyBuildParams = {}
