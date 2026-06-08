@@ -1,22 +1,43 @@
-import { FileCode } from 'lucide-react'
+import { getCurrentUser } from '@/app/lib/auth/session-auth'
+import { listCreatorScripts, type ScriptRow } from '@/app/lib/services/script-service'
+import { ScriptsListClient } from './scripts-client'
 
-export default function ScriptsPage() {
+export default async function ScriptsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const user = await getCurrentUser()
+
+  const params = await searchParams
+  const search = typeof params.search === 'string' ? params.search : ''
+  const visibility = typeof params.visibility === 'string' ? params.visibility : 'all'
+  const page = typeof params.page === 'string' ? parseInt(params.page, 10) : 1
+  const limit = 12
+
+  const offset = Math.max(0, (isNaN(page) ? 0 : page - 1) * limit)
+
+  const result = await listCreatorScripts(user!.id, {
+    visibility: visibility === 'all' ? undefined : visibility,
+    search: search || undefined,
+    limit,
+    offset,
+  })
+
+  const scripts: ScriptRow[] = result.success ? result.scripts : []
+  const total = result.success ? result.total : 0
+  const totalPages = Math.max(1, Math.ceil(total / limit))
+  const error = result.success ? null : result.message
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Scripts</h1>
-        <p className="mt-1 text-sm text-zinc-400">Manage your scripts</p>
-      </div>
-
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-        <FileCode className="mx-auto h-8 w-8 text-zinc-600" />
-        <h3 className="mt-3 text-sm font-medium text-zinc-300">
-          Script Management
-        </h3>
-        <p className="mt-1 text-xs text-zinc-500">
-          Create, edit, and manage your scripts. Full script management UI coming soon.
-        </p>
-      </div>
-    </div>
+    <ScriptsListClient
+      scripts={scripts}
+      total={total}
+      page={page}
+      totalPages={totalPages}
+      search={search}
+      visibility={visibility}
+      error={error}
+    />
   )
 }
