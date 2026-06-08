@@ -80,6 +80,18 @@ Last updated: 2026-06-08
 | 68 | **UI** | Phase 3E.5 Versions UI | Script selector, version history, version detail, pagination |
 | 69 | **Docs** | Phase 3E Documentation | PHASE3E_AUTH_UI.md, SCRIPTS_UI.md, PROFILE_UI.md, ANALYTICS_UI.md, VERSIONS_UI.md |
 | 70 | **Docs** | Phase 3 Closure | RELEASE_V1.md, PHASE3_COMPLETION_REPORT.md, TODO.md updated |
+| 71 | **Design** | Phase 5A Secure Delivery Architecture | `SECURE_DELIVERY_ARCHITECTURE.md` |
+| 72 | **Database** | Phase 5B delivery_builds Migration | `migrations/006_delivery_builds.sql` |
+| 73 | **Code** | Phase 5B Build Pipeline Foundation | `app/lib/services/delivery-build-service.ts` |
+| 74 | **Docs** | Phase 5B Build Pipeline Documentation | `PHASE5B_BUILD_PIPELINE.md` |
+| 75 | **Database** | Phase 5C delivery_sessions Migration | `migrations/007_delivery_sessions.sql` |
+| 76 | **API** | Phase 5C Secure Delivery Session API | `app/api/delivery/session/route.ts`, `app/api/delivery/fetch/route.ts` |
+| 77 | **Code** | Phase 5C Delivery Session Services | `app/lib/services/delivery-session-service.ts` |
+| 78 | **Docs** | Phase 5C Secure Delivery API Documentation | `PHASE5C_SECURE_DELIVERY_API.md` |
+| 79 | **Code** | Phase 5D Payload Consumer Utilities | `app/lib/delivery/payload-consumer.ts` |
+| 80 | **Code** | Phase 5D Reference Loader POC | `examples/reference-loader.ts` |
+| 81 | **Tests** | Phase 5D Payload Consumption Tests | `__tests__/delivery-payload-consumer.test.ts` |
+| 82 | **Docs** | Phase 5D Loader Integration Documentation | `PHASE5D_LOADER_INTEGRATION.md` |
 
 ---
 
@@ -93,19 +105,17 @@ Last updated: 2026-06-08
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 4 | Polish & Production Readiness | Phase 3E |
-| 2 | Phase 5 | Secure Script Delivery | Phase 4 |
-| 3 | Phase 6 | Loader Integration | Phase 5 |
-| 4 | Phase 7 | License & Key Management | Phase 6 |
-| 5 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
-| 6 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
+| 1 | Phase 6 | Production Loader Integration | Phase 5D |
+| 2 | Phase 7 | License & Key Management | Phase 6 |
+| 3 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
+| 4 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
 
 ---
 
 ## Overall Completion
 
 ```text
-███████████████████████████░░░░░░░░░ 72%
+██████████████████████████████░░░░░░ 80%
 
 Code & Docs:       98% complete  ████████████████████░
 Infrastructure:     10% complete  ██░░░░░░░░░░░░░░░░░░
@@ -113,8 +123,8 @@ CDN Database:     100% complete  ███████████████�
 CDN API:          100% complete  ████████████████████
 Dashboard Backend: 100% complete  ████████████████████
 Dashboard UI:     100% complete  ████████████████████
-Secure Delivery:     0% complete  ░░░░░░░░░░░░░░░░░░░░
-Loader Integration:  0% complete  ░░░░░░░░░░░░░░░░░░░░
+Secure Delivery:    85% complete  █████████████████░░░
+Loader Integration: 15% complete  ███░░░░░░░░░░░░░░░░░
 Key Management:      0% complete  ░░░░░░░░░░░░░░░░░░░░
 Operations:          0% complete  ░░░░░░░░░░░░░░░░░░░░
 Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░░░░░░
@@ -148,14 +158,18 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 4.2 | Performance Review | Complete | 100% |
 | Phase 4.3 | Documentation Review | Complete | 100% |
 | Phase 4.4 | Production Hardening | Complete | 100% |
-| Phase 5 | Secure Script Delivery | Not Started | 0% |
-| Phase 6 | Loader Integration | Not Started | 0% |
+| Phase 5A | Secure Delivery Architecture | Complete | 100% |
+| Phase 5B | Build Pipeline Foundation | Complete | 100% |
+| Phase 5C | Secure Delivery API | Complete | 100% |
+| Phase 5D | Loader Integration POC | Complete | 100% |
+| Phase 5 | Secure Script Delivery | Foundation Complete / Production Cutover Pending | 85% |
+| Phase 6 | Loader Integration | POC Complete / Production Not Started | 15% |
 | Phase 7 | License & Key Management | Not Started | 0% |
 | Phase 8 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 9 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 4 Complete — Transitioning to Phase 5
-> Phase 4 is fully complete (4.1 UI Polish, 4.2 Performance Review, 4.3 Documentation Review, 4.4 Production Hardening). Production readiness score: 93/100. All 65 tests pass. Build and lint clean. Next: Phase 5 — Secure Script Delivery.
+## Current Phase: Phase 5D Complete — Transitioning to Phase 6
+> Phase 5A-D are complete: secure delivery architecture, pre-built payload builds, one-time delivery sessions, secure delivery APIs, payload consumer utilities, and reference loader POC. Latest validation: 89 tests pass, build passes, lint has 0 errors with 7 pre-existing warnings. Next: Phase 6 — Production Loader Integration.
 ---
 
 # Phase 1 — Infrastructure & Monitoring
@@ -418,23 +432,35 @@ Create a protected script delivery architecture that is significantly harder to 
 
 ## Features
 
-- [ ] Loader architecture design
-- [ ] Secure delivery API design
-- [ ] Temporary delivery tokens
-- [ ] Delivery session validation
-- [ ] Anti-curl protections
-- [ ] Obfuscation pipeline
-- [ ] Script encryption strategy
-- [ ] Payload delivery architecture
-- [ ] Secure CDN review
-- [ ] Executor delivery research
+- [x] Secure delivery architecture design — `SECURE_DELIVERY_ARCHITECTURE.md`
+- [x] Pre-built payload build pipeline — `PHASE5B_BUILD_PIPELINE.md`
+- [x] `delivery_builds` artifact storage — `migrations/006_delivery_builds.sql`
+- [x] Inline encrypted payload storage — `delivery_builds.payload_ciphertext`
+- [x] Build payload hashing — `source_sha256`, `payload_sha256`
+- [x] Secure delivery API design — `PHASE5C_SECURE_DELIVERY_API.md`
+- [x] Temporary one-time delivery tokens — `delivery_sessions`
+- [x] Delivery session validation — `app/lib/services/delivery-session-service.ts`
+- [x] Delivery fetch endpoint — `POST /api/delivery/fetch`
+- [x] Session creation endpoint — `POST /api/delivery/session`
+- [x] Payload consumer utilities — `app/lib/delivery/payload-consumer.ts`
+- [x] Reference loader POC — `examples/reference-loader.ts`
+- [x] Loader architecture documentation — `PHASE5D_LOADER_INTEGRATION.md`
+- [x] Script encryption strategy — AES-256-GCM envelope in Phase 5B
+- [x] Payload delivery architecture — build artifact + session API + consumer POC
+- [ ] Production loader implementation — Phase 6
+- [ ] Raw endpoint cutover / secure-delivery-required flag — Phase 6 or later
+- [ ] Entitlement/private-script delivery integration — after loader requirements are finalized
+- [ ] Executor compatibility testing — Phase 6
 
 Success Criteria:
 
-- Script no longer delivered as plain public raw content
-- Direct curl access significantly reduced
-- Loader becomes primary delivery mechanism
-- Obfuscated payload delivery supported
+- [x] Pre-built encrypted payload delivery supported
+- [x] One-time session-gated payload retrieval works
+- [x] Payload can be decrypted/decompressed by reference consumer
+- [x] Secure delivery proven end-to-end in tests
+- [ ] Script no longer delivered as plain public raw content — pending production cutover
+- [ ] Loader becomes primary production delivery mechanism — Phase 6
+- [ ] Obfuscation beyond encryption/compression — future hardening
 
 ---
 
@@ -446,17 +472,21 @@ Integrate LuxyHub delivery system with script loaders.
 
 ## Features
 
-- [ ] Loader validation flow
-- [ ] Delivery authorization flow
-- [ ] Session validation
-- [ ] Temporary token exchange
+- [x] Reference loader POC
+- [x] Payload validation/decryption/decompression utilities
+- [x] Temporary token exchange proven against Phase 5C API shape
+- [ ] Production loader validation flow
+- [ ] Production delivery authorization flow
+- [ ] Production session validation
+- [ ] Loader context strategy for `version_id` + `source_sha256`
 - [ ] Executor compatibility testing
 - [ ] Script bootstrap architecture
 
 Success Criteria:
 
-- Loader can retrieve scripts securely
+- Reference loader can consume secure payloads
 - Delivery flow validated
+- Production loader can retrieve scripts securely
 - Executor compatibility verified
 
 ---
@@ -706,15 +736,15 @@ Grafana
 Current Sprint:
 
 ```text
-1. Phase 5 — Secure Script Delivery
-2. Phase 6 — Loader Integration
+1. Phase 6 — Production Loader Integration
+2. Phase 6 — Executor Compatibility Testing
 ```
 
 Next Sprint:
 
 ```text
-1. Phase 5 — Secure Script Delivery
-2. Phase 6 — Loader Integration
+1. Phase 7 — License & Key Management
+2. Phase 8 — Internal Operations & Release Workflow
 ```
 
 Long-Term Goal:
