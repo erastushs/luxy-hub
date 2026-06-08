@@ -360,9 +360,12 @@ npx vitest run  # 65 tests, all passing
 
 ## 14. Remaining Work
 
-- Script management UI (CRUD forms, script list)
-- Full analytics UI (charts, trends, per-script breakdown)
-- Version history UI (list, detail, rollback)
-- Profile editing UI
-- Registration/signup flow
-- Password reset integration
+All items below have been completed in Phase 3E.2 through 3E.5 and Phase 4.1:
+
+- ~~Script management UI (CRUD forms, script list)~~ — Completed in Phase 3E.2
+- ~~Full analytics UI (charts, trends, per-script breakdown)~~ — Completed in Phase 3E.4
+- ~~Version history UI (list, detail)~~ — Completed in Phase 3E.5
+- ~~Profile editing UI~~ — Completed in Phase 3E.3
+- ~~Loading skeletons~~ — Completed in Phase 4.1
+- Registration/signup flow (deferred)
+- Password reset integration (deferred)

@@ -216,15 +216,15 @@ No rate limiting is applied to this endpoint.
 
 ## CDN Endpoints
 
-All CDN endpoints live under `/api/scripts`. Write operations require `Authorization: Bearer <ADMIN_API_KEY>`. Read endpoints are public where the script visibility allows it.
+All CDN endpoints live under `/api/scripts`. Write operations require a valid session (ownership is derived server-side). Read endpoints are public where the script visibility allows it. An admin bearer token (`verifyAdminAuth`) is accepted for private script reads.
 
 ### Visibility Model
 
 | Value | Raw Endpoint | Directory Listing | Auth Required |
 |-------|-------------|-------------------|---------------|
 | `public` | Anyone | Listed | None |
-| `private` | Bearer only | Not listed | Write: Bearer, Read: Bearer |
-| `unlisted` | Anyone | Not listed | Write: Bearer |
+| `private` | Session or admin bearer | Not listed | Write: Session, Read: Session or admin bearer |
+| `unlisted` | Anyone | Not listed | Write: Session |
 
 ---
 
@@ -282,13 +282,12 @@ GET /api/scripts?limit=20&offset=0
 
 ### POST /api/scripts
 
-Upload a new script. Requires admin authentication.
+Upload a new script. Requires valid session authentication (ownership derived server-side).
 
 **Request:**
 ```http
 POST /api/scripts
 Content-Type: application/json
-Authorization: Bearer <ADMIN_API_KEY>
 
 {
   "slug": "bloxatlas",
@@ -602,6 +601,328 @@ GET /api/scripts/bloxatlas/stats
 
 ---
 
+## Dashboard API Endpoints
+
+Dashboard endpoints serve the Creator Dashboard and are authenticated via Supabase session cookies. All write operations derive `creator_id` from the authenticated session — never from client payloads. Ownership is enforced at the service and repository layers.
+
+### GET /api/dashboard/scripts
+
+List scripts owned by the authenticated creator. Supports pagination, search, and visibility filtering.
+
+**Request:**
+```http
+GET /api/dashboard/scripts?limit=12&offset=0&visibility=public&search=term
+```
+
+**Query Parameters:**
+| Parameter | Default | Max | Description |
+|-----------|---------|-----|-------------|
+| `limit` | 20 | 100 | Results per page |
+| `offset` | 0 | — | Pagination offset |
+| `visibility` | — | — | Filter: `public`, `private`, or `unlisted` |
+| `search` | — | — | Case-insensitive search on name and slug |
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "scripts": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "slug": "bloxatlas",
+      "name": "BloxAtlas",
+      "description": "Universal ESP and aimbot",
+      "visibility": "public",
+      "creator_id": "uuid-of-authenticated-creator",
+      "current_version_id": "660e8400-e29b-41d4-a716-446655440001",
+      "created_at": "2026-06-07T09:00:00.000Z",
+      "updated_at": "2026-06-07T09:00:00.000Z"
+    }
+  ],
+  "total": 5,
+  "limit": 12,
+  "offset": 0
+}
+```
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | scripts list | Scripts returned |
+| 401 | error | Missing/invalid session |
+| 429 | rate limit | Too many requests |
+
+**Rate Limit:** 60 requests per minute per IP (`DASHBOARD_SCRIPTS_LIST`).
+
+---
+
+### POST /api/dashboard/scripts
+
+Create a new script owned by the authenticated creator.
+
+**Request:**
+```http
+POST /api/dashboard/scripts
+Content-Type: application/json
+
+{
+  "slug": "my-script",
+  "name": "My Script",
+  "description": "Description",
+  "visibility": "private",
+  "content": "-- placeholder content"
+}
+```
+
+| Field | Required | Type | Constraints |
+|-------|----------|------|-------------|
+| `slug` | Yes | string | 3-64 chars, lowercase alphanumeric + hyphens |
+| `name` | Yes | string | 1-100 characters |
+| `content` | Yes | string | Non-empty, max 62 KB |
+| `visibility` | No | string | Defaults to `private` |
+| `description` | No | string | Any string |
+
+**Success (201):**
+```json
+{
+  "success": true,
+  "script": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "my-script",
+    "name": "My Script",
+    "description": "Description",
+    "visibility": "private",
+    "creator_id": "509ed267-...",
+    "current_version_id": "660e8400-...",
+    "created_at": "2026-06-07T09:00:00.000Z",
+    "updated_at": "2026-06-07T09:00:00.000Z"
+  }
+}
+```
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 201 | script object | Script created |
+| 400 | error | Validation error |
+| 401 | error | Missing/invalid session |
+| 409 | error | Slug already exists |
+| 429 | rate limit | Too many requests |
+
+**Rate Limit:** 30 requests per hour per IP (`DASHBOARD_SCRIPTS_CREATE`).
+
+---
+
+### GET /api/dashboard/scripts/[slug]
+
+Get script metadata for a script owned by the authenticated creator.
+
+**Success (200):** Same response shape as `GET /api/scripts/[slug]`.
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | script object | Script found |
+| 401 | error | Missing/invalid session |
+| 404 | error | Script not found or not owned |
+| 429 | rate limit | Too many requests |
+
+**Rate Limit:** 60 requests per minute per IP (`DASHBOARD_SCRIPTS_GET`).
+
+---
+
+### PATCH /api/dashboard/scripts/[slug]
+
+Update script metadata for a script owned by the authenticated creator. Content updates create new versions.
+
+**Request:**
+```http
+PATCH /api/dashboard/scripts/my-script
+Content-Type: application/json
+
+{
+  "name": "Updated Name",
+  "description": "New description",
+  "visibility": "public",
+  "content": "-- updated content"
+}
+```
+
+All fields are optional. Only provided fields are updated. When `content` is provided and differs from current content, a new version row is auto-created.
+
+**Success (200):** Same response shape as `PATCH /api/scripts/[slug]`.
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | script object | Script updated |
+| 400 | error | Validation error |
+| 401 | error | Missing/invalid session |
+| 404 | error | Script not found or not owned |
+| 429 | rate limit | Too many requests |
+
+**Rate Limit:** 60 requests per hour per IP (`DASHBOARD_SCRIPTS_UPDATE`).
+
+---
+
+### DELETE /api/dashboard/scripts/[slug]
+
+Delete a script owned by the authenticated creator and all associated data.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Script deleted"
+}
+```
+
+**Response Table:**
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 200 | success | Script deleted |
+| 401 | error | Missing/invalid session |
+| 404 | error | Script not found or not owned |
+| 429 | rate limit | Too many requests |
+
+**Rate Limit:** 30 requests per hour per IP (`DASHBOARD_SCRIPTS_DELETE`).
+
+---
+
+### GET /api/dashboard/scripts/[slug]/stats
+
+Get per-script analytics for a script owned by the authenticated creator.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "analytics": {
+    "slug": "my-script",
+    "total_downloads": 150,
+    "downloads_today": 5,
+    "downloads_7d": 42,
+    "downloads_30d": 120,
+    "last_downloaded_at": "2026-06-07T18:30:00.000Z"
+  }
+}
+```
+
+**Rate Limit:** 30 requests per minute per IP (`DASHBOARD_ANALYTICS_STATS`).
+
+---
+
+### GET /api/dashboard/analytics/overview
+
+Get portfolio-level analytics for the authenticated creator.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "overview": {
+    "total_scripts": 5,
+    "published_scripts": 3,
+    "private_scripts": 2,
+    "total_downloads": 1500,
+    "downloads_today": 50,
+    "downloads_7d": 300,
+    "downloads_30d": 1200
+  }
+}
+```
+
+**Rate Limit:** 30 requests per minute per IP (`DASHBOARD_ANALYTICS_OVERVIEW`).
+
+---
+
+### GET /api/dashboard/analytics/downloads
+
+Get download trends for the authenticated creator. Supports full-portfolio or per-script trends.
+
+**Query Parameters:**
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `range` | Yes | `7d` or `30d` |
+| `slug` | No | Script slug for per-script trends |
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "trends": {
+    "points": [
+      { "day": "2026-05-09", "downloads": 12 },
+      { "day": "2026-05-10", "downloads": 25 }
+    ]
+  }
+}
+```
+
+**Rate Limit:** 30 requests per minute per IP (`DASHBOARD_ANALYTICS_DOWNLOADS`).
+
+---
+
+### GET /api/dashboard/scripts/[slug]/versions
+
+List versions for a script owned by the authenticated creator.
+
+**Query Parameters:**
+| Parameter | Default | Max | Description |
+|-----------|---------|-----|-------------|
+| `limit` | 20 | 100 | Results per page |
+| `offset` | 0 | — | Pagination offset |
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "versions": [
+    {
+      "id": "v10-uuid",
+      "script_id": "script-uuid",
+      "version": "1.0.2",
+      "changelog": "Fixed bug",
+      "created_at": "2026-06-07T09:00:00.000Z"
+    }
+  ],
+  "total": 3,
+  "limit": 10,
+  "offset": 0
+}
+```
+
+**Note:** The `content` field is not returned in the version list. Use `/api/dashboard/scripts/[slug]/versions/[versionId]` for full version content.
+
+**Rate Limit:** 60 requests per minute per IP (`DASHBOARD_VERSIONS_LIST`).
+
+---
+
+### GET /api/dashboard/scripts/[slug]/versions/[versionId]
+
+Get full version detail for a version belonging to a script owned by the authenticated creator.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "version": {
+    "id": "v10-uuid",
+    "script_id": "script-uuid",
+    "version": "1.0.2",
+    "content": "-- full script content",
+    "changelog": "Fixed bug",
+    "created_at": "2026-06-07T09:00:00.000Z"
+  }
+}
+```
+
+Cross-script isolation: version IDs from a different script return 404.
+
+**Rate Limit:** 60 requests per minute per IP (`DASHBOARD_VERSIONS_GET`).
+
+---
+
 ## Key Format
 
 **Pattern:** `LUXY-XXXX-XXXX-XXXX`
@@ -627,15 +948,25 @@ Keys expire 24 hours after generation.
 | `POST /api/validate` | 1 minute | 30 requests | Per IP |
 | `POST /api/verify-workink` | 1 minute | 10 requests | Per IP |
 | `POST /api/generate-key` | 24 hours | 5 keys | Per IP |
-| `POST /api/cleanup` | — | Unlimited | Bearer auth |
+| `POST /api/cleanup` | — | Unlimited | Cron secret |
 | `GET /api/scripts` | 1 minute | 30 requests | Per IP |
-| `POST /api/scripts` | 1 hour | 30 requests | Per IP + Bearer auth |
+| `POST /api/scripts` | 1 hour | 30 requests | Per IP + Session |
 | `GET /api/scripts/[slug]` | 1 minute | 60 requests | Per IP |
-| `PATCH /api/scripts/[slug]` | 1 hour | 60 requests | Per IP + Bearer auth |
-| `DELETE /api/scripts/[slug]` | — | Unlimited | Bearer auth |
-| `POST /api/scripts/[slug]/publish` | 1 hour | 60 requests | Per IP + Bearer auth |
+| `PATCH /api/scripts/[slug]` | 1 hour | 60 requests | Per IP + Session |
+| `DELETE /api/scripts/[slug]` | 1 hour | 30 requests | Per IP + Session |
+| `POST /api/scripts/[slug]/publish` | 1 hour | 60 requests | Per IP + Session |
 | `GET /api/scripts/[slug]/raw` | 1 minute | 100 requests | Per IP |
 | `GET /api/scripts/[slug]/stats` | 1 minute | 30 requests | Per IP |
+| `GET /api/dashboard/scripts` | 1 minute | 60 requests | Per IP + Session |
+| `POST /api/dashboard/scripts` | 1 hour | 30 requests | Per IP + Session |
+| `GET /api/dashboard/scripts/[slug]` | 1 minute | 60 requests | Per IP + Session |
+| `PATCH /api/dashboard/scripts/[slug]` | 1 hour | 60 requests | Per IP + Session |
+| `DELETE /api/dashboard/scripts/[slug]` | 1 hour | 30 requests | Per IP + Session |
+| `GET /api/dashboard/scripts/[slug]/stats` | 1 minute | 30 requests | Per IP + Session |
+| `GET /api/dashboard/analytics/overview` | 1 minute | 30 requests | Per IP + Session |
+| `GET /api/dashboard/analytics/downloads` | 1 minute | 30 requests | Per IP + Session |
+| `GET /api/dashboard/scripts/[slug]/versions` | 1 minute | 60 requests | Per IP + Session |
+| `GET /api/dashboard/scripts/[slug]/versions/[versionId]` | 1 minute | 60 requests | Per IP + Session |
 
 Rate-limited responses (HTTP 429) include a `Retry-After` header with the number of seconds until the window resets.
 

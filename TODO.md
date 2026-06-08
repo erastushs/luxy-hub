@@ -144,9 +144,9 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 3E.3 | Profile UI | Complete | 100% |
 | Phase 3E.4 | Analytics UI | Complete | 100% |
 | Phase 3E.5 | Versions UI | Complete | 100% |
-| Phase 4.1 | UI Polish | Not Started | 0% |
-| Phase 4.2 | Performance Review | Not Started | 0% |
-| Phase 4.3 | Documentation Review | Not Started | 0% |
+| Phase 4.1 | UI Polish | Complete | 100% |
+| Phase 4.2 | Performance Review | Complete | 100% |
+| Phase 4.3 | Documentation Review | In Progress | 50% |
 | Phase 4.4 | Production Hardening | Not Started | 0% |
 | Phase 5 | Secure Script Delivery | Not Started | 0% |
 | Phase 6 | Loader Integration | Not Started | 0% |
@@ -154,7 +154,7 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 8 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 9 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 4.1 — UI Polish
+## Current Phase: Phase 4.3 — Documentation Review
 > Phase 3 is complete. The Creator Dashboard V1 has been fully implemented across 14 backend + 12 frontend phases. Production readiness score: 97/100. All 65 tests pass. RLS, ownership, rate limiting, audit logging, and cross-account isolation validated. Dashboard features: auth (login/logout/session), scripts (CRUD + search/pagination/filter), analytics (overview/top-scripts/trend charts), versions (history/detail/pagination), profile (view/edit display_name/username). Phase 4 focuses on polish, performance, documentation, and production hardening before Phase 5 (Secure Script Delivery). Key validation APIs exist, but script-side key integration is not implemented yet and license management is deferred until loader integration requirements are finalized.
 ---
 
@@ -554,9 +554,17 @@ www.luxyhub.space
 ├── /
 ├── /login
 ├── /dashboard
+├── /get-key
+├── /verify-token
+├── /docs/api
+├── /dashboard
 ├── /dashboard/scripts
+├── /dashboard/scripts/new
+├── /dashboard/scripts/[slug]/edit
 ├── /dashboard/analytics
 ├── /dashboard/versions
+├── /dashboard/versions/[slug]
+├── /dashboard/versions/[slug]/[versionId]
 └── /dashboard/profile
 ```
 
@@ -698,10 +706,8 @@ Grafana
 Current Sprint:
 
 ```text
-1. Phase 4.1 UI Polish
-2. Phase 4.2 Performance Review
-3. Phase 4.3 Documentation Review
-4. Phase 4.4 Production Hardening
+1. Phase 4.3 Documentation Review
+2. Phase 4.4 Production Hardening
 ```
 
 Next Sprint:

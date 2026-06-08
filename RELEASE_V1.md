@@ -1,7 +1,8 @@
 # LuxyHub Creator Dashboard — Release V1
 
 Release date: 2026-06-08
-Status: Phase 3 Complete — Ready for Phase 4 Polish
+Status: Phase 3 Complete — Phase 4.1/4.2 complete, Phase 4.3 in progress
+Note: This is a Phase 3 release snapshot. Current architecture docs have been updated in ARCHITECTURE.md.
 
 ## Overview
 
@@ -10,13 +11,20 @@ LuxyHub V1 ships the complete Creator Dashboard, enabling script creators to man
 ## Completed Architecture
 
 ### Domain Topology
+
+The current platform runs as a single Next.js application:
+
 ```
-www.luxyhub.space        → Public website, docs, public script directory
-login.luxyhub.space      → Authentication entry point (Supabase Auth)
-dashboard.luxyhub.space → Creator dashboard application
-api.luxyhub.space        → Authenticated platform APIs
-cdn.luxyhub.space        → Raw script delivery and public CDN endpoints
-vault.luxyhub.space      → Future premium/private secure delivery
+www.luxyhub.space
+├── /                  → Public website, docs
+├── /login             → Authentication entry point
+├── /get-key           → Key acquisition
+├── /verify-token      → Token verification
+├── /dashboard/*       → Creator dashboard
+└── /api/*             → All APIs (key, CDN, dashboard)
+
+Dedicated subdomains (login/dashboard/api/cdn/vault.luxyhub.space) are not implemented.
+See ARCHITECTURE.md for the current route topology.
 ```
 
 ### Database: 10 tables across 5 migrations
@@ -33,9 +41,9 @@ vault.luxyhub.space      → Future premium/private secure delivery
 - 8 tables with deny-all for anon/authenticated (service-role-only)
 - Ownership model: `scripts.creator_id → auth.users.id`, versions inherit from parent
 
-### Completed APIs — 18 Endpoints
+### Completed API Routes — 22 route methods
 
-**Admin Script APIs (8):**
+**Script / CDN API routes (10 route methods):**
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
 | GET | `/api/scripts` | None | Public script listing |
@@ -43,11 +51,11 @@ vault.luxyhub.space      → Future premium/private secure delivery
 | GET | `/api/scripts/[slug]` | Optional | Script metadata |
 | PATCH | `/api/scripts/[slug]` | Session | Update script |
 | DELETE | `/api/scripts/[slug]` | Session | Delete script |
-| GET | `/api/scripts/[slug]/raw` | None | Raw content delivery |
+| GET | `/api/scripts/[slug]/raw` | None (optional admin bearer) | Raw content delivery |
 | GET | `/api/scripts/[slug]/stats` | Session | Script analytics |
 | POST | `/api/scripts/[slug]/publish` | Session | Change visibility |
 
-**Dashboard APIs (7):**
+**Dashboard API routes (10 route methods):**
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
 | GET | `/api/dashboard/scripts` | Session | List creator scripts |
@@ -61,18 +69,19 @@ vault.luxyhub.space      → Future premium/private secure delivery
 | GET | `/api/dashboard/scripts/[slug]/versions` | Session | Version list |
 | GET | `/api/dashboard/scripts/[slug]/versions/[versionId]` | Session | Version detail |
 
-**Utility APIs (3):**
+**Utility APIs (4 route methods):**
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
-| POST | `/api/generate-key` | Admin bearer | Generate access key |
-| POST | `/api/validate` | Admin bearer | Validate key |
+| POST | `/api/generate-key` | Work.ink token | Generate access key |
+| POST | `/api/validate` | None | Validate key |
 | POST | `/api/verify-workink` | None | Verify Work.ink token |
 
-**System APIs (2):**
+**System APIs (3 route methods):**
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
 | GET | `/api/health` | None | Health check |
-| GET | `/api/cleanup` | Cron secret | Database cleanup |
+| POST | `/api/cleanup` | Cron secret | Database cleanup |
+| GET | `/api/auth/callback` | Supabase OTP | Auth callback handler |
 
 ## Completed Dashboard Features
 
@@ -120,11 +129,11 @@ vault.luxyhub.space      → Future premium/private secure delivery
 /dashboard/profile         → View/edit profile
 ```
 
-### Reusable Components — 14
-`AnalyticsCard`, `CopyButton`, `DeleteDialog`, `DownloadsChart`, `EmptyState`, `ScriptCard`, `ScriptForm`, `ScriptTable`, `Sidebar`, `TopNav`, `TopScriptsTable`, `VersionCard`, `VersionDetail`, `VersionList`
+### Reusable Components — 16
+`AnalyticsCard`, `CopyButton`, `DeleteDialog`, `DownloadsChart`, `EmptyState`, `ErrorBanner`, `Pagination`, `ScriptCard`, `ScriptForm`, `ScriptTable`, `Sidebar`, `TopNav`, `TopScriptsTable`, `VersionCard`, `VersionDetail`, `VersionList`
 
-### Server Actions — 3
-`app/actions/auth.ts` (login, logout), `app/actions/scripts.ts` (create, update, delete), `app/actions/profile.ts` (updateProfile)
+### Server Actions — 5 files
+`app/actions/auth.ts` (login, logout), `app/actions/scripts.ts` (create, update, delete), `app/actions/profile.ts` (updateProfile), plus `app/dashboard/lib/visibility.ts` and `app/dashboard/lib/format-date.ts` as shared libs
 
 ## Security Milestones
 
@@ -156,10 +165,10 @@ vault.luxyhub.space      → Future premium/private secure delivery
 |--------|-------|
 | Database migrations | 5 |
 | Database tables | 10 |
-| API endpoints | 18 |
+| API route methods | 22 |
 | Dashboard pages | 9 |
-| Reusable components | 14 |
-| Server actions | 3 |
+| Reusable components | 16 |
+| Server actions | 3 action files |
 | Utility libraries | 6 (auth, ownership, validators, repositories, services, analytics) |
 | Tests | 65 |
 | Documentation files | 12 (PHASE3*.md) |
@@ -183,24 +192,33 @@ vault.luxyhub.space      → Future premium/private secure delivery
 ## Deferred Features
 
 Phase 4 Polish & Production Readiness:
-- Loading skeletons
-- Accessibility audit
-- Bundle size optimization
-- Production environment configuration
+- Phase 4.1 UI Polish — complete
+- Phase 4.2 Performance Review — complete
+- Phase 4.3 Documentation Review — in progress
+- Phase 4.4 Production Hardening — pending
 
-Phase 5 — LuxyHub Vault:
-- Encrypted script storage
-- Signed URLs, temporary access tokens
-- Download limits, access restrictions
+Phase 5 — Secure Script Delivery:
+- Loader architecture design
+- Secure delivery API design
+- Temporary delivery tokens
+- Obfuscation pipeline
+- Script encryption strategy
 
-Phase 6 — Key System Integration:
-- Session tokens, device binding
-- Usage tracking, abuse detection
+Phase 6 — Loader Integration:
+- Loader validation flow
+- Delivery authorization flow
+- Executor compatibility testing
 
-Phase 7 — Creator Marketplace:
-- Paid scripts, subscriptions
-- License management, revenue tracking
+Phase 7 — License & Key Management:
+- Key lookup, search, revoke, reset
+- Customer lookup
+- License analytics
+- Begins only after loader integration requirements are finalized.
 
-Phase 8 — Premium Ecosystem:
-- Teams, organizations
-- Scheduled releases, premium analytics
+Phase 8 — Internal Operations & Release Workflow:
+- Draft releases, published releases, release notes
+- Internal moderation tools
+
+Phase 9 — Scale & Infrastructure (Optional):
+- Monitoring stack, Redis caching
+- Infrastructure scaling

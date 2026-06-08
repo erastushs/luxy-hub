@@ -702,7 +702,7 @@ curl -s -X DELETE https://luxyhub.vercel.app/api/scripts/my-script \
 | Change | Old | New |
 |--------|-----|-----|
 | Validate error codes | 400 (format), 404 (not found), 403 (expired/disabled) | 400 (missing key), 403 (all other failures) |
-| Base URL | `https://luxyhub.space`, `https://api.luxyhub.space` | `https://luxyhub.vercel.app` |
+| Base URL | `https://luxyhub.space`, `https://api.luxyhub.space` | `https://luxyhub.vercel.app` (no dedicated API subdomain exists) |
 | Response envelope | `{ "success": true, "data": { ... } }` | `{ "success": true }` (flat) |
 | Key generation | `POST /api/generate` with `checkpoint_token` | `POST /api/generate-key` or `POST /api/verify-workink` with `token` |
 | Key type field | `key_type` query param | Removed (not implemented) |
