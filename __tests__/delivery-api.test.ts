@@ -62,18 +62,13 @@ describe('Phase 5C delivery API routes', () => {
     expect(mockedCreateDeliverySession).toHaveBeenCalledWith('my-script')
   })
 
-  it('POST /api/delivery/fetch returns payload metadata and consumes token', async () => {
+  it('POST /api/delivery/fetch returns runtime payload and consumes token', async () => {
     mockedConsumeDeliverySession.mockResolvedValue({
       success: true,
-      payload: 'encrypted-payload',
-      context: {
-        build_id: 'build-uuid-1',
-        version_id: 'version-uuid-1',
-        source_sha256: '0'.repeat(64),
-        payload_sha256: '1'.repeat(64),
-      },
-      payload_format_version: 'inline-json-v1',
+      runtime_payload: 'print("LUXY TEST")',
       build_version: 'delivery-build-v1',
+      version_id: 'version-uuid-1',
+      runtime_format_version: 'runtime-v1',
       session: {
         id: 'session-uuid-1',
         script_id: 'script-uuid-1',
@@ -114,16 +109,15 @@ describe('Phase 5C delivery API routes', () => {
 
     expect(response.status).toBe(200)
     expect(body).toEqual({
-      payload: 'encrypted-payload',
-      context: {
-        build_id: 'build-uuid-1',
-        version_id: 'version-uuid-1',
-        source_sha256: '0'.repeat(64),
-        payload_sha256: '1'.repeat(64),
-      },
-      payload_format_version: 'inline-json-v1',
+      runtime_payload: 'print("LUXY TEST")',
       build_version: 'delivery-build-v1',
+      version_id: 'version-uuid-1',
+      runtime_format_version: 'runtime-v1',
     })
+    expect(body).not.toHaveProperty('payload')
+    expect(body).not.toHaveProperty('context')
+    expect(body).not.toHaveProperty('source_sha256')
+    expect(body).not.toHaveProperty('payload_sha256')
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     expect(mockedConsumeDeliverySession).toHaveBeenCalledWith('raw-session-token')
   })

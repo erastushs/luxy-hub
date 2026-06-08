@@ -9,6 +9,10 @@ import {
 import { findScriptBySlug, type ScriptRow } from '@/app/lib/repositories/script-repository'
 import { isValidSlug } from '@/app/lib/validators'
 import { DELIVERY_BUILD_VERSION, PAYLOAD_FORMAT_VERSION } from '@/app/lib/services/delivery-build-service'
+import {
+  createRuntimePayloadFromBuild,
+  type RuntimePayloadResponse,
+} from '@/app/lib/delivery/runtime-payload'
 
 export const DELIVERY_SESSION_TTL_SECONDS = 60
 const UNAVAILABLE_MESSAGE = 'Delivery unavailable'
@@ -22,20 +26,13 @@ export type ValidateDeliverySessionResult =
   | { success: true; session: DeliverySessionRow; build: DeliveryBuildRow }
   | { success: false; message: string; status: number }
 
-export type DeliveryFetchContext = {
-  build_id: string
-  version_id: string
-  source_sha256: string
-  payload_sha256: string
-}
-
 export type ConsumeDeliverySessionResult =
   | {
       success: true
-      payload: string
-      context: DeliveryFetchContext
-      payload_format_version: string
+      runtime_payload: string
       build_version: string
+      version_id: string
+      runtime_format_version: RuntimePayloadResponse['runtime_format_version']
       session: DeliverySessionRow
       build: DeliveryBuildRow
     }
@@ -143,17 +140,16 @@ export async function consumeDeliverySession(sessionToken: unknown): Promise<Con
     return { success: false, message: INVALID_SESSION_MESSAGE, status: 403 }
   }
 
+  let runtimePayload: RuntimePayloadResponse
+  try {
+    runtimePayload = createRuntimePayloadFromBuild(validation.build)
+  } catch {
+    return { success: false, message: INVALID_SESSION_MESSAGE, status: 403 }
+  }
+
   return {
     success: true,
-    payload: validation.build.payload_ciphertext ?? '',
-    context: {
-      build_id: validation.build.id,
-      version_id: validation.build.version_id,
-      source_sha256: validation.build.source_sha256,
-      payload_sha256: validation.build.payload_sha256 ?? '',
-    },
-    payload_format_version: validation.build.payload_format_version,
-    build_version: validation.build.build_version,
+    ...runtimePayload,
     session: consumedSession,
     build: validation.build,
   }

@@ -1,4 +1,4 @@
-import { consumeDeliveryPayloadV1 } from '../app/lib/loader/loader-runtime-v1'
+import { consumeRuntimePayloadV1 } from '../app/lib/loader/loader-runtime-v1'
 
 type DeliverySessionResponse = {
   session_token: string
@@ -6,21 +6,15 @@ type DeliverySessionResponse = {
 }
 
 type DeliveryFetchResponse = {
-  payload: string
-  context: {
-    build_id: string
-    version_id: string
-    source_sha256: string
-    payload_sha256: string
-  }
-  payload_format_version: string
+  runtime_payload: string
   build_version: string
+  version_id: string
+  runtime_format_version: string
 }
 
 export type ReferenceLoaderParams = {
   baseUrl: string
   slug: string
-  payloadSecret?: string
   execute?: (source: string) => void | Promise<void>
 }
 
@@ -55,9 +49,8 @@ export async function runReferenceLoader(params: ReferenceLoaderParams): Promise
     { session_token: session.session_token }
   )
 
-  const result = await consumeDeliveryPayloadV1({
+  const result = await consumeRuntimePayloadV1({
     response: delivery,
-    secret: params.payloadSecret,
     execute: params.execute,
   })
 

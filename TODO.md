@@ -120,6 +120,10 @@ Last updated: 2026-06-08
 | 108 | **Docs** | Phase 6F Runtime Adapter Audit | `LOADER_RUNTIME_ADAPTER_AUDIT.md` |
 | 109 | **Docs** | Phase 6F Runtime Validation Plan | `PHASE6F_RUNTIME_VALIDATION.md` |
 | 110 | **Docs** | Phase 6G Delivery Architecture Review | `PHASE6G_DELIVERY_ARCHITECTURE_REVIEW.md` |
+| 111 | **Code** | Phase 6H Runtime Payload Delivery | `app/lib/delivery/runtime-payload.ts`, `POST /api/delivery/fetch` |
+| 112 | **Code** | Phase 6H Simplified Loader Runtime | `app/lib/loader/loader-bootstrap.ts`, `app/lib/loader/loader-runtime-v1.ts` |
+| 113 | **Tests** | Phase 6H Runtime Payload Tests | `__tests__/runtime-payload-delivery.test.ts` |
+| 114 | **Docs** | Phase 6H Runtime Payload Delivery Documentation | `PHASE6H_RUNTIME_PAYLOAD_DELIVERY.md` |
 
 ---
 
@@ -133,10 +137,9 @@ Last updated: 2026-06-08
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 6H | Runtime Payload Delivery Planning | Phase 6G |
-| 2 | Phase 7 | License & Key Management | Phase 6H |
-| 3 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
-| 4 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
+| 1 | Phase 7 | License & Key Management | Phase 6H |
+| 2 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
+| 3 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
 
 ---
 
@@ -152,7 +155,7 @@ CDN API:          100% complete  ███████████████�
 Dashboard Backend: 100% complete  ████████████████████
 Dashboard UI:     100% complete  ████████████████████
 Secure Delivery:    85% complete  █████████████████░░░
-Loader Integration: 88% complete  ██████████████████░░
+Loader Integration: 92% complete  ██████████████████░░
 Key Management:      0% complete  ░░░░░░░░░░░░░░░░░░░░
 Operations:          0% complete  ░░░░░░░░░░░░░░░░░░░░
 Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░░░░░░
@@ -198,13 +201,14 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 6E | Dashboard UX Polish | Complete | 100% |
 | Phase 6F | Runtime Validation | Complete | 100% |
 | Phase 6G | Delivery Architecture Review | Complete | 100% |
-| Phase 6 | Loader Integration | Delivery Architecture Reviewed / Runtime Payload Planning Pending | 88% |
+| Phase 6H | Runtime Payload Delivery | Complete | 100% |
+| Phase 6 | Loader Integration | Runtime Payload Delivery Complete / Executor Verification Pending | 92% |
 | Phase 7 | License & Key Management | Not Started | 0% |
 | Phase 8 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 9 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 6G Complete — Runtime Payload Planning Pending
-> Phase 6G rejects loader-side AES-GCM decryption as the production baseline, recommends server-side decrypt to runtime payload delivery, and keeps encrypted delivery builds for storage security. Next: Phase 6H — Runtime Payload Delivery Planning.
+## Current Phase: Phase 6H Complete — Executor Verification Pending
+> Phase 6H moves decrypt/decompress to the server delivery boundary, keeps encrypted build storage intact, returns `runtime-v1` payloads after one-time session validation, and simplifies the loader runtime. Next: executor compatibility validation, then Phase 7 — License & Key Management.
 ---
 
 # Phase 1 — Infrastructure & Monitoring
@@ -543,7 +547,11 @@ Integrate LuxyHub delivery system with script loaders.
 - [x] Loader-side crypto assumptions rejected for production baseline
 - [x] Server-side decrypt runtime payload architecture recommended
 - [x] Migration impact documented
-- [ ] Runtime payload delivery planning
+- [x] Runtime payload delivery implemented
+- [x] Server-side decrypt/decompress after session validation
+- [x] Runtime response excludes ciphertext and source/payload hashes
+- [x] Loader runtime simplified to request, fetch, execute
+- [x] Runtime payload delivery documentation and tests
 - [ ] Executor compatibility testing
 
 Success Criteria:
@@ -568,7 +576,9 @@ Success Criteria:
 - [x] Recommended runtime architecture chosen
 - [x] Loader-side crypto assumptions validated or rejected
 - [x] Recommended delivery architecture is clearly documented
-- [ ] Runtime payload delivery plan exists
+- [x] Runtime payload delivery works
+- [x] Encrypted storage remains
+- [x] Executor crypto/gzip dependency removed from loader baseline
 - [ ] Executor compatibility verified
 
 ---

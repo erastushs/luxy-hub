@@ -15,6 +15,7 @@ vi.mock('@/app/lib/repositories/delivery-build-repository', () => ({
   markBuildInvalidated: vi.fn(),
 }))
 
+import { createRuntimePayloadFromBuild, RuntimePayloadError } from '@/app/lib/delivery/runtime-payload'
 import { buildVersion, normalizeSource } from '@/app/lib/services/delivery-build-service'
 import { getVersionById } from '@/app/lib/repositories/script-repository'
 import {
@@ -22,12 +23,6 @@ import {
   markBuildBuilding,
   markBuildReady,
 } from '@/app/lib/repositories/delivery-build-repository'
-import {
-  decryptPayload,
-  decompressPayload,
-  PayloadConsumerError,
-  validatePayload,
-} from '@/app/lib/delivery/payload-consumer'
 
 const mockedGetVersionById = vi.mocked(getVersionById)
 const mockedCreateBuild = vi.mocked(createBuild)
@@ -41,7 +36,7 @@ function mockVersionRow(overrides: Partial<VersionRow> = {}): VersionRow {
     id: 'version-uuid-1',
     script_id: 'script-uuid-1',
     version: '1.0.0',
-    content: 'print("hello")',
+    content: 'print("LUXY TEST")',
     changelog: null,
     created_at: '2026-01-01T00:00:00.000Z',
     ...overrides,
@@ -128,72 +123,41 @@ async function buildPayloadFromSource(source: string): Promise<DeliveryBuildRow>
   return result.build
 }
 
-describe('Phase 5D delivery payload consumer', () => {
+describe('Phase 6H runtime payload delivery', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     process.env.DELIVERY_PAYLOAD_SECRET = TEST_SECRET
     process.env.DELIVERY_PAYLOAD_KEY_ID = 'test-key'
   })
 
-  it('decrypts and decompresses Phase 5B output back to normalized source', async () => {
-    const source = 'print("hello")\r\n'
+  it('decrypts an encrypted build server-side and returns runtime-v1 payload', async () => {
+    const source = 'print("LUXY TEST")\r\n'
     const build = await buildPayloadFromSource(source)
 
-    const envelope = validatePayload(build.payload_ciphertext ?? '')
-    const compressedPayload = decryptPayload({
-      payload: envelope,
-      versionId: build.version_id,
-      sourceSha256: build.source_sha256,
-      secret: TEST_SECRET,
+    expect(build.payload_storage_kind).toBe('inline_encrypted')
+    expect(build.payload_ciphertext).toBeTruthy()
+    expect(build.payload_ciphertext).not.toContain('LUXY TEST')
+
+    const runtime = createRuntimePayloadFromBuild(build)
+
+    expect(runtime).toEqual({
+      runtime_payload: normalizeSource(source),
+      build_version: 'delivery-build-v1',
+      version_id: 'version-uuid-1',
+      runtime_format_version: 'runtime-v1',
     })
-    const recoveredSource = decompressPayload(compressedPayload)
-
-    expect(recoveredSource).toBe(normalizeSource(source))
+    expect(runtime).not.toHaveProperty('payload')
+    expect(runtime).not.toHaveProperty('payload_ciphertext')
+    expect(runtime).not.toHaveProperty('source_sha256')
+    expect(runtime).not.toHaveProperty('payload_sha256')
   })
 
-  it('consumes encrypted payload stored by the build artifact', async () => {
-    const source = 'local value = 42\nprint(value)'
-    const build = await buildPayloadFromSource(source)
+  it('rejects corrupted encrypted build payloads before runtime delivery', async () => {
+    const build = await buildPayloadFromSource('print("hash")')
 
-    expect(build.payload_format_version).toBe('inline-json-v1')
-    expect(build.build_version).toBe('delivery-build-v1')
-
-    const recoveredSource = decompressPayload(decryptPayload({
-      payload: build.payload_ciphertext ?? '',
-      versionId: build.version_id,
-      sourceSha256: build.source_sha256,
-      secret: TEST_SECRET,
-    }))
-
-    expect(recoveredSource).toBe(normalizeSource(source))
-  })
-
-  it('rejects invalid payload JSON', () => {
-    expect(() => validatePayload('not-json')).toThrow(PayloadConsumerError)
-  })
-
-  it('rejects invalid payload format versions', () => {
-    const payload = JSON.stringify({
-      v: 'future-format-v9',
-      alg: 'aes-256-gcm:v1',
-      kid: 'test-key',
-      compression: 'gzip',
-      iv: 'AAAAAAAAAAAAAAAA',
-      tag: 'AAAAAAAAAAAAAAAAAAAAAA==',
-      data: 'AAAA',
-    })
-
-    expect(() => validatePayload(payload)).toThrow(PayloadConsumerError)
-  })
-
-  it('rejects decryption with invalid payload context', async () => {
-    const build = await buildPayloadFromSource('print("context")')
-
-    expect(() => decryptPayload({
-      payload: build.payload_ciphertext ?? '',
-      versionId: build.version_id,
-      sourceSha256: 'f'.repeat(64),
-      secret: TEST_SECRET,
-    })).toThrow(PayloadConsumerError)
+    expect(() => createRuntimePayloadFromBuild({
+      ...build,
+      payload_ciphertext: `${build.payload_ciphertext}tampered`,
+    })).toThrow(RuntimePayloadError)
   })
 })

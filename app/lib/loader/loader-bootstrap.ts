@@ -1,8 +1,8 @@
 import { isValidSlug } from '@/app/lib/validators'
 import {
+  LOADER_RUNTIME_FORMAT_VERSION,
   LOADER_RUNTIME_VERSION,
   LOADER_SUPPORTED_BUILD_VERSION,
-  LOADER_SUPPORTED_PAYLOAD_FORMAT_VERSION,
 } from '@/app/lib/loader/loader-constants'
 
 export type LoaderBootstrapParams = {
@@ -37,10 +37,8 @@ export function createLoaderBootstrapLua(params: LoaderBootstrapParams): string 
 local LUXY_BASE_URL = ${luaString(baseUrl)}
 local LUXY_SLUG = ${luaString(params.slug)}
 local RUNTIME_VERSION = ${luaString(LOADER_RUNTIME_VERSION)}
-local SUPPORTED_PAYLOAD_FORMAT_VERSION = ${luaString(LOADER_SUPPORTED_PAYLOAD_FORMAT_VERSION)}
+local SUPPORTED_RUNTIME_FORMAT_VERSION = ${luaString(LOADER_RUNTIME_FORMAT_VERSION)}
 local SUPPORTED_BUILD_VERSION = ${luaString(LOADER_SUPPORTED_BUILD_VERSION)}
-local SUPPORTED_ENCRYPTION_SCHEME = "aes-256-gcm:v1"
-local SUPPORTED_COMPRESSION = "gzip"
 
 local HttpService = game:GetService("HttpService")
 
@@ -96,22 +94,12 @@ local function postJson(path, body)
   return decoded
 end
 
-local function isSha256Hex(value)
-  return type(value) == "string"
-    and #value == 64
-    and string.match(value, "^[a-f0-9]+$") ~= nil
-end
-
 local function validateDelivery(delivery)
   if type(delivery) ~= "table" then
     fail()
   end
 
-  if type(delivery.payload) ~= "string" or #delivery.payload == 0 then
-    fail()
-  end
-
-  if delivery.payload_format_version ~= SUPPORTED_PAYLOAD_FORMAT_VERSION then
+  if type(delivery.runtime_payload) ~= "string" or #delivery.runtime_payload == 0 then
     fail()
   end
 
@@ -119,28 +107,15 @@ local function validateDelivery(delivery)
     fail()
   end
 
-  local context = delivery.context
-  if type(context) ~= "table" then
+  if type(delivery.version_id) ~= "string" or #delivery.version_id == 0 then
     fail()
   end
 
-  if type(context.build_id) ~= "string" or #context.build_id == 0 then
+  if delivery.runtime_format_version ~= SUPPORTED_RUNTIME_FORMAT_VERSION then
     fail()
   end
 
-  if type(context.version_id) ~= "string" or #context.version_id == 0 then
-    fail()
-  end
-
-  if not isSha256Hex(context.source_sha256) then
-    fail()
-  end
-
-  if not isSha256Hex(context.payload_sha256) then
-    fail()
-  end
-
-  return context
+  return delivery
 end
 
 local function createRuntime()
@@ -148,90 +123,9 @@ local function createRuntime()
     version = RUNTIME_VERSION,
   }
 
-  local function getAdapter()
-    local adapter = _G.LuxyHubRuntimeAdapterV1
-    if type(adapter) ~= "table" then
-      fail()
-    end
-
-    if type(adapter.sha256) ~= "function"
-      or type(adapter.decryptAes256Gcm) ~= "function"
-      or type(adapter.gunzip) ~= "function" then
-      fail()
-    end
-
-    return adapter
-  end
-
-  local function decodePayload(payload)
-    local ok, envelope = pcall(function()
-      return HttpService:JSONDecode(payload)
-    end)
-
-    if not ok or type(envelope) ~= "table" then
-      fail()
-    end
-
-    if envelope.v ~= SUPPORTED_PAYLOAD_FORMAT_VERSION then
-      fail()
-    end
-
-    if envelope.alg ~= SUPPORTED_ENCRYPTION_SCHEME then
-      fail()
-    end
-
-    if envelope.compression ~= SUPPORTED_COMPRESSION then
-      fail()
-    end
-
-    if type(envelope.kid) ~= "string"
-      or type(envelope.iv) ~= "string"
-      or type(envelope.tag) ~= "string"
-      or type(envelope.data) ~= "string" then
-      fail()
-    end
-
-    return envelope
-  end
-
-  function Runtime.buildAAD(delivery)
-    local context = validateDelivery(delivery)
-    return delivery.payload_format_version .. ":" .. context.version_id .. ":" .. context.source_sha256
-  end
-
   function Runtime.consume(delivery)
-    local context = validateDelivery(delivery)
-    local aad = Runtime.buildAAD(delivery)
-
-    if delivery.aad ~= aad then
-      fail()
-    end
-
-    local adapter = getAdapter()
-    if adapter.sha256(delivery.payload) ~= context.payload_sha256 then
-      fail()
-    end
-
-    local envelope = decodePayload(delivery.payload)
-    local compressed = adapter.decryptAes256Gcm({
-      envelope = envelope,
-      aad = aad,
-    })
-
-    if compressed == nil then
-      fail()
-    end
-
-    local source = adapter.gunzip(compressed)
-    if type(source) ~= "string" then
-      fail()
-    end
-
-    if type(adapter.execute) == "function" then
-      return adapter.execute(source)
-    end
-
-    local chunk = loadstring(source)
+    local runtime = validateDelivery(delivery)
+    local chunk = loadstring(runtime.runtime_payload)
     if type(chunk) ~= "function" then
       fail()
     end
@@ -263,15 +157,13 @@ local delivery = postJson("/api/delivery/fetch", {
   session_token = session.session_token,
 })
 
-local context = validateDelivery(delivery)
-local aad = delivery.payload_format_version .. ":" .. context.version_id .. ":" .. context.source_sha256
+validateDelivery(delivery)
 
 return Runtime.consume({
-  payload = delivery.payload,
-  context = context,
-  aad = aad,
-  payload_format_version = delivery.payload_format_version,
+  runtime_payload = delivery.runtime_payload,
   build_version = delivery.build_version,
+  version_id = delivery.version_id,
+  runtime_format_version = delivery.runtime_format_version,
   runtime_version = RUNTIME_VERSION,
 })
 `

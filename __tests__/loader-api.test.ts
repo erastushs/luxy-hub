@@ -37,7 +37,12 @@ describe('Phase 6D loader API route', () => {
     expect(body).toContain('https://luxy.example')
     expect(body).toContain('/api/delivery/session')
     expect(body).toContain('/api/delivery/fetch')
-    expect(body).toContain('payload_format_version .. ":" .. context.version_id .. ":" .. context.source_sha256')
+    expect(body).toContain('runtime_payload')
+    expect(body).toContain('runtime-v1')
+    expect(body).not.toContain('decryptAes256Gcm')
+    expect(body).not.toContain('gunzip')
+    expect(body).not.toContain('sha256')
+    expect(body).not.toContain('payload_format_version .. ":"')
     expect(body).not.toContain('encrypted-payload')
   })
 

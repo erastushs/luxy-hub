@@ -26,10 +26,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
-        payload: result.payload,
-        context: result.context,
-        payload_format_version: result.payload_format_version,
+        runtime_payload: result.runtime_payload,
         build_version: result.build_version,
+        version_id: result.version_id,
+        runtime_format_version: result.runtime_format_version,
       },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }
     )

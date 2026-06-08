@@ -23,6 +23,11 @@ vi.mock('@/app/lib/repositories/delivery-session-repository', () => ({
   consumeSession: vi.fn(),
 }))
 
+vi.mock('@/app/lib/delivery/runtime-payload', () => ({
+  RUNTIME_FORMAT_VERSION: 'runtime-v1',
+  createRuntimePayloadFromBuild: vi.fn(),
+}))
+
 import {
   consumeDeliverySession,
   createDeliverySession,
@@ -36,6 +41,7 @@ import {
   createSession,
   getSessionByTokenHash,
 } from '@/app/lib/repositories/delivery-session-repository'
+import { createRuntimePayloadFromBuild } from '@/app/lib/delivery/runtime-payload'
 
 const mockedFindScriptBySlug = vi.mocked(findScriptBySlug)
 const mockedGetReadyBuild = vi.mocked(getReadyBuild)
@@ -43,6 +49,7 @@ const mockedGetBuildById = vi.mocked(getBuildById)
 const mockedCreateSession = vi.mocked(createSession)
 const mockedGetSessionByTokenHash = vi.mocked(getSessionByTokenHash)
 const mockedConsumeSession = vi.mocked(consumeSession)
+const mockedCreateRuntimePayloadFromBuild = vi.mocked(createRuntimePayloadFromBuild)
 
 function futureIso(seconds: number = 60): string {
   return new Date(Date.now() + seconds * 1000).toISOString()
@@ -111,6 +118,12 @@ function mockSessionRow(overrides: Partial<DeliverySessionRow> = {}): DeliverySe
 describe('Phase 5C delivery session service', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockedCreateRuntimePayloadFromBuild.mockReturnValue({
+      runtime_payload: 'print("LUXY TEST")',
+      build_version: 'delivery-build-v1',
+      version_id: 'version-uuid-1',
+      runtime_format_version: 'runtime-v1',
+    })
   })
 
   it('creates a short-lived session and stores only a token hash', async () => {
@@ -188,7 +201,7 @@ describe('Phase 5C delivery session service', () => {
     }
   })
 
-  it('retrieves payload and consumes the session once', async () => {
+  it('retrieves runtime payload and consumes the session once', async () => {
     const session = mockSessionRow()
     const consumed = mockSessionRow({ consumed_at: '2026-01-01T00:01:00.000Z' })
     mockedGetSessionByTokenHash.mockResolvedValue(session)
@@ -199,16 +212,17 @@ describe('Phase 5C delivery session service', () => {
 
     expect(result.success).toBe(true)
     expect(mockedConsumeSession).toHaveBeenCalledWith(session.id)
+    expect(mockedCreateRuntimePayloadFromBuild).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'build-uuid-1',
+      payload_ciphertext: 'encrypted-payload',
+    }))
     if (result.success) {
-      expect(result.payload).toBe('encrypted-payload')
-      expect(result.context).toEqual({
-        build_id: 'build-uuid-1',
-        version_id: 'version-uuid-1',
-        source_sha256: '0'.repeat(64),
-        payload_sha256: '1'.repeat(64),
-      })
-      expect(result.payload_format_version).toBe('inline-json-v1')
+      expect(result.runtime_payload).toBe('print("LUXY TEST")')
       expect(result.build_version).toBe('delivery-build-v1')
+      expect(result.version_id).toBe('version-uuid-1')
+      expect(result.runtime_format_version).toBe('runtime-v1')
+      expect(result).not.toHaveProperty('payload')
+      expect(result).not.toHaveProperty('context')
       expect(result.session.consumed_at).toBe(consumed.consumed_at)
     }
   })
@@ -233,6 +247,24 @@ describe('Phase 5C delivery session service', () => {
     const result = await consumeDeliverySession('test-session-token-that-is-long-enough')
 
     expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.status).toBe(403)
+      expect(result.message).toBe('Invalid delivery session')
+    }
+  })
+
+  it('returns a uniform error when runtime payload generation fails', async () => {
+    mockedGetSessionByTokenHash.mockResolvedValue(mockSessionRow())
+    mockedGetBuildById.mockResolvedValue(mockBuildRow())
+    mockedConsumeSession.mockResolvedValue(mockSessionRow({ consumed_at: '2026-01-01T00:01:00.000Z' }))
+    mockedCreateRuntimePayloadFromBuild.mockImplementation(() => {
+      throw new Error('decrypt failed')
+    })
+
+    const result = await consumeDeliverySession('test-session-token-that-is-long-enough')
+
+    expect(result.success).toBe(false)
+    expect(mockedConsumeSession).toHaveBeenCalledWith('session-uuid-1')
     if (!result.success) {
       expect(result.status).toBe(403)
       expect(result.message).toBe('Invalid delivery session')
