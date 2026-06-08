@@ -3,15 +3,19 @@ import {
   getScriptAnalyticsForOwner,
   getDownloadTrendsForOwner,
   getScriptDownloadTrendsForOwner,
+  listScriptsForOwner,
   type CreatorAnalyticsOverview as CreatorAnalyticsOverviewType,
   type ScriptAnalytics as ScriptAnalyticsType,
   type DownloadTrendsResult as DownloadTrendsResultType,
 } from '@/app/lib/repositories/script-repository'
 
-export type {
-  CreatorAnalyticsOverviewType,
-  ScriptAnalyticsType,
-  DownloadTrendsResultType,
+export type { CreatorAnalyticsOverviewType, ScriptAnalyticsType, DownloadTrendsResultType }
+
+export type TopScript = {
+  name: string
+  slug: string
+  visibility: string
+  downloads: number
 }
 
 export type OverviewResult =
@@ -76,5 +80,29 @@ export async function getDownloadTrends(
     return { success: true, trends: result }
   } catch {
     return { success: false, message: 'Failed to fetch download trends', status: 500 }
+  }
+}
+
+export async function getTopScripts(ownerId: string, limit: number = 5): Promise<TopScript[]> {
+  try {
+    const { scripts } = await listScriptsForOwner({ ownerId, limit: 100, offset: 0 })
+
+    const withStats = await Promise.all(
+      scripts.map(async (script) => {
+        const stats = await getScriptAnalyticsForOwner(script.slug, ownerId)
+        return {
+          name: script.name,
+          slug: script.slug,
+          visibility: script.visibility,
+          downloads: stats?.total_downloads ?? 0,
+        }
+      })
+    )
+
+    return withStats
+      .sort((a, b) => b.downloads - a.downloads)
+      .slice(0, limit)
+  } catch {
+    return []
   }
 }
