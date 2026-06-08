@@ -10,14 +10,33 @@ vi.mock('next/navigation', () => ({
   }),
 }))
 
+vi.mock('next/headers', () => ({
+  headers: vi.fn(() => new Headers({ 'x-forwarded-for': '203.0.113.10' })),
+}))
+
 vi.mock('@/app/lib/supabase/server', () => ({
   createSupabaseServerClient: vi.fn(),
 }))
 
+vi.mock('@/app/lib/rate-limiter', () => ({
+  checkLoginFailureLimit: vi.fn(),
+  clearLoginFailures: vi.fn(),
+  getClientIPFromHeaders: vi.fn(() => '203.0.113.10'),
+  recordLoginFailure: vi.fn(),
+}))
+
 import { createSupabaseServerClient } from '@/app/lib/supabase/server'
+import {
+  checkLoginFailureLimit,
+  clearLoginFailures,
+  recordLoginFailure,
+} from '@/app/lib/rate-limiter'
 import { login } from '@/app/actions/auth'
 
 const mockedCreateSupabaseServerClient = vi.mocked(createSupabaseServerClient)
+const mockedCheckLoginFailureLimit = vi.mocked(checkLoginFailureLimit)
+const mockedClearLoginFailures = vi.mocked(clearLoginFailures)
+const mockedRecordLoginFailure = vi.mocked(recordLoginFailure)
 const mockedFetch = vi.fn()
 
 function formData(params: {
@@ -44,6 +63,7 @@ describe('login Turnstile verification', () => {
     vi.resetAllMocks()
     vi.stubGlobal('fetch', mockedFetch)
     process.env.TURNSTILE_SECRET_KEY = 'turnstile-secret'
+    mockedCheckLoginFailureLimit.mockResolvedValue({ allowed: true })
   })
 
   afterEach(() => {
@@ -59,6 +79,7 @@ describe('login Turnstile verification', () => {
 
     expect(result).toEqual({ error: 'Security verification required' })
     expect(mockedFetch).not.toHaveBeenCalled()
+    expect(mockedCheckLoginFailureLimit).not.toHaveBeenCalled()
     expect(mockedCreateSupabaseServerClient).not.toHaveBeenCalled()
   })
 
@@ -72,6 +93,7 @@ describe('login Turnstile verification', () => {
     }))
 
     expect(result).toEqual({ error: 'Security verification failed' })
+    expect(mockedCheckLoginFailureLimit).not.toHaveBeenCalled()
     expect(mockedCreateSupabaseServerClient).not.toHaveBeenCalled()
   })
 
@@ -85,6 +107,22 @@ describe('login Turnstile verification', () => {
     }))
 
     expect(result).toEqual({ error: 'Security verification failed' })
+    expect(mockedCheckLoginFailureLimit).not.toHaveBeenCalled()
+    expect(mockedCreateSupabaseServerClient).not.toHaveBeenCalled()
+  })
+
+  it('fails before authentication when login failure limit is exceeded', async () => {
+    mockedFetch.mockResolvedValue(siteverifyResponse({ success: true, action: 'login' }))
+    mockedCheckLoginFailureLimit.mockResolvedValue({ allowed: false, retryAfter: 300 })
+
+    const result = await login({}, formData({
+      email: 'creator@example.com',
+      password: 'password',
+      token: 'valid-token',
+    }))
+
+    expect(result).toEqual({ error: 'Too many login attempts. Please try again in a few minutes.' })
+    expect(mockedCheckLoginFailureLimit).toHaveBeenCalledWith('203.0.113.10', 'creator@example.com')
     expect(mockedCreateSupabaseServerClient).not.toHaveBeenCalled()
   })
 
@@ -105,6 +143,8 @@ describe('login Turnstile verification', () => {
       email: 'creator@example.com',
       password: 'password',
     })
+    expect(mockedClearLoginFailures).toHaveBeenCalledWith('203.0.113.10', 'creator@example.com')
+    expect(mockedRecordLoginFailure).not.toHaveBeenCalled()
   })
 
   it('preserves authentication errors after valid Turnstile verification', async () => {
@@ -127,5 +167,7 @@ describe('login Turnstile verification', () => {
       email: 'creator@example.com',
       password: 'wrong-password',
     })
+    expect(mockedRecordLoginFailure).toHaveBeenCalledWith('203.0.113.10', 'creator@example.com')
+    expect(mockedClearLoginFailures).not.toHaveBeenCalled()
   })
 })
