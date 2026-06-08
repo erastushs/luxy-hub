@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/app/lib/supabase/server'
+import { verifyTurnstileToken } from '@/app/lib/auth/turnstile'
 
 type AuthResult = {
   error?: string
@@ -10,7 +11,10 @@ type AuthResult = {
 }
 
 export async function login(_prevState: AuthResult, formData: FormData): Promise<AuthResult> {
-  const supabase = await createSupabaseServerClient()
+  const turnstile = await verifyTurnstileToken(formData.get('cf-turnstile-response'))
+  if (!turnstile.success) {
+    return { error: turnstile.message }
+  }
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
@@ -19,6 +23,7 @@ export async function login(_prevState: AuthResult, formData: FormData): Promise
     return { error: 'Email and password are required' }
   }
 
+  const supabase = await createSupabaseServerClient()
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,

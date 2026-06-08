@@ -2,9 +2,11 @@
 
 import { useActionState } from 'react'
 import { login } from '@/app/actions/auth'
+import TurnstileWidget from './TurnstileWidget'
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(login, {})
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
@@ -55,6 +57,14 @@ export default function LoginPage() {
           {state?.error && (
             <div role="alert" className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
               {state.error}
+            </div>
+          )}
+
+          {turnstileSiteKey ? (
+            <TurnstileWidget siteKey={turnstileSiteKey} />
+          ) : (
+            <div role="alert" className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
+              Security verification is unavailable.
             </div>
           )}
 
