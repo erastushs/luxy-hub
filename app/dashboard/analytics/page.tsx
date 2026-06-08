@@ -4,6 +4,7 @@ import type { CreatorAnalyticsOverviewType, DownloadTrendsResultType, TopScript 
 import { AnalyticsCard } from '@/app/dashboard/components/AnalyticsCard'
 import { DownloadsChart } from '@/app/dashboard/components/DownloadsChart'
 import { TopScriptsTable } from '@/app/dashboard/components/TopScriptsTable'
+import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
 import {
   BarChart3,
   FileCode,
@@ -47,13 +48,9 @@ export default async function AnalyticsPage() {
         <p className="mt-1 text-sm text-zinc-400">Track your script performance</p>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner message={error} />}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <AnalyticsCard
           label="Total Scripts"
           value={overview?.total_scripts ?? '—'}

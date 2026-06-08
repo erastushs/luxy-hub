@@ -74,4 +74,8 @@ html {
   }
 }
 
+:focus-visible {
+  outline: none;
+}
+
 

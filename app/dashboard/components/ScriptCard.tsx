@@ -3,8 +3,10 @@
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { cn } from '@/app/lib/utils'
-import { Trash2, Edit, Eye, EyeOff, Globe, type LucideIcon } from 'lucide-react'
+import { Trash2, Edit } from 'lucide-react'
 import { deleteScriptAction } from '@/app/actions/scripts'
+import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
+import { formatDate } from '@/app/dashboard/lib/format-date'
 import { useState } from 'react'
 
 type Script = {
@@ -17,20 +19,6 @@ type Script = {
   updated_at: string
 }
 
-const visibilityConfig: Record<string, { label: string; icon: LucideIcon; className: string }> = {
-  public: { label: 'Public', icon: Globe, className: 'text-emerald-400 bg-emerald-400/10' },
-  private: { label: 'Private', icon: EyeOff, className: 'text-zinc-400 bg-zinc-400/10' },
-  unlisted: { label: 'Unlisted', icon: Eye, className: 'text-amber-400 bg-amber-400/10' },
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
 export function ScriptCard({
   script,
   onDelete,
@@ -41,7 +29,7 @@ export function ScriptCard({
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
 
-  const vis = visibilityConfig[script.visibility] ?? visibilityConfig.private
+  const vis = getVisibilityBadge(script.visibility)
   const VisIcon = vis.icon
 
   async function handleDelete() {
@@ -79,25 +67,25 @@ export function ScriptCard({
             vis.className
           )}
         >
-          <VisIcon className="h-3 w-3" />
+          <VisIcon className="h-3 w-3" aria-hidden="true" />
           {vis.label}
         </span>
 
         <div className="flex items-center gap-1">
           <button
             onClick={() => router.push(`/dashboard/scripts/${script.slug}/edit`)}
-            className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
-            title="Edit"
+            className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+            aria-label={`Edit ${script.name}`}
           >
-            <Edit className="h-4 w-4" />
+            <Edit className="h-4 w-4" aria-hidden="true" />
           </button>
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="rounded-md p-1.5 text-zinc-500 transition hover:bg-red-900/30 hover:text-red-400 disabled:opacity-50"
-            title="Delete"
+            className="rounded-md p-1.5 text-zinc-500 transition hover:bg-red-900/30 hover:text-red-400 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+            aria-label={`Delete ${script.name}`}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       </div>

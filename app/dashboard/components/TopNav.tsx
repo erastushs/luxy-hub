@@ -16,10 +16,10 @@ export function TopNav() {
   const breadcrumb = breadcrumbMap[pathname] ?? 'Dashboard'
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/70 backdrop-blur-xl px-6">
-      <div className="flex items-center gap-3">
+    <header className="hidden lg:flex sticky top-0 z-30 h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/70 backdrop-blur-xl px-6">
+      <nav aria-label="Breadcrumb">
         <span className="text-sm font-medium text-zinc-200">{breadcrumb}</span>
-      </div>
+      </nav>
     </header>
   )
 }

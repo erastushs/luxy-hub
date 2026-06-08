@@ -1,14 +1,5 @@
 import { cn } from '@/app/lib/utils'
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+import { formatDateTime } from '@/app/dashboard/lib/format-date'
 
 type VersionRow = {
   id: string
@@ -29,16 +20,17 @@ export function VersionCard({ version, active = false, onClick }: VersionCardPro
     <button
       onClick={onClick}
       className={cn(
-        'w-full rounded-xl border p-5 text-left transition',
+        'w-full rounded-xl border p-5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600',
         active
           ? 'border-red-600/30 bg-red-600/5'
           : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700'
       )}
+      aria-pressed={active}
     >
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-white">v{version.version}</span>
         <span className="font-mono text-xs text-zinc-500">
-          {formatDate(version.created_at)}
+          {formatDateTime(version.created_at)}
         </span>
       </div>
       {version.changelog && (

@@ -7,11 +7,16 @@ export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(login, {})
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-      <div className="w-full max-w-md space-y-8 px-6">
+    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
+      <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-white">LuxyHub</h1>
-          <p className="mt-2 text-sm text-zinc-400">Creator Dashboard</p>
+          <div className="flex items-center justify-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-600 text-sm font-bold text-white" aria-hidden="true">
+              L
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-white">LuxyHub</h1>
+          </div>
+          <p className="mt-3 text-sm text-zinc-400">Sign in to the Creator Dashboard</p>
         </div>
 
         <form action={formAction} className="mt-8 space-y-6">
@@ -48,7 +53,7 @@ export default function LoginPage() {
           </div>
 
           {state?.error && (
-            <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
+            <div role="alert" className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
               {state.error}
             </div>
           )}
@@ -56,7 +61,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isPending}
-            className="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? 'Signing in...' : 'Sign in'}
           </button>

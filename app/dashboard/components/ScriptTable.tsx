@@ -2,7 +2,9 @@
 
 import { cn } from '@/app/lib/utils'
 import Link from 'next/link'
-import { Eye, EyeOff, Globe, Trash2, type LucideIcon } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
+import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
+import { formatDate } from '@/app/dashboard/lib/format-date'
 
 type Script = {
   id: string
@@ -12,20 +14,6 @@ type Script = {
   visibility: string
   created_at: string
   updated_at: string
-}
-
-const visibilityConfig: Record<string, { label: string; icon: LucideIcon; className: string }> = {
-  public: { label: 'Public', icon: Globe, className: 'text-emerald-400 bg-emerald-400/10' },
-  private: { label: 'Private', icon: EyeOff, className: 'text-zinc-400 bg-zinc-400/10' },
-  unlisted: { label: 'Unlisted', icon: Eye, className: 'text-amber-400 bg-amber-400/10' },
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
 }
 
 type ScriptTableProps = {
@@ -49,13 +37,13 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
               Updated
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Actions
+              <span className="sr-only">Actions</span>
             </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-800">
           {scripts.map((script) => {
-            const vis = visibilityConfig[script.visibility] ?? visibilityConfig.private
+            const vis = getVisibilityBadge(script.visibility)
             const VisIcon = vis.icon
 
             return (
@@ -63,7 +51,7 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
                 <td className="px-4 py-3">
                   <Link
                     href={`/dashboard/scripts/${script.slug}/edit`}
-                    className="font-medium text-white hover:text-red-400"
+                    className="font-medium text-white hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 rounded"
                   >
                     {script.name}
                   </Link>
@@ -76,7 +64,7 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
                       vis.className
                     )}
                   >
-                    <VisIcon className="h-3 w-3" />
+                    <VisIcon className="h-3 w-3" aria-hidden="true" />
                     {vis.label}
                   </span>
                 </td>
@@ -86,10 +74,10 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
                 <td className="px-4 py-3 text-right">
                   <button
                     onClick={() => onDeleteClick(script.slug)}
-                    className="rounded-md p-1.5 text-zinc-500 transition hover:bg-red-900/30 hover:text-red-400"
-                    title="Delete"
+                    className="rounded-md p-1.5 text-zinc-500 transition hover:bg-red-900/30 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                    aria-label={`Delete ${script.name}`}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </td>
               </tr>

@@ -1,49 +1,28 @@
 import { getCurrentUser } from '@/app/lib/auth/session-auth'
 import { getOverview } from '@/app/lib/services/analytics-service'
 import type { CreatorAnalyticsOverviewType } from '@/app/lib/services/analytics-service'
+import { AnalyticsCard } from '@/app/dashboard/components/AnalyticsCard'
+import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
 import {
   BarChart3,
   FileCode,
   Download,
   Eye,
-  type LucideIcon,
 } from 'lucide-react'
-
-type StatCardProps = {
-  label: string
-  value: number | string
-  icon: LucideIcon
-  sublabel?: string
-}
-
-function StatCard({ label, value, icon: Icon, sublabel }: StatCardProps) {
-  return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-          {label}
-        </span>
-        <Icon className="h-4 w-4 text-zinc-600" />
-      </div>
-      <div className="mt-3">
-        <span className="text-2xl font-bold text-white">{value}</span>
-        {sublabel && (
-          <span className="ml-2 text-xs text-zinc-500">{sublabel}</span>
-        )}
-      </div>
-    </div>
-  )
-}
+import Link from 'next/link'
 
 export default async function DashboardHomePage() {
   const user = await getCurrentUser()
 
   let overview: CreatorAnalyticsOverviewType | null = null
+  let error: string | null = null
 
   if (user) {
     const result = await getOverview(user.id)
     if (result.success) {
       overview = result.overview
+    } else {
+      error = result.message ?? 'Failed to load analytics'
     }
   }
 
@@ -56,8 +35,10 @@ export default async function DashboardHomePage() {
         </p>
       </div>
 
+      {error && <ErrorBanner message={error} />}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
+        <AnalyticsCard
           label="Total Scripts"
           value={overview?.total_scripts ?? '—'}
           icon={FileCode}
@@ -67,17 +48,17 @@ export default async function DashboardHomePage() {
               : undefined
           }
         />
-        <StatCard
+        <AnalyticsCard
           label="Total Downloads"
           value={overview?.total_downloads ?? '—'}
           icon={Download}
         />
-        <StatCard
+        <AnalyticsCard
           label="Downloads (7 Days)"
           value={overview?.downloads_7d ?? '—'}
           icon={BarChart3}
         />
-        <StatCard
+        <AnalyticsCard
           label="Downloads Today"
           value={overview?.downloads_today ?? '—'}
           icon={Eye}
@@ -85,12 +66,15 @@ export default async function DashboardHomePage() {
       </div>
 
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-        <BarChart3 className="mx-auto h-8 w-8 text-zinc-600" />
-        <h3 className="mt-3 text-sm font-medium text-zinc-300">
-          Analytics Overview
-        </h3>
+        <BarChart3 className="mx-auto h-8 w-8 text-zinc-600" aria-hidden="true" />
+        <h2 className="mt-3 text-sm font-medium text-zinc-300">
+          Full Analytics
+        </h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Detailed charts and trends will be available in the Analytics section.
+          View detailed charts, trends, and top scripts in the{' '}
+          <Link href="/dashboard/analytics" className="text-red-400 hover:text-red-300 underline">
+            Analytics section
+          </Link>.
         </p>
       </div>
     </div>

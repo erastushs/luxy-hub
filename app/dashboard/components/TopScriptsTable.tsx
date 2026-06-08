@@ -1,17 +1,11 @@
 import { cn } from '@/app/lib/utils'
-import { Globe, EyeOff, Eye, type LucideIcon } from 'lucide-react'
+import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
 
 type TopScript = {
   name: string
   slug: string
   visibility: string
   downloads: number
-}
-
-const visibilityConfig: Record<string, { label: string; icon: LucideIcon; className: string }> = {
-  public: { label: 'Public', icon: Globe, className: 'text-emerald-400 bg-emerald-400/10' },
-  private: { label: 'Private', icon: EyeOff, className: 'text-zinc-400 bg-zinc-400/10' },
-  unlisted: { label: 'Unlisted', icon: Eye, className: 'text-amber-400 bg-amber-400/10' },
 }
 
 type TopScriptsTableProps = {
@@ -45,14 +39,14 @@ export function TopScriptsTable({ scripts }: TopScriptsTableProps) {
         </thead>
         <tbody className="divide-y divide-zinc-800">
           {scripts.map((script, i) => {
-            const vis = visibilityConfig[script.visibility] ?? visibilityConfig.private
+            const vis = getVisibilityBadge(script.visibility)
             const VisIcon = vis.icon
 
             return (
               <tr key={script.slug} className="transition hover:bg-zinc-900/30">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-medium text-zinc-600 w-5 text-right">
+                    <span className="text-xs font-medium text-zinc-600 w-5 text-right" aria-label={`Rank ${i + 1}`}>
                       {i + 1}
                     </span>
                     <span className="font-medium text-white">{script.name}</span>
@@ -65,7 +59,7 @@ export function TopScriptsTable({ scripts }: TopScriptsTableProps) {
                       vis.className
                     )}
                   >
-                    <VisIcon className="h-3 w-3" />
+                    <VisIcon className="h-3 w-3" aria-hidden="true" />
                     {vis.label}
                   </span>
                 </td>

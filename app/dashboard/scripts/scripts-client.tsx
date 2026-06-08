@@ -4,11 +4,13 @@ import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Plus, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, Filter } from 'lucide-react'
 import { ScriptTable } from '@/app/dashboard/components/ScriptTable'
 import { ScriptCard } from '@/app/dashboard/components/ScriptCard'
 import { DeleteDialog } from '@/app/dashboard/components/DeleteDialog'
 import { EmptyState } from '@/app/dashboard/components/EmptyState'
+import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
+import { Pagination } from '@/app/dashboard/components/Pagination'
 import { deleteScriptAction } from '@/app/actions/scripts'
 import type { ScriptRow } from '@/app/lib/services/script-service'
 
@@ -85,18 +87,20 @@ export function ScriptsListClient({
 
         <Link
           href="/dashboard/scripts/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+          className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-4 w-4" aria-hidden="true" />
           New Script
         </Link>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <form action={handleSearch} className="flex-1">
+        <form action={handleSearch} className="flex-1" role="search">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <label htmlFor="script-search" className="sr-only">Search scripts</label>
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
             <input
+              id="script-search"
               ref={searchInputRef}
               name="search"
               defaultValue={search}
@@ -107,8 +111,10 @@ export function ScriptsListClient({
         </form>
 
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-zinc-500" />
+          <label htmlFor="visibility-filter" className="sr-only">Filter by visibility</label>
+          <Filter className="h-4 w-4 text-zinc-500" aria-hidden="true" />
           <select
+            id="visibility-filter"
             value={visibility}
             onChange={(e) =>
               navigate({
@@ -127,11 +133,7 @@ export function ScriptsListClient({
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner message={error} />}
 
       {scripts.length === 0 ? (
         <EmptyState
@@ -147,7 +149,7 @@ export function ScriptsListClient({
                 href="/dashboard/scripts/new"
                 className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4" aria-hidden="true" />
                 Create Script
               </Link>
             ) : undefined
@@ -162,7 +164,7 @@ export function ScriptsListClient({
             }} />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:hidden xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:hidden">
             {scripts.map((script) => (
               <ScriptCard
                 key={script.id}
@@ -175,41 +177,17 @@ export function ScriptsListClient({
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-4 pt-2">
-              <button
-                onClick={() =>
-                  navigate({
-                    search: search || undefined,
-                    visibility: visibility === 'all' ? undefined : visibility,
-                    page: String(page - 1),
-                  })
-                }
-                disabled={page <= 1}
-                className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </button>
-
-              <span className="text-sm text-zinc-500">
-                Page {page} of {totalPages}
-              </span>
-
-              <button
-                onClick={() =>
-                  navigate({
-                    search: search || undefined,
-                    visibility: visibility === 'all' ? undefined : visibility,
-                    page: String(page + 1),
-                  })
-                }
-                disabled={page >= totalPages}
-                className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={(p) =>
+                navigate({
+                  search: search || undefined,
+                  visibility: visibility === 'all' ? undefined : visibility,
+                  page: String(p),
+                })
+              }
+            />
           )}
         </>
       )}

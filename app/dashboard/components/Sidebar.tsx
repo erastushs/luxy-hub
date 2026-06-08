@@ -10,9 +10,11 @@ import {
   History,
   UserCircle,
   LogOut,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
+import { useState } from 'react'
 
 type NavItem = {
   label: string
@@ -30,17 +32,18 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
-  return (
-    <aside className="fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-zinc-800 bg-zinc-950">
+  const navContent = (
+    <>
       <div className="flex h-14 items-center gap-2 border-b border-zinc-800 px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-sm font-bold text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-sm font-bold text-white" aria-hidden="true">
           L
         </div>
         <span className="text-base font-semibold text-white">LuxyHub</span>
       </div>
 
-      <nav className="flex-1 space-y-0.5 px-3 py-4">
+      <nav className="flex-1 space-y-0.5 px-3 py-4" aria-label="Main navigation">
         {navItems.map((item) => {
           const isActive =
             item.href === '/dashboard'
@@ -51,14 +54,16 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setMobileOpen(false)}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition',
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600',
                 isActive
                   ? 'bg-red-600/10 text-red-400'
                   : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
               )}
+              aria-current={isActive ? 'page' : undefined}
             >
-              <item.icon className="h-4 w-4" />
+              <item.icon className="h-4 w-4" aria-hidden="true" />
               {item.label}
             </Link>
           )
@@ -69,13 +74,44 @@ export function Sidebar() {
         <form action={logout}>
           <button
             type="submit"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800/50 hover:text-red-400"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800/50 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4" aria-hidden="true" />
             Sign out
           </button>
         </form>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-zinc-800 bg-zinc-950 lg:flex">
+        {navContent}
+      </aside>
+
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="fixed inset-0 bg-black/70" onClick={() => setMobileOpen(false)} />
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-zinc-800 bg-zinc-950">
+            {navContent}
+          </aside>
+        </div>
+      )}
+
+      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4 lg:hidden">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+          aria-label="Open navigation menu"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-sm font-bold text-white">
+            L
+          </div>
+        </button>
+        <span className="text-sm font-medium text-zinc-200">LuxyHub</span>
+        <div className="w-8" />
+      </div>
+    </>
   )
 }

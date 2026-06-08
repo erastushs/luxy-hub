@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { VersionList } from '@/app/dashboard/components/VersionList'
+import { Pagination } from '@/app/dashboard/components/Pagination'
 import type { VersionRow, ScriptRow } from '@/app/lib/services/script-service'
 
 type VersionsHistoryClientProps = {
@@ -38,9 +39,10 @@ export default function VersionsHistoryClient({
       <div className="flex items-center gap-3">
         <Link
           href="/dashboard/versions"
-          className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
+          className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+          aria-label="Back to script list"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-white">Version History</h1>
@@ -61,26 +63,8 @@ export default function VersionsHistoryClient({
           />
 
           {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-center gap-4">
-              <button
-                onClick={() => goToPage(page - 1)}
-                disabled={page <= 1}
-                className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </button>
-              <span className="text-sm text-zinc-500">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => goToPage(page + 1)}
-                disabled={page >= totalPages}
-                className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </button>
+            <div className="mt-6">
+              <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
             </div>
           )}
         </div>
@@ -97,7 +81,7 @@ export default function VersionsHistoryClient({
                 <Link
                   key={script.id}
                   href={`/dashboard/versions/${script.slug}`}
-                  className={`block rounded-lg px-3 py-2 text-sm transition ${
+                  className={`block rounded-lg px-3 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 ${
                     script.slug === slug
                       ? 'bg-red-600/10 text-red-400'
                       : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'

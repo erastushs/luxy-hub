@@ -6,15 +6,9 @@ import { toast } from 'sonner'
 import { updateProfileAction } from '@/app/actions/profile'
 import { logout } from '@/app/actions/auth'
 import { CopyButton } from '@/app/dashboard/components/CopyButton'
+import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
+import { formatDateLong } from '@/app/dashboard/lib/format-date'
 import type { AuthenticatedUser } from '@/app/lib/auth/session-auth'
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
 
 type ProfileFieldProps = {
   label: string
@@ -57,9 +51,9 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
         {!editing && (
           <button
             onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 px-3.5 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+            className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 px-3.5 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
           >
-            <Pencil className="h-4 w-4" />
+            <Pencil className="h-4 w-4" aria-hidden="true" />
             Edit
           </button>
         )}
@@ -67,13 +61,13 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
 
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600/20 text-red-400">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600/20 text-red-400" aria-hidden="true">
             <UserCircle className="h-7 w-7" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-semibold text-white">
               {user.profile.display_name}
-            </h3>
+            </h2>
             <p className="text-sm text-zinc-400">{user.email}</p>
           </div>
         </div>
@@ -105,7 +99,7 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
 
           <ProfileField
             label="User ID"
-            action={<CopyButton value={user.id} />}
+            action={<CopyButton value={user.id} label="Copy ID" />}
           >
             <p className="truncate font-mono text-xs text-zinc-400">
               {user.id}
@@ -114,7 +108,7 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
 
           <ProfileField label="Member since">
             <p className="text-sm text-white">
-              {formatDate(user.profile.created_at)}
+              {formatDateLong(user.profile.created_at)}
             </p>
           </ProfileField>
         </div>
@@ -123,9 +117,9 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
           <form action={logout}>
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-lg border border-red-800 bg-red-950/30 px-3.5 py-2 text-sm text-red-400 transition hover:bg-red-950/60"
+              className="inline-flex items-center gap-2 rounded-lg border border-red-800 bg-red-950/30 px-3.5 py-2 text-sm text-red-400 transition hover:bg-red-950/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-4 w-4" aria-hidden="true" />
               Sign out
             </button>
           </form>
@@ -141,9 +135,7 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
 
           <form action={formAction} className="mt-6 space-y-5">
             {state.message && !state.success && (
-              <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
-                {state.message}
-              </div>
+              <ErrorBanner message={state.message} />
             )}
 
             <div>
@@ -191,7 +183,7 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
               <button
                 type="submit"
                 disabled={isPending}
-                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
               >
                 {isPending ? 'Saving...' : 'Save Changes'}
               </button>
@@ -199,7 +191,7 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
                 type="button"
                 onClick={() => setEditing(false)}
                 disabled={isPending}
-                className="rounded-lg border border-zinc-800 px-4 py-2.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-50"
+                className="rounded-lg border border-zinc-800 px-4 py-2.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
               >
                 Cancel
               </button>

@@ -1,21 +1,11 @@
 import { getCurrentUser } from '@/app/lib/auth/session-auth'
 import { listCreatorScripts, type ScriptRow } from '@/app/lib/services/script-service'
 import Link from 'next/link'
-import { History, ArrowRight, Globe, EyeOff, Eye } from 'lucide-react'
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-const visibilityIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  public: Globe,
-  private: EyeOff,
-  unlisted: Eye,
-}
+import { ArrowRight } from 'lucide-react'
+import { EmptyState } from '@/app/dashboard/components/EmptyState'
+import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
+import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
+import { formatDate } from '@/app/dashboard/lib/format-date'
 
 export default async function VersionsPage() {
   const user = await getCurrentUser()
@@ -43,38 +33,32 @@ export default async function VersionsPage() {
         <p className="mt-1 text-sm text-zinc-400">View version history for your scripts</p>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner message={error} />}
 
       {scripts.length === 0 && !error ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-16 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800/50 mx-auto">
-            <History className="h-6 w-6 text-zinc-500" />
-          </div>
-          <h3 className="mt-4 text-sm font-medium text-zinc-300">No scripts yet</h3>
-          <p className="mt-1 text-xs text-zinc-500">
-            Create a script first to view its version history.
-          </p>
-          <Link
-            href="/dashboard/scripts/new"
-            className="mt-6 inline-flex rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
-          >
-            Create Script
-          </Link>
-        </div>
+        <EmptyState
+          title="No scripts yet"
+          description="Create a script first to view its version history."
+          action={
+            <Link
+              href="/dashboard/scripts/new"
+              className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+            >
+              Create Script
+            </Link>
+          }
+        />
       ) : (
         <div className="space-y-3">
           {scripts.map((script) => {
-            const VisIcon = visibilityIcons[script.visibility] ?? EyeOff
+            const vis = getVisibilityBadge(script.visibility)
+            const VisIcon = vis.icon
 
             return (
               <Link
                 key={script.id}
                 href={`/dashboard/versions/${script.slug}`}
-                className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 transition hover:border-zinc-700"
+                className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 transition hover:border-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
               >
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate text-sm font-semibold text-white">
@@ -83,13 +67,13 @@ export default async function VersionsPage() {
                   <div className="mt-1 flex items-center gap-3 text-xs text-zinc-500">
                     <span>/{script.slug}</span>
                     <span className="inline-flex items-center gap-1">
-                      <VisIcon className="h-3 w-3" />
-                      {script.visibility}
+                      <VisIcon className="h-3 w-3" aria-hidden="true" />
+                      {vis.label}
                     </span>
                     <span>Updated {formatDate(script.updated_at)}</span>
                   </div>
                 </div>
-                <ArrowRight className="ml-3 h-4 w-4 flex-shrink-0 text-zinc-600" />
+                <ArrowRight className="ml-3 h-4 w-4 flex-shrink-0 text-zinc-600" aria-hidden="true" />
               </Link>
             )
           })}
