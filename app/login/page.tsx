@@ -7,6 +7,7 @@ import TurnstileWidget from './TurnstileWidget'
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(login, {})
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const turnstileResetSignal = state?.error ? state : null
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
@@ -61,7 +62,7 @@ export default function LoginPage() {
           )}
 
           {turnstileSiteKey ? (
-            <TurnstileWidget siteKey={turnstileSiteKey} />
+            <TurnstileWidget siteKey={turnstileSiteKey} resetSignal={turnstileResetSignal} />
           ) : (
             <div role="alert" className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
               Security verification is unavailable.

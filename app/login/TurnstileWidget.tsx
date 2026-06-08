@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 type TurnstileWidgetProps = {
   siteKey: string
+  resetSignal?: unknown
 }
 
 type TurnstileApi = {
@@ -19,6 +20,7 @@ type TurnstileApi = {
       'error-callback': () => void
     }
   ) => string
+  reset: (widgetId?: string) => void
 }
 
 declare global {
@@ -27,7 +29,19 @@ declare global {
   }
 }
 
-export default function TurnstileWidget({ siteKey }: TurnstileWidgetProps) {
+export function resetTurnstileWidget(
+  turnstile: Pick<TurnstileApi, 'reset'> | undefined,
+  widgetId: string | null,
+  clearToken: () => void
+) {
+  clearToken()
+
+  if (turnstile && widgetId) {
+    turnstile.reset(widgetId)
+  }
+}
+
+export default function TurnstileWidget({ siteKey, resetSignal }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const widgetIdRef = useRef<string | null>(null)
   const [token, setToken] = useState('')
@@ -47,9 +61,19 @@ export default function TurnstileWidget({ siteKey }: TurnstileWidgetProps) {
     })
   }, [siteKey])
 
+  const resetTurnstile = useCallback(() => {
+    resetTurnstileWidget(window.turnstile, widgetIdRef.current, () => setToken(''))
+  }, [])
+
   useEffect(() => {
     renderTurnstile()
   }, [renderTurnstile])
+
+  useEffect(() => {
+    if (resetSignal) {
+      resetTurnstile()
+    }
+  }, [resetSignal, resetTurnstile])
 
   return (
     <div className="flex justify-center">

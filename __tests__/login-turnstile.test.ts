@@ -97,6 +97,24 @@ describe('login Turnstile verification', () => {
     expect(mockedCreateSupabaseServerClient).not.toHaveBeenCalled()
   })
 
+  it('fails with a duplicate Turnstile token before authentication', async () => {
+    mockedFetch.mockResolvedValue(siteverifyResponse({
+      success: false,
+      action: 'login',
+      'error-codes': ['timeout-or-duplicate'],
+    }))
+
+    const result = await login({}, formData({
+      email: 'creator@example.com',
+      password: 'password',
+      token: 'used-token',
+    }))
+
+    expect(result).toEqual({ error: 'Security verification failed' })
+    expect(mockedCheckLoginFailureLimit).not.toHaveBeenCalled()
+    expect(mockedCreateSupabaseServerClient).not.toHaveBeenCalled()
+  })
+
   it('fails safely when Cloudflare verification is unavailable', async () => {
     mockedFetch.mockRejectedValue(new Error('network unavailable'))
 
