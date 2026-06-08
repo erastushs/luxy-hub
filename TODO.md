@@ -119,6 +119,7 @@ Last updated: 2026-06-08
 | 107 | **Docs** | Phase 6E UX Polish Documentation | `PHASE6E_UX_POLISH.md` |
 | 108 | **Docs** | Phase 6F Runtime Adapter Audit | `LOADER_RUNTIME_ADAPTER_AUDIT.md` |
 | 109 | **Docs** | Phase 6F Runtime Validation Plan | `PHASE6F_RUNTIME_VALIDATION.md` |
+| 110 | **Docs** | Phase 6G Delivery Architecture Review | `PHASE6G_DELIVERY_ARCHITECTURE_REVIEW.md` |
 
 ---
 
@@ -132,8 +133,8 @@ Last updated: 2026-06-08
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 6G | Runtime Adapter Implementation & Executor Validation | Phase 6F |
-| 2 | Phase 7 | License & Key Management | Phase 6G |
+| 1 | Phase 6H | Runtime Payload Delivery Planning | Phase 6G |
+| 2 | Phase 7 | License & Key Management | Phase 6H |
 | 3 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
 | 4 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
 
@@ -151,7 +152,7 @@ CDN API:          100% complete  ███████████████�
 Dashboard Backend: 100% complete  ████████████████████
 Dashboard UI:     100% complete  ████████████████████
 Secure Delivery:    85% complete  █████████████████░░░
-Loader Integration: 85% complete  █████████████████░░░
+Loader Integration: 88% complete  ██████████████████░░
 Key Management:      0% complete  ░░░░░░░░░░░░░░░░░░░░
 Operations:          0% complete  ░░░░░░░░░░░░░░░░░░░░
 Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░░░░░░
@@ -196,13 +197,14 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 6D | Production Loader | Complete | 100% |
 | Phase 6E | Dashboard UX Polish | Complete | 100% |
 | Phase 6F | Runtime Validation | Complete | 100% |
-| Phase 6 | Loader Integration | Runtime Validation Complete / Adapter Implementation + Executor Verification Pending | 85% |
+| Phase 6G | Delivery Architecture Review | Complete | 100% |
+| Phase 6 | Loader Integration | Delivery Architecture Reviewed / Runtime Payload Planning Pending | 88% |
 | Phase 7 | License & Key Management | Not Started | 0% |
 | Phase 8 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 9 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 6F Complete — Runtime Adapter Implementation Pending
-> Phase 6F documents the current runtime adapter contract, identifies the missing production adapter and loader-side AES key material strategy as execution blockers, and recommends embedded runtime distribution. Next: Phase 6G — Runtime Adapter Implementation & Executor Validation.
+## Current Phase: Phase 6G Complete — Runtime Payload Planning Pending
+> Phase 6G rejects loader-side AES-GCM decryption as the production baseline, recommends server-side decrypt to runtime payload delivery, and keeps encrypted delivery builds for storage security. Next: Phase 6H — Runtime Payload Delivery Planning.
 ---
 
 # Phase 1 — Infrastructure & Monitoring
@@ -537,8 +539,11 @@ Integrate LuxyHub delivery system with script loaders.
 - [x] Executor compatibility assumptions reviewed
 - [x] Runtime packaging plan documented
 - [x] Minimal real-world validation procedure documented
-- [ ] Production runtime adapter implementation
-- [ ] Loader-side AES key material strategy
+- [x] Delivery architecture feasibility reviewed
+- [x] Loader-side crypto assumptions rejected for production baseline
+- [x] Server-side decrypt runtime payload architecture recommended
+- [x] Migration impact documented
+- [ ] Runtime payload delivery planning
 - [ ] Executor compatibility testing
 
 Success Criteria:
@@ -561,7 +566,9 @@ Success Criteria:
 - [x] Runtime requirements are documented
 - [x] Execution blocker identified
 - [x] Recommended runtime architecture chosen
-- [ ] Production runtime adapter exists
+- [x] Loader-side crypto assumptions validated or rejected
+- [x] Recommended delivery architecture is clearly documented
+- [ ] Runtime payload delivery plan exists
 - [ ] Executor compatibility verified
 
 ---
