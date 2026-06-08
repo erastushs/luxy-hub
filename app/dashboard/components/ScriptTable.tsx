@@ -2,7 +2,7 @@
 
 import { cn } from '@/app/lib/utils'
 import Link from 'next/link'
-import { BarChart3, Edit, History, Trash2 } from 'lucide-react'
+import { BarChart3, Edit, Hammer, History, Trash2 } from 'lucide-react'
 import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
 import { formatDate } from '@/app/dashboard/lib/format-date'
 import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
@@ -90,6 +90,13 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
                       aria-label={`Edit ${script.name}`}
                     >
                       <Edit className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                    <Link
+                      href={`/dashboard/scripts/${script.slug}/builds`}
+                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                      aria-label={`View builds for ${script.name}`}
+                    >
+                      <Hammer className="h-4 w-4" aria-hidden="true" />
                     </Link>
                     <Link
                       href={`/dashboard/versions/${script.slug}`}

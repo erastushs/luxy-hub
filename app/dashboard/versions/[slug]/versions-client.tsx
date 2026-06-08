@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 import { VersionList } from '@/app/dashboard/components/VersionList'
 import { Pagination } from '@/app/dashboard/components/Pagination'
 import type { VersionSummaryRow, ScriptRow } from '@/app/lib/services/script-service'
+import type { DashboardBuildListItem } from '@/app/lib/services/build-operations-service'
 
 type VersionsHistoryClientProps = {
   slug: string
@@ -14,6 +15,7 @@ type VersionsHistoryClientProps = {
   page: number
   totalPages: number
   scripts: ScriptRow[]
+  buildsByVersionId: Record<string, DashboardBuildListItem>
 }
 
 export default function VersionsHistoryClient({
@@ -23,6 +25,7 @@ export default function VersionsHistoryClient({
   page,
   totalPages,
   scripts,
+  buildsByVersionId,
 }: VersionsHistoryClientProps) {
   const router = useRouter()
 
@@ -59,6 +62,7 @@ export default function VersionsHistoryClient({
         <div className="lg:col-span-2">
           <VersionList
             versions={versions}
+            buildsByVersionId={buildsByVersionId}
             onSelect={(v) => router.push(`/dashboard/versions/${slug}/${v.id}`)}
           />
 

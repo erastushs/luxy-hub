@@ -38,6 +38,18 @@ export function BuildInfoPanel({ build }: BuildInfoPanelProps) {
           </dd>
         </div>
       </dl>
+
+      {build?.status === 'failed' && (build.errorCode || build.errorMessage) && (
+        <div className="mt-4 rounded-lg border border-red-900/50 bg-red-950/20 p-3">
+          <p className="text-xs font-medium text-red-400">Build Failure</p>
+          {build.errorCode && (
+            <p className="mt-2 font-mono text-xs text-red-300">{build.errorCode}</p>
+          )}
+          {build.errorMessage && (
+            <p className="mt-1 text-sm text-zinc-300">{build.errorMessage}</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/app/lib/auth/session-auth'
 import { listVersions, listCreatorScripts } from '@/app/lib/services/script-service'
 import type { VersionSummaryRow } from '@/app/lib/services/script-service'
+import { getBuildStatusesForVersions } from '@/app/lib/services/build-operations-service'
 import { notFound } from 'next/navigation'
 import VersionsHistoryClient from './versions-client'
 
@@ -33,6 +34,8 @@ export default async function ScriptVersionsPage({
 
   const scriptsResult = await listCreatorScripts(user.id, { limit: 50, offset: 0 })
   const scripts = scriptsResult.success ? scriptsResult.scripts : []
+  const buildStatusResult = await getBuildStatusesForVersions(user.id, slug, versions)
+  const buildsByVersionId = buildStatusResult.success ? buildStatusResult.buildsByVersionId : {}
 
   return (
     <VersionsHistoryClient
@@ -42,6 +45,7 @@ export default async function ScriptVersionsPage({
       page={page}
       totalPages={totalPages}
       scripts={scripts}
+      buildsByVersionId={buildsByVersionId}
     />
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { VersionCard } from './VersionCard'
+import type { DashboardBuildListItem } from '@/app/lib/services/build-operations-service'
 
 type VersionRow = {
   id: string
@@ -12,11 +13,17 @@ type VersionRow = {
 
 type VersionListProps = {
   versions: VersionRow[]
+  buildsByVersionId?: Record<string, DashboardBuildListItem>
   selectedId?: string
   onSelect?: (version: VersionRow) => void
 }
 
-export function VersionList({ versions, selectedId, onSelect }: VersionListProps) {
+export function VersionList({
+  versions,
+  buildsByVersionId = {},
+  selectedId,
+  onSelect,
+}: VersionListProps) {
   if (versions.length === 0) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
@@ -31,6 +38,7 @@ export function VersionList({ versions, selectedId, onSelect }: VersionListProps
         <VersionCard
           key={v.id}
           version={v}
+          build={buildsByVersionId[v.id] ?? null}
           active={v.id === selectedId}
           onClick={() => onSelect?.(v)}
         />

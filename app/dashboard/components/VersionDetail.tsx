@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { formatDateTime } from '@/app/dashboard/lib/format-date'
+import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
+import type { DashboardBuildListItem } from '@/app/lib/services/build-operations-service'
 
 type VersionRow = {
   id: string
@@ -14,9 +16,10 @@ type VersionRow = {
 type VersionDetailProps = {
   version: VersionRow
   scriptSlug: string
+  build?: DashboardBuildListItem | null
 }
 
-export function VersionDetail({ version, scriptSlug }: VersionDetailProps) {
+export function VersionDetail({ version, scriptSlug, build = null }: VersionDetailProps) {
   return (
     <div className="space-y-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
       <Link
@@ -36,9 +39,12 @@ export function VersionDetail({ version, scriptSlug }: VersionDetailProps) {
             Created {formatDateTime(version.created_at)}
           </p>
         </div>
-        <span className="rounded-md bg-red-600/10 px-2.5 py-1 text-xs font-medium text-red-400">
-          /{scriptSlug}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <span className="rounded-md bg-red-600/10 px-2.5 py-1 text-xs font-medium text-red-400">
+            /{scriptSlug}
+          </span>
+          <BuildStatusBadge status={build?.status ?? 'not_built'} />
+        </div>
       </div>
 
       {version.changelog && (

@@ -11,6 +11,9 @@ export type DashboardBuildInfo = {
   status: DeliveryBuildStatus
   buildVersion: string
   payloadFormatVersion: string
+  invalidatedReason: string | null
+  errorCode: string | null
+  errorMessage: string | null
   lastBuildAt: string | null
   invalidatedAt: string | null
   createdAt: string
@@ -39,6 +42,9 @@ export async function getDashboardBuildInfoForScripts(
       status: build.build_status,
       buildVersion: build.build_version,
       payloadFormatVersion: build.payload_format_version,
+      invalidatedReason: build.invalidated_reason,
+      errorCode: build.build_error_code,
+      errorMessage: build.build_error_message,
       lastBuildAt: build.built_at ?? build.updated_at,
       invalidatedAt: build.invalidated_at,
       createdAt: build.created_at,

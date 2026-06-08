@@ -2,10 +2,11 @@
 
 import { useActionState, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Hammer } from 'lucide-react'
 import { updateScriptAction } from '@/app/actions/scripts'
 import { FileUploadZone } from '@/app/dashboard/components/FileUploadZone'
 import { BuildInfoPanel } from '@/app/dashboard/components/BuildInfoPanel'
+import { RebuildButton } from '@/app/dashboard/components/RebuildButton'
 import type { DashboardBuildInfo } from '@/app/lib/services/dashboard-build-service'
 import type { ScriptRow, VersionSummaryRow } from '@/app/lib/services/script-service'
 import type { SourceFileMetadata } from '@/app/dashboard/lib/source-file'
@@ -121,8 +122,6 @@ export default function EditScriptClient({
           />
         </div>
 
-        <BuildInfoPanel build={buildInfo} />
-
         <div className="flex items-center gap-3">
           <button
             type="submit"
@@ -139,6 +138,20 @@ export default function EditScriptClient({
           </Link>
         </div>
       </form>
+
+      <div className="space-y-3">
+        <BuildInfoPanel build={buildInfo} />
+        <div className="flex flex-wrap items-center gap-3">
+          <RebuildButton slug={script.slug} />
+          <Link
+            href={`/dashboard/scripts/${script.slug}/builds`}
+            className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800"
+          >
+            <Hammer className="h-4 w-4" aria-hidden="true" />
+            Build History
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }

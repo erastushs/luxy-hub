@@ -34,10 +34,26 @@ export type DeliveryBuildSummaryRow = {
   build_status: DeliveryBuildStatus
   build_version: string
   payload_format_version: string
+  invalidated_reason: string | null
+  build_error_code: string | null
+  build_error_message: string | null
   built_at: string | null
   invalidated_at: string | null
   created_at: string
   updated_at: string
+}
+
+export type DeliveryBuildDashboardRow = DeliveryBuildSummaryRow & {
+  payload_storage_kind: 'inline_encrypted'
+  payload_content_type: string
+  payload_byte_size: number | null
+  encryption_scheme: string
+  metadata: Record<string, unknown>
+}
+
+export type ListBuildsResult = {
+  builds: DeliveryBuildDashboardRow[]
+  total: number
 }
 
 export type CreateBuildParams = {
@@ -89,6 +105,30 @@ const BUILD_SUMMARY_SELECT = [
   'build_status',
   'build_version',
   'payload_format_version',
+  'invalidated_reason',
+  'build_error_code',
+  'build_error_message',
+  'built_at',
+  'invalidated_at',
+  'created_at',
+  'updated_at',
+].join(', ')
+
+const BUILD_DASHBOARD_SELECT = [
+  'id',
+  'script_id',
+  'version_id',
+  'build_status',
+  'payload_storage_kind',
+  'payload_content_type',
+  'payload_byte_size',
+  'build_version',
+  'payload_format_version',
+  'encryption_scheme',
+  'invalidated_reason',
+  'build_error_code',
+  'build_error_message',
+  'metadata',
   'built_at',
   'invalidated_at',
   'created_at',
@@ -171,6 +211,19 @@ export async function getBuildByVersion(versionId: string): Promise<DeliveryBuil
   return data as unknown as DeliveryBuildRow
 }
 
+export async function getLatestBuild(versionId: string): Promise<DeliveryBuildDashboardRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('delivery_builds')
+    .select(BUILD_DASHBOARD_SELECT)
+    .eq('version_id', versionId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (error) return null
+  return data as unknown as DeliveryBuildDashboardRow
+}
+
 export async function listLatestBuildSummariesByVersionIds(
   versionIds: string[]
 ): Promise<DeliveryBuildSummaryRow[]> {
@@ -193,6 +246,38 @@ export async function listLatestBuildSummariesByVersionIds(
   }
 
   return Array.from(latestByVersion.values())
+}
+
+export async function listBuildsForScript(
+  scriptId: string,
+  limit: number,
+  offset: number
+): Promise<ListBuildsResult> {
+  const { data, error, count } = await supabaseAdmin
+    .from('delivery_builds')
+    .select(BUILD_DASHBOARD_SELECT, { count: 'exact' })
+    .eq('script_id', scriptId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) return { builds: [], total: 0 }
+  return {
+    builds: (data ?? []) as unknown as DeliveryBuildDashboardRow[],
+    total: count ?? 0,
+  }
+}
+
+export async function getBuildDashboardById(
+  buildId: string
+): Promise<DeliveryBuildDashboardRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('delivery_builds')
+    .select(BUILD_DASHBOARD_SELECT)
+    .eq('id', buildId)
+    .single()
+
+  if (error) return null
+  return data as unknown as DeliveryBuildDashboardRow
 }
 
 export async function getBuildById(buildId: string): Promise<DeliveryBuildRow | null> {

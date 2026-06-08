@@ -1,5 +1,7 @@
 import { cn } from '@/app/lib/utils'
 import { formatDateTime } from '@/app/dashboard/lib/format-date'
+import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
+import type { DashboardBuildListItem } from '@/app/lib/services/build-operations-service'
 
 type VersionRow = {
   id: string
@@ -11,11 +13,12 @@ type VersionRow = {
 
 type VersionCardProps = {
   version: VersionRow
+  build?: DashboardBuildListItem | null
   active?: boolean
   onClick?: () => void
 }
 
-export function VersionCard({ version, active = false, onClick }: VersionCardProps) {
+export function VersionCard({ version, build = null, active = false, onClick }: VersionCardProps) {
   return (
     <button
       onClick={onClick}
@@ -27,11 +30,14 @@ export function VersionCard({ version, active = false, onClick }: VersionCardPro
       )}
       aria-pressed={active}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-semibold text-white">v{version.version}</span>
-        <span className="font-mono text-xs text-zinc-500">
-          {formatDateTime(version.created_at)}
-        </span>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <BuildStatusBadge status={build?.status ?? 'not_built'} />
+          <span className="font-mono text-xs text-zinc-500">
+            {formatDateTime(version.created_at)}
+          </span>
+        </div>
       </div>
       {version.changelog && (
         <p className="mt-2 line-clamp-2 text-xs text-zinc-400">

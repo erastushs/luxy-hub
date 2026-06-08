@@ -97,6 +97,12 @@ Last updated: 2026-06-08
 | 85 | **Code** | Phase 6A Dashboard Build Visibility Service | `app/lib/services/dashboard-build-service.ts` |
 | 86 | **Tests** | Phase 6A Upload and Build Visibility Tests | `__tests__/source-file-validation.test.ts`, `__tests__/dashboard-build-service.test.ts` |
 | 87 | **Docs** | Phase 6A Dashboard V2 Documentation | `PHASE6A_DASHBOARD_V2.md` |
+| 88 | **UI** | Phase 6B Build History Dashboard | `/dashboard/scripts/[slug]/builds` |
+| 89 | **UI** | Phase 6B Build Detail Dashboard | `/dashboard/scripts/[slug]/builds/[buildId]` |
+| 90 | **Code** | Phase 6B Build Operations Service | `app/lib/services/build-operations-service.ts` |
+| 91 | **Code** | Phase 6B Creator Rebuild Action | `app/actions/builds.ts` |
+| 92 | **Tests** | Phase 6B Build Operations Tests | `__tests__/build-operations-service.test.ts` |
+| 93 | **Docs** | Phase 6B Build Operations Documentation | `PHASE6B_BUILD_OPERATIONS.md` |
 
 ---
 
@@ -110,17 +116,18 @@ Last updated: 2026-06-08
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 6B | Production Loader Integration | Phase 6A |
-| 2 | Phase 7 | License & Key Management | Phase 6 |
-| 3 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
-| 4 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
+| 1 | Phase 6C | Build Automation | Phase 6B |
+| 2 | Phase 6D | Production Loader Integration | Phase 6C |
+| 3 | Phase 7 | License & Key Management | Phase 6 |
+| 4 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
+| 5 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
 
 ---
 
 ## Overall Completion
 
 ```text
-███████████████████████████████░░░░░ 82%
+████████████████████████████████░░░░ 84%
 
 Code & Docs:       99% complete  ████████████████████░
 Infrastructure:     10% complete  ██░░░░░░░░░░░░░░░░░░
@@ -129,7 +136,7 @@ CDN API:          100% complete  ███████████████�
 Dashboard Backend: 100% complete  ████████████████████
 Dashboard UI:     100% complete  ████████████████████
 Secure Delivery:    85% complete  █████████████████░░░
-Loader Integration: 30% complete  ██████░░░░░░░░░░░░░░
+Loader Integration: 40% complete  ████████░░░░░░░░░░░░
 Key Management:      0% complete  ░░░░░░░░░░░░░░░░░░░░
 Operations:          0% complete  ░░░░░░░░░░░░░░░░░░░░
 Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░░░░░░
@@ -169,13 +176,14 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 5D | Loader Integration POC | Complete | 100% |
 | Phase 5 | Secure Script Delivery | Foundation Complete / Production Cutover Pending | 85% |
 | Phase 6A | Dashboard V2 Upload + Build Visibility | Complete | 100% |
-| Phase 6 | Loader Integration | Dashboard V2 Complete / Production Loader Pending | 30% |
+| Phase 6B | Build Operations + Delivery Visibility | Complete | 100% |
+| Phase 6 | Loader Integration | Build Operations Complete / Build Automation Pending | 40% |
 | Phase 7 | License & Key Management | Not Started | 0% |
 | Phase 8 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 9 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 6A Complete — Transitioning to Phase 6B
-> Phase 6A adds Lua/TXT upload workflows, replace-file version updates, dashboard build status visibility, safe build DTOs, and documentation. Latest validation: 98 tests pass, build passes, lint has 0 errors with 7 pre-existing warnings. Next: Phase 6B — Production Loader Integration.
+## Current Phase: Phase 6B Complete — Transitioning to Phase 6C
+> Phase 6B adds build history/detail dashboards, creator rebuild actions, safe failure visibility, version-level build status, and build operations documentation. Next: Phase 6C — Build Automation.
 ---
 
 # Phase 1 — Infrastructure & Monitoring
@@ -485,6 +493,10 @@ Integrate LuxyHub delivery system with script loaders.
 - [x] Dashboard replace-file workflow using `script_versions.content`
 - [x] Dashboard build status visibility from `delivery_builds`
 - [x] Safe build info DTOs without ciphertext/hash exposure
+- [x] Build history page
+- [x] Build detail page
+- [x] Creator-triggered rebuild for current version
+- [x] Build status visible on version pages
 - [ ] Production loader validation flow
 - [ ] Production delivery authorization flow
 - [ ] Production session validation
@@ -498,6 +510,8 @@ Success Criteria:
 - [x] Delivery flow validated
 - [x] Lua file upload works in dashboard
 - [x] Build status visible in dashboard
+- [x] Build history visible
+- [x] Rebuild works for current version
 - [ ] Production loader can retrieve scripts securely
 - [ ] Executor compatibility verified
 
