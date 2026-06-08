@@ -94,25 +94,26 @@ Last updated: 2026-06-08
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
 | 1 | Phase 4 | Polish & Production Readiness | Phase 3E |
-| 5 | Phase 5 | LuxyHub Vault | Phase 4 |
-| 6 | Phase 6 | Key System Integration | Phase 5 |
-| 7 | Phase 7 | Creator Marketplace | Phase 6 |
-| 8 | Phase 8 | Premium Ecosystem | Phase 7 |
+| 2 | Phase 5 | License & Key Management | Phase 4 |
+| 3 | Phase 6 | Internal Operations & Release Workflow | Phase 5 |
+| 4 | Phase 7 | Scale & Infrastructure (Optional) | Phase 6 |
 
 ---
 
 ## Overall Completion
 
 ```text
-██████████████████████████░░░░░░░░░░ 65%
+███████████████████████████░░░░░░░░░ 72%
 
-Code & Docs:      98% complete  ████████████████████░
-Infrastructure:    10% complete  ██░░░░░░░░░░░░░░░░░░
-CDN Database:    100% complete  ████████████████████
-CDN API:         100% complete  ████████████████████
-Dashboard Backend: 100% complete ████████████████████
+Code & Docs:       98% complete  ████████████████████░
+Infrastructure:     10% complete  ██░░░░░░░░░░░░░░░░░░
+CDN Database:     100% complete  ████████████████████
+CDN API:          100% complete  ████████████████████
+Dashboard Backend: 100% complete  ████████████████████
 Dashboard UI:     100% complete  ████████████████████
-Marketplace:        0% complete  ░░░░░░░░░░░░░░░░░░░░
+Key Management:      0% complete  ░░░░░░░░░░░░░░░░░░░░
+Operations:          0% complete  ░░░░░░░░░░░░░░░░░░░░
+Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░░░░░░
 ```
 
 ---
@@ -143,13 +144,12 @@ Marketplace:        0% complete  ░░░░░░░░░░░░░░░�
 | Phase 4.2 | Performance Review | Not Started | 0% |
 | Phase 4.3 | Documentation Review | Not Started | 0% |
 | Phase 4.4 | Production Hardening | Not Started | 0% |
-| Phase 5 | LuxyHub Vault | Not Started | 0% |
-| Phase 6 | Key System Integration | Not Started | 0% |
-| Phase 7 | Creator Marketplace | Not Started | 0% |
-| Phase 8 | Premium Ecosystem | Not Started | 0% |
+| Phase 5 | License & Key Management | Not Started | 0% |
+| Phase 6 | Internal Operations & Release Workflow | Not Started | 0% |
+| Phase 7 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
 ## Current Phase: Phase 4.1 — UI Polish
-> Phase 3 is complete. The Creator Dashboard V1 has been fully implemented across 14 backend + 12 frontend phases. Production readiness score: 97/100. All 65 tests pass. RLS, ownership, rate limiting, audit logging, and cross-account isolation validated. Dashboard features: auth (login/logout/session), scripts (CRUD + search/pagination/filter), analytics (overview/top-scripts/trend charts), versions (history/detail/pagination), profile (view/edit display_name/username). Phase 4 focuses on polish, performance, documentation, and production hardening before Phase 5 (Vault).
+> Phase 3 is complete. The Creator Dashboard V1 has been fully implemented across 14 backend + 12 frontend phases. Production readiness score: 97/100. All 65 tests pass. RLS, ownership, rate limiting, audit logging, and cross-account isolation validated. Dashboard features: auth (login/logout/session), scripts (CRUD + search/pagination/filter), analytics (overview/top-scripts/trend charts), versions (history/detail/pagination), profile (view/edit display_name/username). Phase 4 focuses on polish, performance, documentation, and production hardening before Phase 5 (License & Key Management).
 ---
 
 # Phase 1 — Infrastructure & Monitoring
@@ -315,84 +315,6 @@ Success Criteria:
 - GitHub Raw no longer required
 - Scripts delivered from LuxyHub infrastructure
 
-## Goal
-
-Replace GitHub Raw URLs.
-
-Current:
-
-```text
-User
- ↓
-GitHub Raw
- ↓
-Script
-```
-
-Target:
-
-```text
-User
- ↓
-LuxyHub CDN
- ↓
-Script
-```
-
-## Database
-
-Create:
-
-```text
-scripts
-script_versions
-script_downloads
-```
-
-## Script Management
-
-- [ ] Upload Script
-- [ ] Edit Script
-- [ ] Delete Script
-- [ ] Publish Script
-- [ ] Unpublish Script
-
-## Script Delivery
-
-- [ ] Raw Endpoint
-- [ ] Public Scripts
-- [ ] Private Scripts
-- [ ] Script IDs
-- [ ] Metadata Endpoint
-
-## Analytics
-
-- [ ] Download Count
-- [ ] Request Count
-- [ ] Last Access
-- [ ] Unique Visitors
-
-## API
-
-```text
-POST /api/scripts/upload
-GET /api/scripts/:id
-GET /api/scripts/:id/raw
-GET /api/scripts/:id/stats
-```
-
-Success Criteria:
-
-- [x] Architecture review complete — CDN_ARCHITECTURE.md
-- [x] Schema design approved — 3 tables, 8 indexes, RLS
-- [x] API design documented — 8 endpoints, visibility model
-- [x] No conflicts with existing APIs — 6 current routes isolated
-- [x] RLS-compatible design — deny_all pattern replicated
-- [x] Audit logging plan — download tracking + PII protection
-
-- GitHub Raw no longer required
-- Scripts delivered from LuxyHub infrastructure
-
 ---
 
 # Phase 3 — Creator Dashboard ✅ COMPLETE
@@ -400,7 +322,7 @@ Success Criteria:
 Domain:
 
 ```text
-dashboard.luxyhub.space
+www.luxyhub.space/dashboard
 ```
 
 ## Features
@@ -425,6 +347,27 @@ Success Criteria:
 - 9 dashboard pages
 - 65 unit tests passing
 - Build passes clean
+
+---
+
+```text
+Phase 3 Complete
+
+Creator Dashboard V1 delivered.
+
+Features:
+
+- Authentication
+- Script Management
+- Analytics
+- Version History
+- Profile Management
+- Ownership Enforcement
+- Audit Logging
+- Security Validation
+
+All tests passing.
+```
 
 ---
 
@@ -461,140 +404,105 @@ Success Criteria:
 
 ---
 
-# Phase 5 — LuxyHub Vault
+# Phase 5 — License & Key Management
 
 ## Goal
 
-Protect premium and private scripts.
-
-## Secure Storage
-
-- [ ] Encrypted Script Storage
-- [ ] Encrypted Metadata
-- [ ] Secure Retrieval
-
-## Access Control
-
-- [ ] Temporary Access Tokens
-- [ ] Expiring URLs
-- [ ] Download Limits
-- [ ] Access Restrictions
-
-## Security
-
-- [ ] Signed URLs
-- [ ] Access Logs
-- [ ] Abuse Detection
-- [ ] Audit Logs
-
-Success Criteria:
-
-- [x] Architecture review complete — CDN_ARCHITECTURE.md
-- [x] Schema design approved — 3 tables, 8 indexes, RLS
-- [x] API design documented — 8 endpoints, visibility model
-- [x] No conflicts with existing APIs — 6 current routes isolated
-- [x] RLS-compatible design — deny_all pattern replicated
-- [x] Audit logging plan — download tracking + PII protection
-
-- Premium script protection operational
-
----
-
-# Phase 6 — Key System Integration
-
-## Loader Flow
-
-```text
-User
- ↓
-Work.ink
- ↓
-Get Key
- ↓
-Validate Key
- ↓
-Generate Session Token
- ↓
-LuxyHub CDN
- ↓
-Script Delivery
-```
+Manage customers, licenses, and keys from the dashboard.
 
 ## Features
 
-- [ ] Session Tokens
-- [ ] Device Binding
-- [ ] Session Expiration
-- [ ] Usage Tracking
-- [ ] Abuse Detection
+- [ ] Key lookup
+- [ ] Key search
+- [ ] Key revoke
+- [ ] Key reset
+- [ ] Key status
+- [ ] Customer lookup
+- [ ] License analytics
+- [ ] Download analytics by key
+- [ ] Device tracking (future)
 
 Success Criteria:
 
-- [x] Architecture review complete — CDN_ARCHITECTURE.md
-- [x] Schema design approved — 3 tables, 8 indexes, RLS
-- [x] API design documented — 8 endpoints, visibility model
-- [x] No conflicts with existing APIs — 6 current routes isolated
-- [x] RLS-compatible design — deny_all pattern replicated
-- [x] Audit logging plan — download tracking + PII protection
-
-- Key system integrated with CDN
+- Key management operational
+- Customer support workflow operational
+- License analytics available
 
 ---
 
-# Phase 7 — Creator Marketplace
+# Phase 6 — Internal Operations & Release Workflow
 
-## Creator Economy
+## Goal
 
-- [ ] Paid Scripts
-- [ ] Subscription Plans
-- [ ] Revenue Tracking
-- [ ] Creator Profiles
+Manage script lifecycle.
 
-## Commerce
+## Features
 
-- [ ] License Management
-- [ ] Purchase History
-- [ ] Sales Analytics
-- [ ] Creator Earnings
+- [ ] Draft releases
+- [ ] Published releases
+- [ ] Archived releases
+- [ ] Release notes
+- [ ] Internal moderation tools
+- [ ] Operational audit review
 
 Success Criteria:
 
-- [x] Architecture review complete — CDN_ARCHITECTURE.md
-- [x] Schema design approved — 3 tables, 8 indexes, RLS
-- [x] API design documented — 8 endpoints, visibility model
-- [x] No conflicts with existing APIs — 6 current routes isolated
-- [x] RLS-compatible design — deny_all pattern replicated
-- [x] Audit logging plan — download tracking + PII protection
-
-- Script monetization available
+- Script release workflow operational
+- Internal management tools available
 
 ---
 
-# Phase 8 — Premium Ecosystem
+# Phase 7 — Scale & Infrastructure (Optional)
 
-## Advanced Features
+## Goal
 
-- [ ] Team Collaboration
-- [ ] Private Organizations
-- [ ] Access Groups
-- [ ] Scheduled Releases
-- [ ] Premium Analytics
-- [ ] API Access
+Prepare for future growth only if required.
+
+## Features
+
+- [ ] Monitoring stack
+- [ ] Better Stack integration
+- [ ] Uptime Kuma
+- [ ] Redis caching
+- [ ] app.luxyhub.space migration
+- [ ] Infrastructure scaling
 
 Success Criteria:
 
-- [x] Architecture review complete — CDN_ARCHITECTURE.md
-- [x] Schema design approved — 3 tables, 8 indexes, RLS
-- [x] API design documented — 8 endpoints, visibility model
-- [x] No conflicts with existing APIs — 6 current routes isolated
-- [x] RLS-compatible design — deny_all pattern replicated
-- [x] Audit logging plan — download tracking + PII protection
+- Platform scalable when needed
 
-- Complete creator platform
+---
+
+# Deferred Ideas (Not Planned)
+
+The following features are deferred indefinitely. They are not part of the current roadmap. LuxyHub is currently an internal platform for LuxyHub operations and script distribution. It is not intended to become a large creator marketplace.
+
+- Creator Marketplace
+- Paid Scripts
+- Subscription Plans
+- Revenue Tracking
+- Creator Earnings
+- Team Collaboration
+- Organizations
+- API Tokens
+- Public Creator Economy
 
 ---
 
 # Platform Architecture
+
+## Current Implementation
+
+```text
+www.luxyhub.space
+├── /
+├── /login
+├── /dashboard
+├── /dashboard/scripts
+├── /dashboard/analytics
+├── /dashboard/versions
+└── /dashboard/profile
+```
 
 ## Public Platform
 
@@ -615,24 +523,28 @@ Purpose:
 
 ## Authentication
 
+Authentication is integrated into the main application at:
+
 ```text
-login.luxyhub.space
+www.luxyhub.space/login
 ```
 
 Purpose:
 
 - Login
-- Registration
-- Password Reset
+- Registration (future)
+- Password Reset (future)
 - Session Management
-- OAuth (Future)
+- OAuth (future)
 
 ---
 
 ## Creator Dashboard
 
+Dashboard is served within the main application at:
+
 ```text
-dashboard.luxyhub.space
+www.luxyhub.space/dashboard
 ```
 
 Purpose:
@@ -643,74 +555,41 @@ Purpose:
 - Key Management
 - Creator Tools
 
-Important Rule:
-
-Dashboard must remain completely separate from the public website.
-
-Do NOT build:
-
-```text
-www.luxyhub.space/dashboard
-```
-
-Build:
-
-```text
-dashboard.luxyhub.space
-```
-
-instead.
-
 ---
 
 ## API Services
 
+API routes are served from the same Next.js application:
+
 ```text
-api.luxyhub.space
+www.luxyhub.space/api/*
 ```
 
 Purpose:
 
 - Key Validation API
 - CDN API
-- Vault API
-- Marketplace API
+- Dashboard API
 
 ---
 
 ## Script CDN
 
-```text
-cdn.luxyhub.space
-```
-
-Purpose:
-
-- Script Delivery
-- Raw Endpoints
-- Public Downloads
-
-Examples:
+Script delivery is served from the same Next.js application:
 
 ```text
-cdn.luxyhub.space/raw/bloxatlas
-cdn.luxyhub.space/raw/myscript
+www.luxyhub.space/api/scripts/[slug]/raw
 ```
 
 ---
 
-## Secure Vault
+## Future Consideration
 
 ```text
-vault.luxyhub.space
+app.luxyhub.space
 ```
 
-Purpose:
-
-- Premium Scripts
-- Signed URLs
-- Temporary Access Tokens
-- Secure Delivery
+Only after operational requirements justify separation. Not required for current operations.
 
 ---
 
@@ -741,9 +620,9 @@ Supabase
 Infrastructure
 
 ```text
+Vercel
 Cloudflare
-Docker
-VPS
+Supabase
 ```
 
 Monitoring
@@ -770,11 +649,10 @@ Current Sprint:
 Next Sprint:
 
 ```text
-1. Phase 5 — LuxyHub Vault
-2. Phase 6 — Key System Integration
-3. Phase 7 — Creator Marketplace
+1. Phase 5 — License & Key Management
+2. Phase 6 — Internal Operations & Release Workflow
 ```
 
 Long-Term Goal:
 
-Build LuxyHub into a complete ecosystem for script hosting, secure delivery, analytics, licensing, creator tools, and monetization.
+Build LuxyHub into a complete internal platform for LuxyHub operations, script distribution, and customer management.
