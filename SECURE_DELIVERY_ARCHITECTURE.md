@@ -1,18 +1,18 @@
 # LuxyHub Secure Script Delivery Architecture
 
-Status: Phase 5A architecture design
+Status: Current secure delivery architecture with Phase 5A design history
 Date: 2026-06-08
-Scope: Design only. No code, migrations, API changes, schema changes, or loader implementation.
+Scope: Documents the implemented delivery build/session/loader flow and preserves design notes for future hardening.
 
 ## 1. Purpose
 
-LuxyHub currently stores source code in `script_versions.content` and delivers the active version through:
+LuxyHub stores creator source code in `script_versions.content`. Raw delivery remains available for public/unlisted scripts through:
 
 ```text
 GET /api/scripts/[slug]/raw
 ```
 
-Phase 5 changes the delivery boundary. Raw source remains the canonical editable source, but published versions should produce pre-built delivery payloads. Loaders should retrieve those payloads instead of raw source.
+Secure delivery adds a loader-first boundary. Raw source remains the canonical editable source, but script create/update/publish actions now create pre-built delivery payloads. Loaders retrieve those payloads through short-lived delivery sessions instead of embedding raw source in the bootstrap.
 
 Target data path:
 
@@ -20,11 +20,29 @@ Target data path:
 Current:
 scripts -> script_versions -> raw source
 
-Future:
+Implemented secure path:
 scripts -> script_versions -> delivery_builds -> loader
 ```
 
-This document defines the architecture required before Phase 5B implementation planning.
+## 1.1 Current Implementation Summary
+
+Implemented:
+
+- `delivery_builds` stores build artifacts for exact `script_versions` rows.
+- Builds use `delivery-build-v1`, `inline-json-v1`, gzip compression, AES-256-GCM payload packaging, and SHA-256 source/payload integrity fields.
+- Builds are created automatically after script creation, content version creation, and visibility publish actions.
+- `GET /api/loader/[slug]` returns a no-store Lua bootstrap.
+- `POST /api/delivery/session` issues a raw session token only once for a public/unlisted script with a ready build.
+- `delivery_sessions.session_token_hash` stores `SHA-256(session_token)`, not the raw token.
+- Delivery sessions expire after 60 seconds.
+- `POST /api/delivery/fetch` validates the hashed token, rejects expired/consumed sessions, consumes the session atomically, and returns a no-store runtime payload response.
+
+Not implemented:
+
+- License, entitlement, marketplace, and paid-access checks.
+- Dedicated external builder or object storage payload backend.
+- CSP nonce migration.
+- Loader-side secrecy guarantees against an authorized client that receives executable code.
 
 ## 2. Design Goals
 
@@ -44,7 +62,7 @@ Non-goals:
 - This document does not build the loader.
 - This document does not claim perfect client-side secrecy.
 
-## 3. Current Delivery Model
+## 3. Current Delivery Models
 
 ```text
 Client or loader
@@ -71,11 +89,41 @@ text/plain raw script response
 Current properties:
 
 - Public and unlisted scripts are openly readable as raw text.
-- Private scripts require session or admin bearer access depending on the route.
+- Private raw scripts require admin bearer access.
 - `script_downloads` records version-level delivery analytics.
-- The raw endpoint is intentionally compatible with future replacement.
+- The raw endpoint is retained for compatibility while loader-first delivery is available for ready builds.
 
-## 4. Future Delivery Model
+Secure loader path:
+
+```text
+Loader
+  |
+  | GET /api/loader/[slug]
+  v
+Lua bootstrap
+  |
+  | POST /api/delivery/session
+  v
+session_token, expires_in = 60
+  |
+  | POST /api/delivery/fetch
+  v
+SHA-256 token hash lookup
+  |
+  | consume-once delivery session
+  v
+runtime payload response
+```
+
+Secure delivery properties:
+
+- Only public and unlisted scripts are deliverable through session issuance.
+- A ready delivery build must exist for the script's current version.
+- Delivery session tokens are stored only as SHA-256 hashes.
+- Sessions are one-time use and short-lived.
+- Loader, session, and fetch responses use `Cache-Control: no-store`.
+
+## 4. Delivery Build Model
 
 ```text
 Creator source update
@@ -106,13 +154,13 @@ Loader
 Executor runtime
 ```
 
-Future properties:
+Implemented properties:
 
 - Delivery routes select a ready delivery build, not raw source.
 - A build belongs to one exact `script_versions` row.
 - A script rollback selects another version and therefore another build.
 - Failed rebuilds do not overwrite known-good payloads.
-- Payloads can be cached or stored separately from source because they are pre-built artifacts.
+- Payloads are pre-built artifacts. Current storage is inline encrypted payloads in `delivery_builds`.
 
 ## 5. Data Model Overview
 

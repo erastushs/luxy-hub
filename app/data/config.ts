@@ -9,6 +9,5 @@ export const config = {
     'Find scripts for your favorite Roblox games.',
     'Fast updates and stable releases.',
   ],
-  mainScript:
-    'loadstring(game:HttpGet("https://raw.githubusercontent.com/Omnie7/Luxy-Hub/refs/heads/main/main.lua"))()',
+  mainScript: 'loadstring(game:HttpGet("https://www.luxyhub.space/api/loader/luxyhub"))()',
 }

@@ -1,6 +1,6 @@
 # LuxyHub — Production Deployment Checklist
 
-Last updated: 2026-06-07
+Last updated: 2026-06-08
 
 ---
 
@@ -10,15 +10,16 @@ Run these in the project root before deploying.
 
 | # | Check | Command | Expected |
 |---|-------|---------|----------|
-| 1.1 | Build passes | `npm run build` | EXIT 0, all 14 pages generated |
-| 1.2 | Lint passes | `npm run lint` | 0 errors, 0 warnings |
+| 1.1 | Build passes | `npm run build` | EXIT 0, all routes generated |
+| 1.2 | Lint passes | `npm run lint` | 0 errors; existing warnings reviewed |
 | 1.3 | TypeScript passes | `npx tsc --noEmit` | No errors |
 | 1.4 | Security audit reviewed | Review audit report | All Critical/High fixed |
 | 1.5 | API docs match implementation | `diff API_SPEC.md` vs routes | No "wrapped in `data`", no HTTP 404 for validate |
-| 1.6 | `schema.sql` applied to Supabase | Check in Supabase Dashboard | 5 tables exist |
-| 1.7 | RLS migration applied | Run verification query in section 3.4 | All policies `USING (false)` enabled |
+| 1.6 | `schema.sql` and migrations applied to Supabase | Check in Supabase Dashboard | Current tables exist |
+| 1.7 | RLS migrations applied | Run verification query in section 3.4 | Owner policies and deny-all policies enabled |
 | 1.8 | No `.env` files tracked by git | `git ls-files .env*` | No output |
 | 1.9 | CRON_SECRET generated | Generate via `openssl rand -hex 32` | 64-character hex string |
+| 1.10 | Turnstile configured | Cloudflare dashboard + Vercel env | Site key and secret set |
 
 ---
 
@@ -29,16 +30,27 @@ Run these in the project root before deploying.
 | Variable | Required | Secret | Description | Verification |
 |----------|----------|--------|-------------|--------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | No | Supabase project URL | `echo $NEXT_PUBLIC_SUPABASE_URL` returns `https://*.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | No | Supabase anon key for SSR auth clients and proxy session refresh | Login and dashboard session refresh work |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | **Yes** | Supabase service role JWT | `curl -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/"` returns JSON |
+| `ADMIN_API_KEY` | Yes | **Yes** | Admin bearer for private raw script reads only | Private raw reads reject missing/wrong key |
 | `CRON_SECRET` | Yes | **Yes** | Cleanup endpoint bearer token | Must be 32+ character random string |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | No | No | Fallback if service role missing | Only used when `SUPABASE_SERVICE_ROLE_KEY` not set |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Yes | No | Cloudflare Turnstile public site key for `/login` | Login page renders Turnstile widget |
+| `TURNSTILE_SECRET_KEY` | Yes | **Yes** | Server-side Cloudflare Turnstile verification secret | Login rejects missing/invalid Turnstile tokens |
+| `ANALYTICS_PEPPER` | Yes | **Yes** | Pepper for analytics hashes and login email failure buckets | Set to a strong random value |
+
+Optional variables:
+
+| Variable | Required | Secret | Description |
+|----------|----------|--------|-------------|
+| `DELIVERY_PAYLOAD_SECRET` | No | **Yes** | Explicit payload encryption secret; falls back to `SUPABASE_SERVICE_ROLE_KEY` |
+| `DELIVERY_PAYLOAD_KEY_ID` | No | No | Non-secret key identifier stored in delivery payload metadata |
+| `NEXT_PUBLIC_SITE_URL` | No | No | Trusted origin used by sensitive CORS checks when different from request origin |
 
 ### 2.2 Deprecated Variables — Remove from Vercel
 
 | Variable | Status | Reason |
 |----------|--------|--------|
 | `LOOTLABS_URL` | **Unused** | Present in `.env.local` but referenced nowhere in codebase |
-| `NEXT_PUBLIC_SITE_URL` | **Unused** | Present in `.env.local` but referenced nowhere in codebase |
 
 ### 2.3 Validation Procedure
 
@@ -64,7 +76,7 @@ curl -s -X POST https://luxyhub.vercel.app/api/validate \
 Open **Supabase Dashboard → SQL Editor** and run these in order:
 
 1. Paste content of `schema.sql` → Run
-2. Paste content of `migrations/001_enable_rls.sql` → Run
+2. Apply migrations in order: `001_enable_rls.sql` through `007_delivery_sessions.sql`
 
 ### 3.2 Verify Tables Exist
 
@@ -72,10 +84,23 @@ Open **Supabase Dashboard → SQL Editor** and run these in order:
 SELECT table_name
 FROM information_schema.tables
 WHERE table_schema = 'public'
-AND table_name IN ('keys', 'used_workink_tokens', 'rate_limits', 'verification_logs', 'key_usage');
+AND table_name IN (
+  'keys',
+  'used_workink_tokens',
+  'rate_limits',
+  'verification_logs',
+  'key_usage',
+  'scripts',
+  'script_versions',
+  'script_downloads',
+  'profiles',
+  'audit_logs',
+  'delivery_builds',
+  'delivery_sessions'
+);
 ```
 
-**Expected:** 5 rows returned.
+**Expected:** 12 rows returned.
 
 ### 3.3 Verify Indexes
 
@@ -86,6 +111,14 @@ AND indexname IN (
   'idx_used_workink_tokens_used_at',
   'idx_rate_limits_ip_endpoint_created_at',
   'idx_verification_logs_event_created_at',
+  'idx_scripts_slug',
+  'idx_scripts_creator_id',
+  'idx_script_versions_script_id',
+  'idx_script_downloads_script_id_created_at',
+  'idx_profiles_username',
+  'idx_audit_logs_actor_created_at',
+  'idx_delivery_builds_version_status',
+  'idx_delivery_sessions_token_hash',
   'keys_key_key',
   'keys_pkey',
   'used_workink_tokens_pkey',
@@ -103,10 +136,23 @@ AND indexname IN (
 SELECT tablename, rowsecurity
 FROM pg_tables
 WHERE schemaname = 'public'
-AND tablename IN ('keys', 'used_workink_tokens', 'rate_limits', 'verification_logs', 'key_usage');
+AND tablename IN (
+  'keys',
+  'used_workink_tokens',
+  'rate_limits',
+  'verification_logs',
+  'key_usage',
+  'scripts',
+  'script_versions',
+  'script_downloads',
+  'profiles',
+  'audit_logs',
+  'delivery_builds',
+  'delivery_sessions'
+);
 ```
 
-**Expected:** All 5 return `rowsecurity = true`.
+**Expected:** All 12 return `rowsecurity = true`.
 
 ### 3.5 Verify RLS Policies
 
@@ -117,7 +163,7 @@ WHERE schemaname = 'public'
 ORDER BY tablename;
 ```
 
-**Expected:** 5 policies, each on a different table, with `qual = (false)`.
+**Expected:** deny-all policies on service-role-only tables plus owner-scoped policies on `scripts` and `script_versions`.
 
 ### 3.6 Enable Supabase Backups
 
@@ -139,13 +185,13 @@ Look for these headers in the response:
 
 | Header | Expected Value |
 |--------|---------------|
-| `content-security-policy` | Contains `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'` |
+| `content-security-policy` | Contains `default-src 'self'`, Cloudflare Turnstile script/connect/frame allowances, and `frame-ancestors 'none'` |
 | `x-content-type-options` | `nosniff` |
 | `x-frame-options` | `DENY` |
 | `referrer-policy` | `strict-origin-when-cross-origin` |
 | `strict-transport-security` | `max-age=31536000; includeSubDomains` |
 | `permissions-policy` | `camera=(), microphone=(), geolocation=()` |
-| `access-control-allow-origin` | `*` (API routes only) |
+| `access-control-allow-origin` | `*` for non-sensitive API routes; trusted origin only for sensitive paths |
 
 ### 4.2 Rate Limiting — Verify via load test
 
@@ -185,7 +231,21 @@ curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
 # Expected: {"success":false,"message":"Unauthorized"} HTTP 401
 ```
 
-### 4.5 CORS Headers — Verify
+### 4.5 ADMIN_API_KEY Separation — Verify
+
+`ADMIN_API_KEY` and `CRON_SECRET` must be different secrets. Cron bearer tokens are not accepted for admin raw reads.
+
+```bash
+curl -s https://luxyhub.vercel.app/api/scripts/private-slug/raw \
+  -H "Authorization: Bearer $CRON_SECRET"
+# Expected: HTTP 403 {"success":false,"message":"This script is private"}
+
+curl -s https://luxyhub.vercel.app/api/scripts/private-slug/raw \
+  -H "Authorization: Bearer $ADMIN_API_KEY"
+# Expected: HTTP 200 text/plain for an existing private script
+```
+
+### 4.6 CORS Headers — Verify
 
 ```bash
 curl -I -X OPTIONS https://luxyhub.vercel.app/api/validate \
@@ -193,9 +253,9 @@ curl -I -X OPTIONS https://luxyhub.vercel.app/api/validate \
   -H "Access-Control-Request-Method: POST"
 ```
 
-**Expected:** HTTP 204, headers include `access-control-allow-origin: *`, `access-control-allow-methods: GET, POST, OPTIONS`.
+**Expected:** HTTP 204. Non-sensitive API paths may return `access-control-allow-origin: *`; sensitive paths return the trusted origin only.
 
-### 4.6 Key Validation Oracle — Verify (Anti-Pattern Check)
+### 4.7 Key Validation Oracle — Verify (Anti-Pattern Check)
 
 ```bash
 # Non-existent key and expired key should return identical responses
@@ -210,6 +270,37 @@ curl -s -X POST https://luxyhub.vercel.app/api/validate \
 ```
 
 **Expected:** Both return `{"success":false,"message":"Invalid key"}` with HTTP 403. No distinction between "not found" and "expired".
+
+### 4.8 Login Turnstile and Rate Limiting — Verify
+
+- `/login` renders the Cloudflare Turnstile widget when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set.
+- Server Action login rejects missing or invalid `cf-turnstile-response`.
+- Failed login attempts are rate limited after Turnstile succeeds:
+  - 5 failed attempts per 5 minutes per IP
+  - 10 failed attempts per 15 minutes per hashed email bucket
+- After a failed login, the widget resets and obtains a fresh single-use token.
+
+### 4.9 Secure Delivery — Verify
+
+```bash
+curl -I https://luxyhub.vercel.app/api/loader/public-slug
+# Expected: HTTP 200, Content-Type: text/plain, Cache-Control: no-store
+
+curl -s -X POST https://luxyhub.vercel.app/api/delivery/session \
+  -H "Content-Type: application/json" \
+  -d '{"slug":"public-slug"}'
+# Expected: {"session_token":"...","expires_in":60} for a public/unlisted script with a ready build
+
+curl -s -X POST https://luxyhub.vercel.app/api/delivery/fetch \
+  -H "Content-Type: application/json" \
+  -d '{"session_token":"<session_token>"}'
+# Expected: runtime_payload/build_version/version_id/runtime_format_version, Cache-Control: no-store
+
+curl -s -X POST https://luxyhub.vercel.app/api/delivery/fetch \
+  -H "Content-Type: application/json" \
+  -d '{"session_token":"<same_session_token>"}'
+# Expected: HTTP 403 {"success":false,"message":"Invalid delivery session"}
+```
 
 ---
 
@@ -260,7 +351,18 @@ Setting: Cache Level → Bypass
 | Browser Integrity Check | **On** |
 | Hotlink Protection | Off (API needs cross-origin access) |
 
-### 5.5 Cloudflare Rate Limiting (Optional)
+### 5.5 Turnstile
+
+Create a Cloudflare Turnstile widget for the production login domain.
+
+| Setting | Value |
+|---------|-------|
+| Widget type | Managed |
+| Hostname | `www.luxyhub.space` and any production aliases |
+| Site key | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` |
+| Secret key | `TURNSTILE_SECRET_KEY` |
+
+### 5.6 Cloudflare Rate Limiting (Optional)
 
 Cloudflare rate limiting complements the application-level rate limiter:
 
@@ -288,7 +390,7 @@ Cloudflare rate limiting complements the application-level rate limiter:
 
 Add all variables from section 2.1 in **Vercel Dashboard → Project → Settings → Environment Variables**.
 
-Mark as production: `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`.
+Mark as production secrets: `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_API_KEY`, `CRON_SECRET`, `TURNSTILE_SECRET_KEY`, `ANALYTICS_PEPPER`, and `DELIVERY_PAYLOAD_SECRET` when used.
 
 ### 6.3 Domains
 
@@ -336,8 +438,8 @@ jobs:
 
 After deploying, check **Vercel Dashboard → Deployments → Production**:
 - No build errors
-- All routes listed (12 routes)
-- Edge middleware applied
+- All routes listed
+- Proxy applied
 
 ---
 
@@ -533,17 +635,11 @@ Store production env vars in a secure password manager (1Password, LastPass, Bit
 
 **1. Website Check**
 - [ ] Open `https://luxyhub.vercel.app` in browser
-- [ ] Hero section renders (image, typewriter animation)
-- [ ] Featured Games section renders all cards
-- [ ] Click game card → modal opens
-- [ ] Game modal closes on backdrop click and X button
-- [ ] Changelog section shows entries
-- [ ] "Load More" button increments visible changelog entries
-- [ ] FAQ accordion toggles on click
-- [ ] "Copy Script" button copies script loader to clipboard
-- [ ] Discord link opens in new tab
+- [ ] Public landing page renders
 - [ ] Navigate to `/get-key` — page renders with Work.ink link
-- [ ] Mobile menu opens/closes correctly
+- [ ] Navigate to `/docs/api` — API documentation page renders
+- [ ] Navigate to `/login` — Turnstile widget renders
+- [ ] Unauthenticated `/dashboard` redirects to `/login`
 
 **2. API Check**
 - [ ] `GET /api/health` → 200 `{"status":"ok",...}`
@@ -552,6 +648,9 @@ Store production env vars in a secure password manager (1Password, LastPass, Bit
 - [ ] `POST /api/validate` without body → 400
 - [ ] `POST /api/verify-workink` with missing token → 400
 - [ ] `POST /api/generate-key` with missing token → 400
+- [ ] `GET /api/loader/[slug]` for ready public/unlisted build → 200 text/plain with `Cache-Control: no-store`
+- [ ] `POST /api/delivery/session` for ready public/unlisted build → `session_token` and `expires_in: 60`
+- [ ] Reusing the same delivery token in `/api/delivery/fetch` → 403 `Invalid delivery session`
 
 **3. Database Check**
 - [ ] Run SQL verification queries from section 3
@@ -564,8 +663,11 @@ Store production env vars in a secure password manager (1Password, LastPass, Bit
 - [ ] Section 4.2 — rate limiting triggers 429
 - [ ] Section 4.3 — body size limit triggers 413
 - [ ] Section 4.4 — cleanup endpoint protected
-- [ ] Section 4.5 — CORS headers present
-- [ ] Section 4.6 — no key enumeration via distinct status codes
+- [ ] Section 4.5 — admin and cron secrets are separated
+- [ ] Section 4.6 — CORS headers present
+- [ ] Section 4.7 — no key enumeration via distinct status codes
+- [ ] Section 4.8 — Turnstile and login failed-attempt rate limits work
+- [ ] Section 4.9 — secure delivery sessions are consume-once and no-store
 
 **5. Monitoring Check**
 - [ ] Uptime monitor shows green
@@ -633,18 +735,21 @@ Store production env vars in a secure password manager (1Password, LastPass, Bit
 
 | Category | Item | Status | Notes |
 |----------|------|--------|-------|
-| **Code Quality** | Build passes | ✅ PASS | EXIT 0, 14 pages |
-| | Lint clean | ✅ PASS | 0 errors, 0 warnings |
+| **Code Quality** | Build passes | ✅ PASS | EXIT 0, all routes generated |
+| | Lint clean | ✅ PASS | 0 errors; warnings reviewed |
 | | TypeScript strict | ✅ PASS | No type errors |
-| **Security** | RLS enabled | ✅ PASS | 5 tables, `USING (false)` |
-| | Security headers | ✅ PASS | 7 headers via middleware |
-| | CSP configured | ✅ PASS | Restrictive but allows Next.js |
-| | CORS for API | ✅ PASS | `*` for API routes only |
+| **Security** | RLS enabled | ✅ PASS | 12 tables, deny-all plus owner policies |
+| | Security headers | ✅ PASS | Headers via `proxy.ts` |
+| | CSP configured | ✅ PASS | Allows Next.js, Vercel analytics, Supabase, and Turnstile |
+| | CORS for API | ✅ PASS | `*` for non-sensitive routes; trusted origin for sensitive routes |
 | | Rate limiting | ✅ PASS | INSERT-first, fail-closed |
+| | Login protection | ✅ PASS | Turnstile plus failed-attempt IP/email buckets |
+| | Secure delivery | ✅ PASS | Hashed token, TTL, consume-once, no-store |
 | | Key crypto | ✅ PASS | `crypto.getRandomValues()` |
 | | Unified error codes | ✅ PASS | No key enumeration oracle |
-| | Body size limits | ✅ PASS | 64 KB via middleware |
-| | CRON_SECRET validated | ✅ PASS | Panics if undefined |
+| | Body size limits | ✅ PASS | 64 KB via `proxy.ts` |
+| | CRON_SECRET validated | ✅ PASS | Missing secret returns 500; wrong bearer returns 401 |
+| | ADMIN_API_KEY separated | ✅ PASS | Cron secrets are not accepted for admin raw reads |
 | | Input validation | ✅ PASS | Token length + key format regex |
 | **Infrastructure** | Vercel configured | ⚠️ PENDING | Env vars must be set |
 | | Supabase configured | ⚠️ PENDING | Schema + RLS must be run |
@@ -675,17 +780,18 @@ Store production env vars in a secure password manager (1Password, LastPass, Bit
 ### Required Before Go-Live
 
 1. [ ] Set all environment variables in Vercel (Section 2)
-2. [ ] Run `schema.sql` and `migrations/001_enable_rls.sql` in Supabase (Section 3)
+2. [ ] Run `schema.sql` and migrations `001` through `007` in Supabase (Section 3)
 3. [ ] Configure custom domain in Cloudflare + Vercel (Sections 5-6)
 4. [ ] Schedule cleanup cron job (Section 6.4)
 5. [ ] Enable Supabase PITR backups (Section 3.6)
 6. [ ] Set up uptime monitoring (Section 7)
-7. [ ] Generate `CRON_SECRET` (`openssl rand -hex 32`) and set in Vercel
-8. [ ] Run complete operational verification (Section 8)
-9. [ ] Run post-deployment verification (Section 10)
+7. [ ] Generate `CRON_SECRET` and `ADMIN_API_KEY` as distinct secrets and set in Vercel
+8. [ ] Configure Cloudflare Turnstile and set site/secret keys
+9. [ ] Run complete operational verification (Section 8)
+10. [ ] Run post-deployment verification (Section 10)
 
 ### Go / No-Go
 
-**RECOMMENDATION: Conditional Go — deploy after completing the 9 items above.**
+**RECOMMENDATION: Conditional Go — deploy after completing the items above.**
 
 The codebase is production-ready. All security findings (Critical + High) have been fixed. The remaining work is infrastructure configuration (Vercel, Supabase, Cloudflare, monitoring), not code changes.

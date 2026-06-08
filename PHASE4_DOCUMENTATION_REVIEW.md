@@ -89,3 +89,56 @@ These files contain language that was evaluated but not changed because the drif
 - Verify Supabase RLS policies in production
 - Configure production environment variables
 - Set up Vercel deployment
+
+## 2026-06-08 Security Hardening Documentation Update
+
+Scope: documentation-only update after Cloudflare Turnstile, login failed-attempt rate limiting, admin/cron secret separation, public API response minimization, and secure delivery session hardening.
+
+### Documentation Inventory Summary
+
+| File group | Purpose | Last known relevance | Drift found |
+|------------|---------|----------------------|-------------|
+| `README.md` | Project overview and setup | Active entry point | Described old landing-page-only app |
+| `ARCHITECTURE.md` | Current source-of-truth architecture | Active | Missing Turnstile, login rate limiting, delivery sessions, delivery builds |
+| `API_SPEC.md` | API contract | Active | Script write auth examples still looked admin-key based; missing loader/delivery endpoints and login limiter |
+| `DEPLOYMENT_CHECKLIST.md` | Production deployment runbook | Active | Missing Turnstile env vars, ADMIN/CRON separation, delivery verification, current table count |
+| `PHASE4_PRODUCTION_HARDENING.md` | Recent security review | Active report | Login flow and headers stale after Turnstile; delivery state stale |
+| `SECURITY_VALIDATION_REPORT.md` | Security summary | Active report | Still documented ADMIN_API_KEY fallback to CRON_SECRET |
+| `PRODUCTION_VALIDATION_REPORT.md` | Production validation summary | Active report | Still documented old admin fallback and pre-delivery API state |
+| `SECURE_DELIVERY_ARCHITECTURE.md` | Secure delivery architecture | Active design/reference | Still said design-only despite implemented delivery builds/sessions |
+| `CDN_ARCHITECTURE.md` | Phase 2 CDN planning | Historical | No superseded marker; contained old CRON_SECRET fallback text |
+| Phase-specific reports (`PHASE3*`, `PHASE5*`, `PHASE6*`) | Historical snapshots | Historical | Not rewritten unless they caused current-state ambiguity |
+
+### Outdated Sections Found
+
+| Issue | Files | Resolution |
+|-------|-------|------------|
+| Login flow omitted Turnstile and login failed-attempt rate limits | `ARCHITECTURE.md`, `PHASE4_PRODUCTION_HARDENING.md`, `README.md` | Updated login flow to Turnstile -> server validation -> rate limit -> Supabase auth |
+| Turnstile token lifecycle not documented | `ARCHITECTURE.md`, `README.md` | Documented automatic reset after failed login actions |
+| Required Turnstile env vars missing | `DEPLOYMENT_CHECKLIST.md`, `README.md` | Added `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` |
+| Login email limiter storage unclear | `ARCHITECTURE.md`, `DEPLOYMENT_CHECKLIST.md`, `README.md` | Documented hashed email bucket using `ANALYTICS_PEPPER` |
+| ADMIN_API_KEY fallback to CRON_SECRET documented | `SECURITY_VALIDATION_REPORT.md`, `PRODUCTION_VALIDATION_REPORT.md`, `CDN_ARCHITECTURE.md` | Replaced with admin/cron separation |
+| Public API examples exposed internal script fields | `API_SPEC.md` | Updated public list/detail examples and notes |
+| Script write endpoints still showed admin bearer auth | `API_SPEC.md` | Updated to session auth and ownership |
+| DELETE script rate limit drift | `API_SPEC.md` | Documented `SCRIPT_DELETE` 30/hour |
+| Secure delivery still documented as future/design-only | `ARCHITECTURE.md`, `SECURE_DELIVERY_ARCHITECTURE.md`, `DEPLOYMENT_CHECKLIST.md`, `PRODUCTION_VALIDATION_REPORT.md` | Added implemented loader/session/fetch flow |
+| CSP and CORS docs did not include Turnstile/sensitive path behavior | `API_SPEC.md`, `DEPLOYMENT_CHECKLIST.md`, `PHASE4_PRODUCTION_HARDENING.md` | Updated header/CORS descriptions |
+
+### Files Updated
+
+- `README.md`
+- `ARCHITECTURE.md`
+- `API_SPEC.md`
+- `DEPLOYMENT_CHECKLIST.md`
+- `PHASE4_PRODUCTION_HARDENING.md`
+- `SECURITY_VALIDATION_REPORT.md`
+- `PRODUCTION_VALIDATION_REPORT.md`
+- `SECURE_DELIVERY_ARCHITECTURE.md`
+- `CDN_ARCHITECTURE.md`
+- `PHASE4_DOCUMENTATION_REVIEW.md`
+
+### Remaining Documentation Gaps
+
+- Phase reports remain historical snapshots; they are not all rewritten to current state.
+- `API_INTEGRATION.md` may need a future full refresh for loader/delivery client examples.
+- A dedicated operations runbook for Turnstile failure modes and login anomaly triage would be useful.

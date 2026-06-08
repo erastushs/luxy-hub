@@ -2,15 +2,15 @@
 
 ## Overview
 
-**Base URL:** `https://luxyhub.vercel.app`
+**Base URL:** `https://www.luxyhub.space`
 
-All requests and responses use `Content-Type: application/json`.
+Most requests and responses use `Content-Type: application/json`. Raw script and loader bootstrap success responses return `text/plain`.
 
 ---
 
 ## Response Format
 
-All endpoints return JSON objects with a `success` boolean. Error responses include a `message` string.
+Most JSON endpoints return objects with a `success` boolean. Error responses include a `message` string. Delivery session success responses are intentionally minimal and do not include `success`; raw script and loader bootstrap success responses are plain text.
 
 ### Success
 
@@ -78,7 +78,7 @@ All key validation failures return `403 Invalid key` with the same message. The 
 
 **Rate Limit:** 30 requests per minute per IP. Response includes `Retry-After` header in seconds.
 
-**Security:** Server-side only. All responses include `Access-Control-Allow-Origin: *`.
+**Security:** Server-side only. CORS for this sensitive endpoint is restricted to the request origin or `NEXT_PUBLIC_SITE_URL` when configured.
 
 **Validation rules:** A key passes when all conditions are met:
 1. Key is present and non-empty
@@ -214,16 +214,16 @@ No rate limiting is applied to this endpoint.
 
 ---
 
-## CDN Endpoints
+## Script API Endpoints
 
-All CDN endpoints live under `/api/scripts`. Write operations require a valid session (ownership is derived server-side). Read endpoints are public where the script visibility allows it. An admin bearer token (`verifyAdminAuth`) is accepted for private script reads.
+All script endpoints live under `/api/scripts`. Write operations require a valid Supabase session cookie; ownership is derived server-side from the authenticated user. Read endpoints are public where the script visibility allows it. An admin bearer token (`verifyAdminAuth`) is accepted only for private raw script reads.
 
 ### Visibility Model
 
 | Value | Raw Endpoint | Directory Listing | Auth Required |
 |-------|-------------|-------------------|---------------|
 | `public` | Anyone | Listed | None |
-| `private` | Session or admin bearer | Not listed | Write: Session, Read: Session or admin bearer |
+| `private` | Admin bearer only | Not listed | Write: Session, Raw read: Admin bearer |
 | `unlisted` | Anyone | Not listed | Write: Session |
 
 ---
@@ -249,13 +249,10 @@ GET /api/scripts?limit=20&offset=0
   "success": true,
   "scripts": [
     {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
       "slug": "bloxatlas",
       "name": "BloxAtlas",
       "description": "Universal ESP and aimbot for Roblox",
       "visibility": "public",
-      "creator_id": null,
-      "current_version_id": "660e8400-e29b-41d4-a716-446655440001",
       "created_at": "2026-06-07T09:00:00.000Z",
       "updated_at": "2026-06-07T09:00:00.000Z"
     }
@@ -266,7 +263,7 @@ GET /api/scripts?limit=20&offset=0
 }
 ```
 
-**Note:** The `content` field is not returned. Use `/api/scripts/[slug]/raw` for script content.
+**Note:** The public list response minimizes script data. It does not return `id`, `creator_id`, `current_version_id`, or `content`. Use `/api/scripts/[slug]/raw` for raw public/unlisted script content, or `/api/loader/[slug]` for loader-first delivery.
 
 **Response Table:**
 | HTTP | Body | Meaning |
@@ -316,7 +313,7 @@ Content-Type: application/json
     "name": "BloxAtlas",
     "description": "Universal ESP and aimbot for Roblox",
     "visibility": "public",
-    "creator_id": null,
+    "creator_id": "uuid-of-authenticated-creator",
     "current_version_id": "660e8400-e29b-41d4-a716-446655440001",
     "created_at": "2026-06-07T09:00:00.000Z",
     "updated_at": "2026-06-07T09:00:00.000Z"
@@ -331,7 +328,7 @@ A `script_versions` row (version `"1.0.0"`) is automatically created.
 |------|------|---------|
 | 201 | `{ "success": true, "script": {...} }` | Script created |
 | 400 | `{ "success": false, "message": "..." }` | Validation error (slug, name, content, visibility) |
-| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing or invalid admin key |
+| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing or invalid session |
 | 409 | `{ "success": false, "message": "A script with slug \"...\" already exists" }` | Slug conflict |
 | 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
 | 500 | `{ "success": false, "message": "Failed to create script" }` | Internal server error |
@@ -354,13 +351,10 @@ GET /api/scripts/bloxatlas
 {
   "success": true,
   "script": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
     "slug": "bloxatlas",
     "name": "BloxAtlas",
     "description": "Universal ESP and aimbot for Roblox",
     "visibility": "public",
-    "creator_id": null,
-    "current_version_id": "660e8400-e29b-41d4-a716-446655440001",
     "created_at": "2026-06-07T09:00:00.000Z",
     "updated_at": "2026-06-07T09:00:00.000Z"
   }
@@ -378,17 +372,18 @@ GET /api/scripts/bloxatlas
 
 **Rate Limit:** 60 requests per minute per IP (`SCRIPT_GET`).
 
+**Note:** Anonymous responses are minimized like `GET /api/scripts`. If the request has a valid session and the user owns the script, the full script row may be returned.
+
 ---
 
 ### PATCH /api/scripts/[slug]
 
-Update script metadata and/or content. Requires admin authentication.
+Update script metadata and/or content. Requires session authentication and ownership.
 
 **Request:**
 ```http
 PATCH /api/scripts/bloxatlas
 Content-Type: application/json
-Authorization: Bearer <ADMIN_API_KEY>
 
 {
   "name": "BloxAtlas v2",
@@ -412,7 +407,7 @@ When `content` is provided and differs from current content, a new `script_versi
     "name": "BloxAtlas v2",
     "description": "Updated description",
     "visibility": "public",
-    "creator_id": null,
+    "creator_id": "uuid-of-authenticated-creator",
     "current_version_id": "660e8400-e29b-41d4-a716-446655440002",
     "created_at": "2026-06-07T09:00:00.000Z",
     "updated_at": "2026-06-07T10:30:00.000Z"
@@ -425,8 +420,8 @@ When `content` is provided and differs from current content, a new `script_versi
 |------|------|---------|
 | 200 | `{ "success": true, "script": {...} }` | Script updated |
 | 400 | `{ "success": false, "message": "..." }` | Validation error |
-| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing admin key |
-| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist |
+| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing or invalid session |
+| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist or is not owned by the session user |
 | 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
 | 500 | `{ "success": false, "message": "Failed to update script" }` | Internal server error |
 
@@ -436,12 +431,11 @@ When `content` is provided and differs from current content, a new `script_versi
 
 ### DELETE /api/scripts/[slug]
 
-Delete a script and all associated data. Requires admin authentication.
+Delete a script and all associated data. Requires session authentication and ownership.
 
 **Request:**
 ```http
 DELETE /api/scripts/bloxatlas
-Authorization: Bearer <ADMIN_API_KEY>
 ```
 
 **Success (200):**
@@ -459,23 +453,23 @@ Cascade deletes: all `script_versions` and `script_downloads` for this script ar
 |------|------|---------|
 | 200 | `{ "success": true, "message": "Script deleted" }` | Script deleted |
 | 400 | `{ "success": false, "message": "Invalid slug format" }` | Slug validation failed |
-| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing admin key |
-| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist |
+| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing or invalid session |
+| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist or is not owned by the session user |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
 | 500 | `{ "success": false, "message": "Failed to delete script" }` | Internal server error |
 
-No rate limiting is applied to DELETE operations.
+**Rate Limit:** 30 requests per hour per IP (`SCRIPT_DELETE`).
 
 ---
 
 ### POST /api/scripts/[slug]/publish
 
-Change script visibility. Requires admin authentication.
+Change script visibility. Requires session authentication and ownership.
 
 **Request:**
 ```http
 POST /api/scripts/bloxatlas/publish
 Content-Type: application/json
-Authorization: Bearer <ADMIN_API_KEY>
 
 {
   "visibility": "public"
@@ -494,7 +488,7 @@ Authorization: Bearer <ADMIN_API_KEY>
     "name": "BloxAtlas",
     "description": "...",
     "visibility": "public",
-    "creator_id": null,
+    "creator_id": "uuid-of-authenticated-creator",
     "current_version_id": "660e8400-e29b-41d4-a716-446655440001",
     "created_at": "2026-06-07T09:00:00.000Z",
     "updated_at": "2026-06-07T10:30:00.000Z"
@@ -507,8 +501,8 @@ Authorization: Bearer <ADMIN_API_KEY>
 |------|------|---------|
 | 200 | `{ "success": true, "script": {...} }` | Visibility updated |
 | 400 | `{ "success": false, "message": "Invalid visibility. Must be public, private, or unlisted" }` | Invalid visibility |
-| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing admin key |
-| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist |
+| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing or invalid session |
+| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist or is not owned by the session user |
 | 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
 | 500 | `{ "success": false, "message": "Failed to update visibility" }` | Internal server error |
 
@@ -536,6 +530,7 @@ loadstring(game:HttpGet('https://...'))()
 **Cache Headers:**
 - `max-age=300` — browsers cache for 5 minutes
 - `s-maxage=3600` — shared caches (CDN) cache for 1 hour
+- Private raw responses use `Cache-Control: no-store`.
 
 **Response Table:**
 | HTTP | Body | Meaning |
@@ -549,7 +544,7 @@ loadstring(game:HttpGet('https://...'))()
 
 **Error responses return JSON** (not text/plain). This ensures clients that expect JSON error objects work correctly.
 
-**Private Scripts:** When `visibility = "private"`, the raw endpoint returns 403 unless the request includes `Authorization: Bearer <ADMIN_API_KEY>`.
+**Private Scripts:** When `visibility = "private"`, the raw endpoint returns 403 unless the request includes `Authorization: Bearer <ADMIN_API_KEY>`. `CRON_SECRET` is not accepted for private raw access.
 
 **Rate Limit:** 100 requests per minute per IP (`SCRIPT_RAW`).
 
@@ -557,7 +552,7 @@ loadstring(game:HttpGet('https://...'))()
 
 ### GET /api/scripts/[slug]/stats
 
-Get download analytics for a script.
+Get download analytics for a script owned by the authenticated session user.
 
 **Request:**
 ```http
@@ -593,7 +588,8 @@ GET /api/scripts/bloxatlas/stats
 |------|------|---------|
 | 200 | `{ "success": true, "stats": {...} }` | Stats returned |
 | 400 | `{ "success": false, "message": "Invalid slug format" }` | Slug validation failed |
-| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist |
+| 401 | `{ "success": false, "message": "Unauthorized" }` | Missing or invalid session |
+| 404 | `{ "success": false, "message": "Script not found" }` | Slug does not exist or is not owned by the session user |
 | 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
 | 500 | `{ "success": false, "message": "Failed to fetch stats" }` | Internal server error |
 
@@ -923,6 +919,115 @@ Cross-script isolation: version IDs from a different script return 404.
 
 ---
 
+## Loader and Delivery Endpoints
+
+Loader delivery endpoints are used by the production Lua bootstrap. Responses for loader and delivery routes use `Cache-Control: no-store`.
+
+### GET /api/loader/[slug]
+
+Return a Lua bootstrap for a script slug.
+
+**Request:**
+```http
+GET /api/loader/bloxatlas
+```
+
+**Success (200):**
+```http
+Content-Type: text/plain; charset=utf-8
+Cache-Control: no-store
+X-Content-Type-Options: nosniff
+```
+
+Body is Lua source. The bootstrap:
+
+1. POSTs `/api/delivery/session` with the slug.
+2. Receives a short-lived `session_token`.
+3. POSTs `/api/delivery/fetch` with that token.
+4. Validates the runtime payload envelope.
+5. Executes the returned runtime payload through the loader runtime.
+
+**Error Responses:**
+
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 404 | `{ "success": false, "message": "Loader unavailable" }` | Invalid slug or loader generation failed |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
+
+**Rate Limit:** 60 requests per minute per IP (`LOADER_BOOTSTRAP`).
+
+---
+
+### POST /api/delivery/session
+
+Create a one-time delivery session for a public or unlisted script with a ready delivery build.
+
+**Request:**
+```http
+POST /api/delivery/session
+Content-Type: application/json
+
+{
+  "slug": "bloxatlas"
+}
+```
+
+**Success (200):**
+```json
+{
+  "session_token": "base64url-token",
+  "expires_in": 60
+}
+```
+
+The raw token is returned once and is never stored in the database. The database stores `SHA-256(session_token)` in `delivery_sessions.session_token_hash`.
+
+**Error Responses:**
+
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 404 | `{ "success": false, "message": "Delivery unavailable" }` | Script is missing, private, has no current version, or has no ready build |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
+
+**Rate Limit:** 20 requests per minute per IP (`DELIVERY_SESSION`).
+
+---
+
+### POST /api/delivery/fetch
+
+Consume a delivery session and return the runtime payload. The session is consumed before the payload response is returned.
+
+**Request:**
+```http
+POST /api/delivery/fetch
+Content-Type: application/json
+
+{
+  "session_token": "base64url-token"
+}
+```
+
+**Success (200):**
+```json
+{
+  "runtime_payload": "loadstring-ready-runtime-source",
+  "build_version": "delivery-build-v1",
+  "version_id": "version-uuid",
+  "runtime_format_version": "loader-runtime-v1"
+}
+```
+
+**Error Responses:**
+
+| HTTP | Body | Meaning |
+|------|------|---------|
+| 403 | `{ "success": false, "message": "Invalid delivery session" }` | Missing, malformed, expired, consumed, mismatched, or invalid session/build |
+| 429 | `{ "success": false, "message": "Too many requests. Please try again later." }` | Rate limit exceeded |
+
+**Rate Limit:** 40 requests per minute per IP (`DELIVERY_FETCH`).
+
+---
+
 ## Key Format
 
 **Pattern:** `LUXY-XXXX-XXXX-XXXX`
@@ -967,6 +1072,11 @@ Keys expire 24 hours after generation.
 | `GET /api/dashboard/analytics/downloads` | 1 minute | 30 requests | Per IP + Session |
 | `GET /api/dashboard/scripts/[slug]/versions` | 1 minute | 60 requests | Per IP + Session |
 | `GET /api/dashboard/scripts/[slug]/versions/[versionId]` | 1 minute | 60 requests | Per IP + Session |
+| `GET /api/loader/[slug]` | 1 minute | 60 requests | Per IP |
+| `POST /api/delivery/session` | 1 minute | 20 requests | Per IP |
+| `POST /api/delivery/fetch` | 1 minute | 40 requests | Per IP |
+| `/login` failed attempts | 5 minutes | 5 failed attempts | Per IP, after Turnstile |
+| `/login` failed attempts | 15 minutes | 10 failed attempts | Per hashed email, after Turnstile |
 
 Rate-limited responses (HTTP 429) include a `Retry-After` header with the number of seconds until the window resets.
 
@@ -976,16 +1086,18 @@ IP extraction priority on Vercel: `x-vercel-forwarded-for` → rightmost `x-forw
 
 ## Security Headers
 
-All API responses include:
+All responses pass through `proxy.ts` and receive security headers. API routes also receive CORS headers.
 
 | Header | Value |
 |--------|-------|
-| `Access-Control-Allow-Origin` | `*` |
+| `Access-Control-Allow-Origin` | `*` for non-sensitive API paths; trusted origin only for sensitive paths such as `/api/validate`, `/api/cleanup`, and raw script reads |
 | `Access-Control-Allow-Methods` | `GET, POST, OPTIONS` |
 | `Access-Control-Allow-Headers` | `Content-Type, Authorization` |
+| `Content-Security-Policy` | Allows self, Vercel analytics/insights, Supabase connect, and Cloudflare Turnstile script/connect/frame origins |
 | `X-Content-Type-Options` | `nosniff` |
 | `X-Frame-Options` | `DENY` |
 | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
 
 Request body maximum: **64 KB** (returns HTTP 413 if exceeded).

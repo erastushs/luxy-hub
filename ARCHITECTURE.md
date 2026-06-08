@@ -1,7 +1,7 @@
 # LuxyHub Architecture
 
 Last updated: 2026-06-08
-Status: Current implementation after Creator Dashboard V1 and Phase 4.2
+Status: Current implementation after Creator Dashboard V1, secure delivery, and login hardening
 
 ## Overview
 
@@ -11,7 +11,8 @@ LuxyHub is a Next.js 16 application that currently provides:
 - Work.ink-backed key generation and validation APIs
 - Script CDN metadata, upload, raw delivery, and analytics APIs
 - Creator Dashboard V1 for script management, analytics, versions, and profile management
-- Supabase-backed authentication, ownership enforcement, RLS, rate limiting, and audit logging
+- Secure loader delivery with delivery builds and one-time delivery sessions
+- Supabase-backed authentication, ownership enforcement, RLS, Turnstile login protection, rate limiting, and audit logging
 
 The current production architecture is a single Next.js application. Dedicated `dashboard`, `api`, `cdn`, or `vault` subdomains are not implemented.
 
@@ -33,6 +34,9 @@ www.luxyhub.space
 ├── /dashboard/versions/[slug]
 ├── /dashboard/versions/[slug]/[versionId]
 ├── /dashboard/profile
+├── /api/loader/[slug]
+├── /api/delivery/session
+├── /api/delivery/fetch
 └── /api/*
 ```
 
@@ -73,7 +77,7 @@ Public routes provide the landing pages, key acquisition flow, token verificatio
 
 ### Authentication UI
 
-`/login` provides email/password login through Supabase Auth. Registration, password reset UI, and OAuth providers are not implemented in V1.
+`/login` provides email/password login through Supabase Auth. The login form includes Cloudflare Turnstile and submits the Turnstile token with the credentials. Registration, password reset UI, and OAuth providers are not implemented in V1.
 
 ### Creator Dashboard
 
@@ -118,6 +122,15 @@ Flow:
 User submits /login form
   |
   v
+Cloudflare Turnstile widget issues single-use token
+  |
+  v
+Server Action verifies token with Cloudflare siteverify
+  |
+  v
+Failed-login rate limit check by IP and hashed email bucket
+  |
+  v
 Server Action calls supabase.auth.signInWithPassword()
   |
   v
@@ -136,9 +149,12 @@ Profile is loaded or auto-provisioned
 Authentication utilities:
 
 - `app/lib/auth/session-auth.ts` — `getCurrentUser()`, `requireAuth()`
+- `app/lib/auth/turnstile.ts` — server-side Turnstile siteverify integration
 - `app/lib/supabase/server.ts` — request-scoped Supabase SSR client
 - `app/lib/supabase/proxy.ts` — proxy-layer session refresh and redirects
 - `app/actions/auth.ts` — login/logout Server Actions
+
+Turnstile tokens are single-use. After a failed login action, the login widget resets and clears the hidden token field so the next attempt receives a fresh token.
 
 ## Ownership Model
 
@@ -171,6 +187,7 @@ Implemented API groups:
 - System APIs: `/api/health`, `/api/cleanup`, `/api/auth/callback`
 - Public/session-aware script APIs: `/api/scripts`, `/api/scripts/[slug]`, `/api/scripts/[slug]/raw`, `/api/scripts/[slug]/stats`, `/api/scripts/[slug]/publish`
 - Dashboard APIs: `/api/dashboard/scripts`, `/api/dashboard/scripts/[slug]`, `/api/dashboard/analytics/overview`, `/api/dashboard/analytics/downloads`, `/api/dashboard/scripts/[slug]/stats`, `/api/dashboard/scripts/[slug]/versions`, `/api/dashboard/scripts/[slug]/versions/[versionId]`
+- Loader and delivery APIs: `/api/loader/[slug]`, `/api/delivery/session`, `/api/delivery/fetch`
 
 Dashboard UI primarily uses Server Components and Server Actions. The dashboard API routes exist for programmatic access and are still protected by session auth, rate limits, service-layer validation, and ownership checks.
 
@@ -188,6 +205,8 @@ Current tables:
 - `script_downloads`
 - `profiles`
 - `audit_logs`
+- `delivery_builds`
+- `delivery_sessions`
 
 Security posture:
 
@@ -195,16 +214,42 @@ Security posture:
 - `scripts` and `script_versions` have owner-aware policies.
 - Operational tables remain service-role-only for browser users.
 - Application services use Supabase admin access with explicit auth and ownership checks.
+- `delivery_sessions.session_token_hash` stores SHA-256 hashes, never raw delivery tokens.
 
 ## Script Delivery State
 
-Current script delivery is implemented through:
+Raw script delivery remains available through:
 
 ```text
 GET /api/scripts/[slug]/raw
 ```
 
-This endpoint still returns raw script content for public/unlisted scripts and protected private scripts. Secure loader-first delivery, temporary delivery tokens, obfuscation, encryption, and anti-curl delivery architecture are planned for Phase 5 — Secure Script Delivery and Phase 6 — Loader Integration.
+This endpoint returns raw script content for public and unlisted scripts. Private raw reads require `Authorization: Bearer <ADMIN_API_KEY>`. Authenticated creator/session access is used for management and owner-scoped APIs; cron secrets are not accepted for admin raw reads.
+
+Secure loader delivery is also implemented:
+
+```text
+GET /api/loader/[slug]
+  |
+  v
+Lua bootstrap POSTs /api/delivery/session
+  |
+  v
+Temporary session_token, expires_in = 60
+  |
+  v
+Lua bootstrap POSTs /api/delivery/fetch
+  |
+  v
+Server hashes token with SHA-256, validates ready build, consumes session once
+  |
+  v
+Runtime payload response with Cache-Control: no-store
+```
+
+Delivery sessions are only issued for public or unlisted scripts with a ready inline encrypted delivery build for the current version. `/api/delivery/fetch` consumes the session before returning the runtime payload; reused, expired, malformed, or missing sessions return `Invalid delivery session`.
+
+Delivery builds are created automatically after script creation, content version creation, and visibility publish actions. Build payloads use the current `delivery-build-v1` and `inline-json-v1` formats with AES-256-GCM payload packaging, gzip compression, and SHA-256 integrity fields. The current loader executes the server-produced runtime payload with `loadstring`; license management and marketplace entitlement checks are not implemented.
 
 ## Analytics Architecture
 
@@ -236,16 +281,56 @@ Audit logging is fire-and-forget. Audit failures must not block user operations.
 
 Rate limits are stored in the `rate_limits` table and enforced fail-closed. Each route uses an endpoint-specific key such as `VALIDATE`, `SCRIPT_RAW`, `DASHBOARD_SCRIPTS_LIST`, or `DASHBOARD_VERSIONS_GET`.
 
+Login uses a failed-attempt limiter that records only failed Supabase login attempts after Turnstile succeeds:
+
+- IP bucket: 5 failed attempts per 5 minutes per IP
+- Email bucket: 10 failed attempts per 15 minutes per normalized email
+- Email bucket identifiers are SHA-256 hashes using `ANALYTICS_PEPPER`; raw email addresses are not stored in `rate_limits`
+- Successful login clears the email failure bucket. IP failure rows expire naturally through the time window and cleanup job.
+
+Loader delivery rate limits:
+
+- `LOADER_BOOTSTRAP`: 60 requests per minute per IP
+- `DELIVERY_SESSION`: 20 requests per minute per IP
+- `DELIVERY_FETCH`: 40 requests per minute per IP
+
+## Security Status
+
+Implemented:
+
+- Cloudflare Turnstile on `/login`
+- Server-side Turnstile verification before password authentication
+- Automatic Turnstile reset after failed login actions to avoid stale single-use token reuse
+- Failed-login IP and hashed-email rate limiting
+- Supabase session validation for dashboard pages and Server Actions
+- Ownership validation for script, version, analytics, and build operations
+- Admin and cron secret separation: `ADMIN_API_KEY` is not replaced by `CRON_SECRET`
+- Public API response minimization for public script list/detail responses
+- Database-backed API rate limiting with fail-closed behavior
+- Security headers in `proxy.ts`, including CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy, and Cloudflare Turnstile frame/connect/script allowances
+- CORS allowlist behavior for sensitive API paths
+- Private raw delivery responses use `Cache-Control: no-store`
+- Loader and delivery responses use `Cache-Control: no-store`
+- Delivery sessions use SHA-256 token hashes, 60-second TTL, and consume-once validation
+
+Future improvements:
+
+- CSP nonce migration to remove broad inline script/style allowances
+- Dependency updates when stable security fixes are available
+- Security monitoring and alerting for authentication and delivery anomalies
+- Login anomaly detection beyond local failed-attempt counters
+- License, entitlement, and paid-access checks after loader requirements are finalized
+
 ## Roadmap Alignment
 
 Current priorities:
 
 - Phase 4.1 — UI Polish: complete
 - Phase 4.2 — Performance Review: complete
-- Phase 4.3 — Documentation Review: current
-- Phase 4.4 — Production Hardening: next
-- Phase 5 — Secure Script Delivery
-- Phase 6 — Loader Integration
+- Phase 4.3 — Documentation Review: updated after recent security hardening
+- Phase 4.4 — Production Hardening: complete
+- Phase 5 — Secure Script Delivery: delivery builds and delivery sessions implemented
+- Phase 6 — Loader Integration: production loader bootstrap and runtime payload delivery implemented
 - Phase 7 — License & Key Management, only after loader requirements are finalized
 - Phase 8 — Internal Operations & Release Workflow
 - Phase 9 — Scale & Infrastructure (Optional)

@@ -1,62 +1,36 @@
 # LuxyHub
 
-Ultimate Roblox Script Library built with Next.js 16, TypeScript, Tailwind CSS, and Framer Motion.
+LuxyHub is a Next.js 16 application for Roblox script distribution, key validation, and creator dashboard operations. The current implementation runs as a single App Router application on `www.luxyhub.space` with Supabase Auth, Supabase Postgres, secure delivery sessions, and defense-in-depth security controls.
 
-![LuxyHub Preview](public/bg.webp)
+## Current Features
 
-## Features
-
-- Modern dark red UI
-- Fully responsive design
-- Smooth scrolling navigation
-- Interactive game library
-- Game details modal
-- FAQ system
-- Changelog section
-- Discord integration
-- Copy Script button
-- Typewriter animation
-- Optimized images
-- Vercel ready deployment
-
-## Supported Games
-
-### Kick A Lucky Block
-### Build A Ring Farm
-### Slime RNG
+- Public landing, key acquisition, token verification, and API docs pages
+- Work.ink-backed key generation and replay-protected token verification
+- Creator Dashboard for scripts, analytics, versions, delivery builds, and profile management
+- Supabase email/password login protected by Cloudflare Turnstile
+- Server-side Turnstile verification before authentication
+- Failed-login rate limiting by IP and hashed email bucket
+- Session-based script ownership and dashboard access control
+- Public script metadata APIs with minimized response fields
+- Raw script delivery for public and unlisted scripts
+- Secure loader bootstrap with one-time delivery sessions for ready public/unlisted builds
+- SHA-256 hashed delivery session tokens, consume-once validation, and 60-second TTL
+- Security headers, CORS controls, API body limits, route rate limiting, and cleanup retention jobs
 
 ## Tech Stack
 
-- Next.js 16
+- Next.js 16 App Router
+- React 19
 - TypeScript
-- Tailwind CSS
-- Framer Motion
-- Lucide React
-- Sonner
+- Tailwind CSS v4
+- Supabase Auth and Postgres
+- Cloudflare Turnstile
+- Vitest
 
 ## Getting Started
 
-Clone repository:
-
-```bash
-git clone https://github.com/erastushs/luxy-hub.git
-```
-
-Enter project directory:
-
-```bash
-cd luxy-hub
-```
-
-Install dependencies:
-
 ```bash
 npm install
-```
-
-Run development server:
-
-```bash
 npm run dev
 ```
 
@@ -66,96 +40,94 @@ Open:
 http://localhost:3000
 ```
 
-## Build Production
+## Required Environment Variables
 
-```bash
-npm run build
-npm start
+Production requires:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+ADMIN_API_KEY=
+CRON_SECRET=
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
+ANALYTICS_PEPPER=
 ```
 
-## Deployment
+Additional delivery payload configuration is optional:
 
-### Vercel
-
-```bash
-npm run build
+```env
+DELIVERY_PAYLOAD_SECRET=
+DELIVERY_PAYLOAD_KEY_ID=
+NEXT_PUBLIC_SITE_URL=
 ```
 
-Push to GitHub and import the repository into Vercel.
+`ADMIN_API_KEY` is used only for admin-bearer access to private raw script reads. `CRON_SECRET` is used only by `/api/cleanup`; cron secrets are not accepted for admin access.
 
-### Netlify
+## Authentication Flow
 
-```bash
-npm run build
+```text
+User
+  -> /login form
+  -> Cloudflare Turnstile widget
+  -> server-side Turnstile verification
+  -> failed-login rate limit check
+  -> Supabase signInWithPassword()
+  -> Supabase session cookies
+  -> /dashboard
 ```
 
-Connect repository and deploy.
+After a failed login action, the Turnstile widget resets automatically so the next attempt uses a fresh single-use token.
+
+## Secure Delivery Flow
+
+```text
+Loader
+  -> GET /api/loader/[slug]
+  -> POST /api/delivery/session
+  -> short-lived session_token
+  -> POST /api/delivery/fetch
+  -> SHA-256 token hash lookup
+  -> consume-once session validation
+  -> no-store runtime payload response
+```
+
+Delivery session tokens are never stored raw. The database stores SHA-256 hashes, and sessions expire after 60 seconds or after the first successful fetch.
 
 ## Project Structure
 
 ```text
 app/
-├── components/
-│   ├── Hero.tsx
-│   ├── Navbar.tsx
-│   ├── FeaturedGames.tsx
-│   ├── GameModal.tsx
-│   ├── Faq.tsx
-│   ├── Changelog.tsx
-│   ├── Footer.tsx
-│   └── CustomCursor.tsx
-│
-├── data/
-│   ├── games.ts
-│   ├── faq.ts
-│   ├── changelog.ts
-│   └── config.ts
-│
-├── robots.ts
-├── sitemap.ts
-├── not-found.tsx
-├── page.tsx
-├── layout.tsx
-└── globals.css
+├── actions/              Server Actions for auth, scripts, profile, builds
+├── api/                  Route Handlers
+├── dashboard/            Creator Dashboard pages and components
+├── lib/                  Auth, services, repositories, loader, delivery logic
+├── login/                Login page and Turnstile widget
+├── docs/api              API documentation page
+└── globals.css           Tailwind v4 CSS-first theme
 
-public/
-├── LH.webp
-├── LH2.webp
-├── og-image.png
-└── bg.webp
+migrations/               Supabase migrations and rollbacks
+schema.sql                Consolidated schema reference
+__tests__/                Vitest test suite
 ```
 
-## Configuration
+## Verification
 
-Edit:
-
-```text
-app/data/config.ts
+```bash
+npm run lint
+npx vitest run
+npm run build
 ```
 
-Example:
+## Documentation
 
-```ts
-export const config = {
-  discord: 'https://discord.gg/your-server',
-  script: 'loadstring(...)()',
-}
-```
+- `ARCHITECTURE.md` — current system architecture
+- `API_SPEC.md` — API reference and response shapes
+- `DEPLOYMENT_CHECKLIST.md` — deployment and production validation
+- `SECURE_DELIVERY_ARCHITECTURE.md` — secure delivery design and implementation notes
+- `DASHBOARD_USER_GUIDE.md` — creator dashboard usage
 
 ## License
 
 This project is provided for educational and personal use only.
-
-## Author
-
-LuxyHub Team
-
-Website:
-[https://luxyhub.vercel.app](https://luxyhub.vercel.app)
-
-Discord:
-[https://discord.gg/Gr5UQUKp7](https://discord.gg/Gr5UQUKp7)
-
----
-
-Built with Next.js and Tailwind CSS. 🚀

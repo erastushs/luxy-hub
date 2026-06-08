@@ -1,10 +1,12 @@
 # LuxyHub CDN — Architecture Review
 
 Date: 2026-06-07
-Status: Phase 2A — Database Foundation (IN PROGRESS)
+Status: Phase 2 historical planning document — superseded by `ARCHITECTURE.md` and `API_SPEC.md`
 Phase: 1.5 (Complete) → 2A (IN PROGRESS)
 
 ---
+
+> Current implementation note (2026-06-08): this document preserves the Phase 2 CDN plan. The live system now uses Supabase session authentication for creator write APIs, owner-scoped service checks, Cloudflare Turnstile login protection, failed-login rate limiting, secure delivery builds, and one-time delivery sessions. Use `ARCHITECTURE.md`, `API_SPEC.md`, and `DEPLOYMENT_CHECKLIST.md` for current deployment and security behavior.
 
 ## 1. Executive Summary
 
@@ -287,14 +289,16 @@ All queries go through `supabaseAdmin` (service role). Anon/authenticated users 
 
 ## 5. Authentication Strategy
 
-### 5.1 Phase 2 MVP (Current)
+### 5.1 Phase 2 MVP (Historical)
 
 **`ADMIN_API_KEY`** — a single shared secret for all administrative operations.
 
 ```
 Header: Authorization: Bearer <ADMIN_API_KEY>
-Env Var: ADMIN_API_KEY (falls back to CRON_SECRET if not set)
+Historical env var: ADMIN_API_KEY
 ```
+
+Current implementation: `ADMIN_API_KEY` does not fall back to `CRON_SECRET`. Cron secrets are accepted only by `/api/cleanup`.
 
 **⚠️ TEMPORARY — THIS IS NOT THE FINAL AUTH MODEL.**
 
