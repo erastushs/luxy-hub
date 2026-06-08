@@ -94,11 +94,11 @@ export default function Hero() {
 
                     <span className="text-zinc-300">(</span>
 
-                    <span className="text-zinc-500">{'"https://raw.githubusercontent.com/...'}</span>
+                    <span className="text-zinc-500">{'"https://www.luxyhub.space/api/...'}</span>
 
                     <span className="mx-1 text-red-500">...</span>
 
-                    <span className="text-zinc-500">{'/main.lua"'}</span>
+                    <span className="text-zinc-500">{'/luxyhub"'}</span>
 
                     <span className="text-zinc-300">))()</span>
                   </code>
