@@ -1,5 +1,7 @@
 import { getCurrentUser } from '@/app/lib/auth/session-auth'
-import { getVisibleScript } from '@/app/lib/services/script-service'
+import { getDashboardBuildInfoForScripts } from '@/app/lib/services/dashboard-build-service'
+import { getVisibleScript, listCurrentVersionSummariesForScripts } from '@/app/lib/services/script-service'
+import { parseUploadedFilename } from '@/app/lib/source-file-metadata'
 import { redirect, notFound } from 'next/navigation'
 import EditScriptClient from './edit-client'
 
@@ -22,5 +24,25 @@ export default async function EditScriptPage({
     notFound()
   }
 
-  return <EditScriptClient script={result.script} />
+  const [versionsResult, buildsByVersionId] = await Promise.all([
+    listCurrentVersionSummariesForScripts(user.id, [result.script]),
+    getDashboardBuildInfoForScripts(user.id, [result.script]),
+  ])
+
+  const currentVersion = result.script.current_version_id && versionsResult.success
+    ? versionsResult.versionsById[result.script.current_version_id] ?? null
+    : null
+
+  const buildInfo = result.script.current_version_id
+    ? buildsByVersionId[result.script.current_version_id] ?? null
+    : null
+
+  return (
+    <EditScriptClient
+      script={result.script}
+      currentVersion={currentVersion}
+      buildInfo={buildInfo}
+      lastUploadedFilename={parseUploadedFilename(currentVersion?.changelog)}
+    />
+  )
 }

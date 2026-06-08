@@ -12,6 +12,7 @@ import {
   recordDownload,
   hashIdentifier,
   listVersionsForScript,
+  listVersionSummariesByIds,
   getVersionById,
   ScriptConflictError,
   type ScriptRow,
@@ -23,6 +24,7 @@ import {
 import { assertScriptOwner, OwnershipError } from '@/app/lib/auth/ownership'
 import { isValidSlug, isValidScriptName, isValidVisibility, isValidScriptContent, type Visibility } from '@/app/lib/validators'
 import { logAuditEvent } from '@/app/lib/services/audit-service'
+import { createUploadChangelog, sanitizeSourceFilename } from '@/app/lib/source-file-metadata'
 
 export type { ScriptRow, ScriptStats, ListScriptsResult, Visibility, VersionRow, VersionSummaryRow }
 
@@ -54,6 +56,10 @@ export type VersionDetailResult =
   | { success: true; version: VersionRow }
   | { success: false; message: string; status: number }
 
+export type VersionSummaryMapResult =
+  | { success: true; versionsById: Record<string, VersionSummaryRow> }
+  | { success: false; message: string; status: number }
+
 function parseVersion(version: string): { major: number; minor: number; patch: number } {
   const parts = version.split('.')
   return {
@@ -74,6 +80,7 @@ export async function createScript(params: {
   description?: unknown
   visibility?: unknown
   content: unknown
+  sourceFilename?: unknown
   creatorId: string
   creatorRole?: string
 }): Promise<ScriptResult> {
@@ -111,6 +118,7 @@ export async function createScript(params: {
       script_id: script.id,
       version: '1.0.0',
       content: params.content,
+      changelog: createUploadChangelog(params.sourceFilename),
     })
 
     const updated = await updateScriptRepo(
@@ -133,6 +141,7 @@ export async function createScript(params: {
         name: params.name,
         visibility,
         version_id: version.id,
+        source_filename: sanitizeSourceFilename(params.sourceFilename) ?? undefined,
       },
     })
 
@@ -264,6 +273,7 @@ export async function updateScript(
     description?: unknown
     visibility?: unknown
     content?: unknown
+    sourceFilename?: unknown
   },
   actorRole: string = 'creator'
 ): Promise<ScriptResult> {
@@ -305,6 +315,7 @@ export async function updateScript(
         script_id: existing.id,
         version: newVersionNumber,
         content: params.content,
+        changelog: createUploadChangelog(params.sourceFilename),
       })
 
       currentVersionId = version.id
@@ -333,6 +344,7 @@ export async function updateScript(
       metadata: {
         changed: Object.keys(updateFields),
         has_content_update: params.content !== undefined && params.content !== '',
+        source_filename: sanitizeSourceFilename(params.sourceFilename) ?? undefined,
       },
     })
 
@@ -536,6 +548,31 @@ export async function listVersions(
       return { success: false, message: error.message, status: error.status }
     }
     return { success: false, message: 'Failed to list versions', status: 500 }
+  }
+}
+
+export async function listCurrentVersionSummariesForScripts(
+  ownerId: string,
+  scripts: ScriptRow[]
+): Promise<VersionSummaryMapResult> {
+  const versionIds = scripts
+    .filter((script) => script.creator_id === ownerId && script.current_version_id)
+    .map((script) => script.current_version_id as string)
+
+  try {
+    const versions = await listVersionSummariesByIds(versionIds)
+    const allowedVersionIds = new Set(versionIds)
+    const versionsById: Record<string, VersionSummaryRow> = {}
+
+    for (const version of versions) {
+      if (allowedVersionIds.has(version.id)) {
+        versionsById[version.id] = version
+      }
+    }
+
+    return { success: true, versionsById }
+  } catch {
+    return { success: false, message: 'Failed to fetch version summaries', status: 500 }
   }
 }
 

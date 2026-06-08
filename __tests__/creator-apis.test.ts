@@ -43,6 +43,7 @@ vi.mock('@/app/lib/repositories/script-repository', () => ({
   getScriptStatsForOwner: vi.fn(),
   recordDownload: vi.fn(),
   hashIdentifier: vi.fn(),
+  listVersionSummariesByIds: vi.fn(),
   ScriptConflictError: class extends Error {
     constructor(slug: string) {
       super(`A script with slug "${slug}" already exists`)
@@ -56,7 +57,17 @@ vi.mock('@/app/lib/auth/ownership', () => {
   return actual
 })
 
-import { listScriptsForOwner, findScriptBySlug, findScriptBySlugForOwner, createScript as createScriptRepo, updateScript as updateScriptRepo, deleteScript as deleteScriptRepo, getScriptStatsForOwner } from '@/app/lib/repositories/script-repository'
+import {
+  listScriptsForOwner,
+  findScriptBySlug,
+  findScriptBySlugForOwner,
+  createScript as createScriptRepo,
+  updateScript as updateScriptRepo,
+  deleteScript as deleteScriptRepo,
+  createVersion,
+  getLatestVersion,
+  getScriptStatsForOwner,
+} from '@/app/lib/repositories/script-repository'
 
 const mockedListScriptsForOwner = listScriptsForOwner as ReturnType<typeof vi.fn>
 const mockedFindScriptBySlug = findScriptBySlug as ReturnType<typeof vi.fn>
@@ -64,6 +75,8 @@ const mockedFindScriptBySlugForOwner = findScriptBySlugForOwner as ReturnType<ty
 const mockedCreateScriptRepo = createScriptRepo as ReturnType<typeof vi.fn>
 const mockedUpdateScriptRepo = updateScriptRepo as ReturnType<typeof vi.fn>
 const mockedDeleteScriptRepo = deleteScriptRepo as ReturnType<typeof vi.fn>
+const mockedCreateVersion = createVersion as ReturnType<typeof vi.fn>
+const mockedGetLatestVersion = getLatestVersion as ReturnType<typeof vi.fn>
 const mockedGetScriptStatsForOwner = getScriptStatsForOwner as ReturnType<typeof vi.fn>
 
 describe('Phase 3C Creator API Layer', () => {
@@ -210,9 +223,52 @@ describe('Phase 3C Creator API Layer', () => {
 
       const result = await updateScript('my-script', OWNER_A, { name: 'Updated Name' })
       expect(result.success).toBe(true)
+      expect(mockedCreateVersion).not.toHaveBeenCalled()
       if (result.success) {
         expect(result.script.name).toBe('Updated Name')
       }
+    })
+
+    it('replaces source content from an uploaded Lua file', async () => {
+      mockedFindScriptBySlugForOwner.mockResolvedValue(mockScriptRow({ creator_id: OWNER_A }))
+      mockedGetLatestVersion.mockResolvedValue({
+        id: 'version-uuid-1',
+        script_id: '00000000-0000-0000-0000-000000000001',
+        version: '1.0.0',
+        content: 'print("old")',
+        changelog: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+      })
+      mockedCreateVersion.mockResolvedValue({
+        id: 'version-uuid-2',
+        script_id: '00000000-0000-0000-0000-000000000001',
+        version: '1.0.1',
+        content: 'print("new")',
+        changelog: 'Uploaded file: main.lua',
+        created_at: '2026-01-02T00:00:00.000Z',
+      })
+      mockedUpdateScriptRepo.mockResolvedValue(mockScriptRow({
+        creator_id: OWNER_A,
+        current_version_id: 'version-uuid-2',
+      }))
+
+      const result = await updateScript('my-script', OWNER_A, {
+        content: 'print("new")',
+        sourceFilename: 'main.lua',
+      })
+
+      expect(result.success).toBe(true)
+      expect(mockedCreateVersion).toHaveBeenCalledWith({
+        script_id: '00000000-0000-0000-0000-000000000001',
+        version: '1.0.1',
+        content: 'print("new")',
+        changelog: 'Uploaded file: main.lua',
+      })
+      expect(mockedUpdateScriptRepo).toHaveBeenCalledWith(
+        'my-script',
+        { current_version_id: 'version-uuid-2' },
+        OWNER_A
+      )
     })
 
     it('returns 404 for foreign script update', async () => {

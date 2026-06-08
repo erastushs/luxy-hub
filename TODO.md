@@ -92,6 +92,11 @@ Last updated: 2026-06-08
 | 80 | **Code** | Phase 5D Reference Loader POC | `examples/reference-loader.ts` |
 | 81 | **Tests** | Phase 5D Payload Consumption Tests | `__tests__/delivery-payload-consumer.test.ts` |
 | 82 | **Docs** | Phase 5D Loader Integration Documentation | `PHASE5D_LOADER_INTEGRATION.md` |
+| 83 | **UI** | Phase 6A Lua Upload Workflow | `/dashboard/scripts/new`, `/dashboard/scripts/[slug]/edit` |
+| 84 | **UI** | Phase 6A Build Status Visibility | `BuildStatusBadge`, `BuildInfoPanel`, scripts table |
+| 85 | **Code** | Phase 6A Dashboard Build Visibility Service | `app/lib/services/dashboard-build-service.ts` |
+| 86 | **Tests** | Phase 6A Upload and Build Visibility Tests | `__tests__/source-file-validation.test.ts`, `__tests__/dashboard-build-service.test.ts` |
+| 87 | **Docs** | Phase 6A Dashboard V2 Documentation | `PHASE6A_DASHBOARD_V2.md` |
 
 ---
 
@@ -105,7 +110,7 @@ Last updated: 2026-06-08
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 6 | Production Loader Integration | Phase 5D |
+| 1 | Phase 6B | Production Loader Integration | Phase 6A |
 | 2 | Phase 7 | License & Key Management | Phase 6 |
 | 3 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
 | 4 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
@@ -115,16 +120,16 @@ Last updated: 2026-06-08
 ## Overall Completion
 
 ```text
-██████████████████████████████░░░░░░ 80%
+███████████████████████████████░░░░░ 82%
 
-Code & Docs:       98% complete  ████████████████████░
+Code & Docs:       99% complete  ████████████████████░
 Infrastructure:     10% complete  ██░░░░░░░░░░░░░░░░░░
 CDN Database:     100% complete  ████████████████████
 CDN API:          100% complete  ████████████████████
 Dashboard Backend: 100% complete  ████████████████████
 Dashboard UI:     100% complete  ████████████████████
 Secure Delivery:    85% complete  █████████████████░░░
-Loader Integration: 15% complete  ███░░░░░░░░░░░░░░░░░
+Loader Integration: 30% complete  ██████░░░░░░░░░░░░░░
 Key Management:      0% complete  ░░░░░░░░░░░░░░░░░░░░
 Operations:          0% complete  ░░░░░░░░░░░░░░░░░░░░
 Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░░░░░░
@@ -163,13 +168,14 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 5C | Secure Delivery API | Complete | 100% |
 | Phase 5D | Loader Integration POC | Complete | 100% |
 | Phase 5 | Secure Script Delivery | Foundation Complete / Production Cutover Pending | 85% |
-| Phase 6 | Loader Integration | POC Complete / Production Not Started | 15% |
+| Phase 6A | Dashboard V2 Upload + Build Visibility | Complete | 100% |
+| Phase 6 | Loader Integration | Dashboard V2 Complete / Production Loader Pending | 30% |
 | Phase 7 | License & Key Management | Not Started | 0% |
 | Phase 8 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 9 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 5D Complete — Transitioning to Phase 6
-> Phase 5A-D are complete: secure delivery architecture, pre-built payload builds, one-time delivery sessions, secure delivery APIs, payload consumer utilities, and reference loader POC. Latest validation: 89 tests pass, build passes, lint has 0 errors with 7 pre-existing warnings. Next: Phase 6 — Production Loader Integration.
+## Current Phase: Phase 6A Complete — Transitioning to Phase 6B
+> Phase 6A adds Lua/TXT upload workflows, replace-file version updates, dashboard build status visibility, safe build DTOs, and documentation. Latest validation: 98 tests pass, build passes, lint has 0 errors with 7 pre-existing warnings. Next: Phase 6B — Production Loader Integration.
 ---
 
 # Phase 1 — Infrastructure & Monitoring
@@ -475,6 +481,10 @@ Integrate LuxyHub delivery system with script loaders.
 - [x] Reference loader POC
 - [x] Payload validation/decryption/decompression utilities
 - [x] Temporary token exchange proven against Phase 5C API shape
+- [x] Dashboard Lua/TXT upload workflow
+- [x] Dashboard replace-file workflow using `script_versions.content`
+- [x] Dashboard build status visibility from `delivery_builds`
+- [x] Safe build info DTOs without ciphertext/hash exposure
 - [ ] Production loader validation flow
 - [ ] Production delivery authorization flow
 - [ ] Production session validation
@@ -484,10 +494,12 @@ Integrate LuxyHub delivery system with script loaders.
 
 Success Criteria:
 
-- Reference loader can consume secure payloads
-- Delivery flow validated
-- Production loader can retrieve scripts securely
-- Executor compatibility verified
+- [x] Reference loader can consume secure payloads
+- [x] Delivery flow validated
+- [x] Lua file upload works in dashboard
+- [x] Build status visible in dashboard
+- [ ] Production loader can retrieve scripts securely
+- [ ] Executor compatibility verified
 
 ---
 

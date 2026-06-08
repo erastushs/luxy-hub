@@ -2,22 +2,14 @@
 
 import { cn } from '@/app/lib/utils'
 import Link from 'next/link'
-import { Trash2 } from 'lucide-react'
+import { BarChart3, Edit, History, Trash2 } from 'lucide-react'
 import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
 import { formatDate } from '@/app/dashboard/lib/format-date'
-
-type Script = {
-  id: string
-  slug: string
-  name: string
-  description: string | null
-  visibility: string
-  created_at: string
-  updated_at: string
-}
+import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
+import type { DashboardScriptListItem } from '@/app/dashboard/lib/script-list-item'
 
 type ScriptTableProps = {
-  scripts: Script[]
+  scripts: DashboardScriptListItem[]
   onDeleteClick: (slug: string) => void
 }
 
@@ -28,16 +20,22 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
         <thead>
           <tr className="border-b border-zinc-800 bg-zinc-900/50">
             <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Name
+              Script Name
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
               Visibility
             </th>
+            <th className="hidden px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider md:table-cell">
+              Current Version
+            </th>
             <th className="hidden px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider sm:table-cell">
-              Updated
+              Build Status
+            </th>
+            <th className="hidden px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider xl:table-cell">
+              Last Updated
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              <span className="sr-only">Actions</span>
+              Actions
             </th>
           </tr>
         </thead>
@@ -68,17 +66,53 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
                     {vis.label}
                   </span>
                 </td>
-                <td className="hidden px-4 py-3 text-xs text-zinc-500 sm:table-cell">
+                <td className="hidden px-4 py-3 md:table-cell">
+                  <span className="font-mono text-xs text-zinc-400">
+                    {script.currentVersion ? `v${script.currentVersion.version}` : '—'}
+                  </span>
+                </td>
+                <td className="hidden px-4 py-3 sm:table-cell">
+                  <BuildStatusBadge status={script.buildInfo?.status ?? 'not_built'} />
+                  {script.buildInfo?.lastBuildAt && (
+                    <p className="mt-1 text-xs text-zinc-600">
+                      {formatDate(script.buildInfo.lastBuildAt)}
+                    </p>
+                  )}
+                </td>
+                <td className="hidden px-4 py-3 text-xs text-zinc-500 xl:table-cell">
                   {formatDate(script.updated_at)}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => onDeleteClick(script.slug)}
-                    className="rounded-md p-1.5 text-zinc-500 transition hover:bg-red-900/30 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-                    aria-label={`Delete ${script.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </button>
+                  <div className="flex justify-end gap-1">
+                    <Link
+                      href={`/dashboard/scripts/${script.slug}/edit`}
+                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                      aria-label={`Edit ${script.name}`}
+                    >
+                      <Edit className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                    <Link
+                      href={`/dashboard/versions/${script.slug}`}
+                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                      aria-label={`View versions for ${script.name}`}
+                    >
+                      <History className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                    <Link
+                      href="/dashboard/analytics"
+                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                      aria-label={`View analytics for ${script.name}`}
+                    >
+                      <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                    <button
+                      onClick={() => onDeleteClick(script.slug)}
+                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-red-900/30 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                      aria-label={`Delete ${script.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             )

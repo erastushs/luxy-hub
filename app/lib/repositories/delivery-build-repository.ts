@@ -27,6 +27,19 @@ export type DeliveryBuildRow = {
   updated_at: string
 }
 
+export type DeliveryBuildSummaryRow = {
+  id: string
+  script_id: string
+  version_id: string
+  build_status: DeliveryBuildStatus
+  build_version: string
+  payload_format_version: string
+  built_at: string | null
+  invalidated_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type CreateBuildParams = {
   scriptId: string
   versionId: string
@@ -63,6 +76,19 @@ const BUILD_SELECT = [
   'build_error_code',
   'build_error_message',
   'metadata',
+  'built_at',
+  'invalidated_at',
+  'created_at',
+  'updated_at',
+].join(', ')
+
+const BUILD_SUMMARY_SELECT = [
+  'id',
+  'script_id',
+  'version_id',
+  'build_status',
+  'build_version',
+  'payload_format_version',
   'built_at',
   'invalidated_at',
   'created_at',
@@ -143,6 +169,30 @@ export async function getBuildByVersion(versionId: string): Promise<DeliveryBuil
 
   if (error) return null
   return data as unknown as DeliveryBuildRow
+}
+
+export async function listLatestBuildSummariesByVersionIds(
+  versionIds: string[]
+): Promise<DeliveryBuildSummaryRow[]> {
+  const uniqueVersionIds = Array.from(new Set(versionIds.filter(Boolean)))
+  if (uniqueVersionIds.length === 0) return []
+
+  const { data, error } = await supabaseAdmin
+    .from('delivery_builds')
+    .select(BUILD_SUMMARY_SELECT)
+    .in('version_id', uniqueVersionIds)
+    .order('created_at', { ascending: false })
+
+  if (error) return []
+
+  const latestByVersion = new Map<string, DeliveryBuildSummaryRow>()
+  for (const row of (data ?? []) as unknown as DeliveryBuildSummaryRow[]) {
+    if (!latestByVersion.has(row.version_id)) {
+      latestByVersion.set(row.version_id, row)
+    }
+  }
+
+  return Array.from(latestByVersion.values())
 }
 
 export async function getBuildById(buildId: string): Promise<DeliveryBuildRow | null> {

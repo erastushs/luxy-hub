@@ -1,5 +1,10 @@
 import { getCurrentUser } from '@/app/lib/auth/session-auth'
-import { listCreatorScripts, type ScriptRow } from '@/app/lib/services/script-service'
+import { getDashboardBuildInfoForScripts } from '@/app/lib/services/dashboard-build-service'
+import {
+  listCreatorScripts,
+  listCurrentVersionSummariesForScripts,
+  type ScriptRow,
+} from '@/app/lib/services/script-service'
 import { ScriptsListClient } from './scripts-client'
 
 export default async function ScriptsPage({
@@ -28,10 +33,30 @@ export default async function ScriptsPage({
   const total = result.success ? result.total : 0
   const totalPages = Math.max(1, Math.ceil(total / limit))
   const error = result.success ? null : result.message
+  const [versionsResult, buildsByVersionId] = await Promise.all([
+    listCurrentVersionSummariesForScripts(user!.id, scripts),
+    getDashboardBuildInfoForScripts(user!.id, scripts),
+  ])
+
+  const versionsById = versionsResult.success ? versionsResult.versionsById : {}
+  const scriptItems = scripts.map((script) => {
+    const currentVersion = script.current_version_id
+      ? versionsById[script.current_version_id] ?? null
+      : null
+    const buildInfo = script.current_version_id
+      ? buildsByVersionId[script.current_version_id] ?? null
+      : null
+
+    return {
+      ...script,
+      currentVersion,
+      buildInfo,
+    }
+  })
 
   return (
     <ScriptsListClient
-      scripts={scripts}
+      scripts={scriptItems}
       total={total}
       page={page}
       totalPages={totalPages}

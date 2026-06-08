@@ -23,6 +23,7 @@ export async function createScriptAction(
     description: formData.get('description'),
     visibility: formData.get('visibility'),
     content: formData.get('content') || '--',
+    sourceFilename: formData.get('source_filename'),
     creatorId: user.id,
     creatorRole: user.role,
   })
@@ -49,6 +50,8 @@ export async function updateScriptAction(
       name: formData.get('name'),
       description: formData.get('description'),
       visibility: formData.get('visibility'),
+      content: formData.get('content') || undefined,
+      sourceFilename: formData.get('source_filename'),
     },
     user.role
   )

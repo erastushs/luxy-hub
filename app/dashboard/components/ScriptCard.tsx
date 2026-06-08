@@ -1,29 +1,22 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { cn } from '@/app/lib/utils'
-import { Trash2, Edit } from 'lucide-react'
+import { BarChart3, Trash2, Edit, History } from 'lucide-react'
 import { deleteScriptAction } from '@/app/actions/scripts'
 import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
 import { formatDate } from '@/app/dashboard/lib/format-date'
 import { useState } from 'react'
-
-type Script = {
-  id: string
-  slug: string
-  name: string
-  description: string | null
-  visibility: string
-  created_at: string
-  updated_at: string
-}
+import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
+import type { DashboardScriptListItem } from '@/app/dashboard/lib/script-list-item'
 
 export function ScriptCard({
   script,
   onDelete,
 }: {
-  script: Script
+  script: DashboardScriptListItem
   onDelete: (slug: string) => void
 }) {
   const router = useRouter()
@@ -79,6 +72,20 @@ export function ScriptCard({
           >
             <Edit className="h-4 w-4" aria-hidden="true" />
           </button>
+          <Link
+            href={`/dashboard/versions/${script.slug}`}
+            className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+            aria-label={`View versions for ${script.name}`}
+          >
+            <History className="h-4 w-4" aria-hidden="true" />
+          </Link>
+          <Link
+            href="/dashboard/analytics"
+            className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+            aria-label={`View analytics for ${script.name}`}
+          >
+            <BarChart3 className="h-4 w-4" aria-hidden="true" />
+          </Link>
           <button
             onClick={handleDelete}
             disabled={deleting}
@@ -90,10 +97,27 @@ export function ScriptCard({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-3 text-xs text-zinc-600">
-        <span>Created {formatDate(script.created_at)}</span>
+      <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+        <div>
+          <p className="text-zinc-600">Version</p>
+          <p className="mt-1 font-mono text-zinc-400">
+            {script.currentVersion ? `v${script.currentVersion.version}` : '—'}
+          </p>
+        </div>
+        <div>
+          <p className="text-zinc-600">Build</p>
+          <div className="mt-1">
+            <BuildStatusBadge status={script.buildInfo?.status ?? 'not_built'} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-zinc-600">
         {script.updated_at !== script.created_at && (
           <span>Updated {formatDate(script.updated_at)}</span>
+        )}
+        {script.buildInfo?.lastBuildAt && (
+          <span>Built {formatDate(script.buildInfo.lastBuildAt)}</span>
         )}
       </div>
     </div>

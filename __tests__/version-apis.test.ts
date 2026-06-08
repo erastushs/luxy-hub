@@ -32,6 +32,7 @@ vi.mock('@/app/lib/repositories/script-repository', () => {
     recordDownload: vi.fn(),
     hashIdentifier: vi.fn(),
     listVersionsForScript: vi.fn(),
+    listVersionSummariesByIds: vi.fn(),
     getVersionById: vi.fn(),
     getCreatorAnalyticsOverview: vi.fn(),
     getScriptAnalyticsForOwner: vi.fn(),

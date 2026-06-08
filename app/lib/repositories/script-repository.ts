@@ -298,6 +298,19 @@ export async function listVersionsForScript(scriptId: string, limit: number, off
   return { versions: data ?? [], total: count ?? 0 }
 }
 
+export async function listVersionSummariesByIds(versionIds: string[]): Promise<VersionSummaryRow[]> {
+  const uniqueVersionIds = Array.from(new Set(versionIds.filter(Boolean)))
+  if (uniqueVersionIds.length === 0) return []
+
+  const { data, error } = await supabaseAdmin
+    .from('script_versions')
+    .select('id, script_id, version, changelog, created_at')
+    .in('id', uniqueVersionIds)
+
+  if (error) return []
+  return data ?? []
+}
+
 export async function getVersionById(versionId: string): Promise<VersionRow | null> {
   const { data, error } = await supabaseAdmin
     .from('script_versions')

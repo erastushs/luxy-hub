@@ -12,10 +12,10 @@ import { EmptyState } from '@/app/dashboard/components/EmptyState'
 import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
 import { Pagination } from '@/app/dashboard/components/Pagination'
 import { deleteScriptAction } from '@/app/actions/scripts'
-import type { ScriptRow } from '@/app/lib/services/script-service'
+import type { DashboardScriptListItem } from '@/app/dashboard/lib/script-list-item'
 
 type ScriptsListClientProps = {
-  scripts: ScriptRow[]
+  scripts: DashboardScriptListItem[]
   total: number
   page: number
   totalPages: number
@@ -34,7 +34,7 @@ export function ScriptsListClient({
   error,
 }: ScriptsListClientProps) {
   const router = useRouter()
-  const [scripts, setScripts] = useState<ScriptRow[]>(initialScripts)
+  const [scripts, setScripts] = useState<DashboardScriptListItem[]>(initialScripts)
   const [deleteTarget, setDeleteTarget] = useState<{ name: string; slug: string } | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 

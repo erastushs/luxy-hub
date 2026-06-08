@@ -1,12 +1,38 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState, type FormEvent } from 'react'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Clipboard, UploadCloud } from 'lucide-react'
 import { createScriptAction } from '@/app/actions/scripts'
+import { cn } from '@/app/lib/utils'
+import { FileUploadZone } from '@/app/dashboard/components/FileUploadZone'
+import type { SourceFileMetadata } from '@/app/dashboard/lib/source-file'
+
+type SourceMode = 'upload' | 'paste'
 
 export default function NewScriptPage() {
   const [state, formAction, isPending] = useActionState(createScriptAction, { success: false })
+  const [sourceMode, setSourceMode] = useState<SourceMode>('upload')
+  const [content, setContent] = useState('')
+  const [uploadedFile, setUploadedFile] = useState<SourceFileMetadata | null>(null)
+  const [clientError, setClientError] = useState<string | null>(null)
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    setClientError(null)
+
+    if (sourceMode === 'upload' && !uploadedFile) {
+      event.preventDefault()
+      setClientError('Upload a .lua or .txt file')
+      return
+    }
+
+    if (!content.trim()) {
+      event.preventDefault()
+      setClientError('Content is required')
+    }
+  }
+
+  const displayError = clientError || (!state?.success ? state?.message : null)
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -23,10 +49,10 @@ export default function NewScriptPage() {
         </div>
       </div>
 
-      <form action={formAction} className="space-y-6">
-        {state?.message && !state.success && (
+      <form action={formAction} onSubmit={handleSubmit} className="space-y-6">
+        {displayError && (
           <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
-            {state.message}
+            {displayError}
           </div>
         )}
 
@@ -77,19 +103,70 @@ export default function NewScriptPage() {
           />
         </div>
 
-        <div>
-          <label htmlFor="content" className="block text-sm font-medium text-zinc-300">
-            Content
-          </label>
-          <p className="mt-1 text-xs text-zinc-500">Script body. Max 62 KB.</p>
-          <textarea
-            id="content"
-            name="content"
-            rows={8}
-            required
-            className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 font-mono text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
-            placeholder="print('hello')"
-          />
+        <input type="hidden" name="content" value={content} />
+        <input type="hidden" name="source_filename" value={uploadedFile?.name ?? ''} />
+
+        <div className="space-y-3">
+          <div className="flex rounded-lg border border-zinc-800 bg-zinc-900 p-1">
+            <button
+              type="button"
+              onClick={() => setSourceMode('upload')}
+              className={cn(
+                'inline-flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition',
+                sourceMode === 'upload'
+                  ? 'bg-zinc-800 text-white'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              )}
+            >
+              <UploadCloud className="h-4 w-4" aria-hidden="true" />
+              Upload File
+            </button>
+            <button
+              type="button"
+              onClick={() => setSourceMode('paste')}
+              className={cn(
+                'inline-flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition',
+                sourceMode === 'paste'
+                  ? 'bg-zinc-800 text-white'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              )}
+            >
+              <Clipboard className="h-4 w-4" aria-hidden="true" />
+              Paste Source
+            </button>
+          </div>
+
+          {sourceMode === 'upload' ? (
+            <FileUploadZone
+              onFileReady={({ content: fileContent, metadata }) => {
+                setContent(fileContent)
+                setUploadedFile(metadata)
+                setClientError(null)
+              }}
+              onFileRejected={() => {
+                setContent('')
+                setUploadedFile(null)
+              }}
+            />
+          ) : (
+            <div>
+              <label htmlFor="source-content" className="block text-sm font-medium text-zinc-300">
+                Content
+              </label>
+              <p className="mt-1 text-xs text-zinc-500">Script body. Max 62 KB.</p>
+              <textarea
+                id="source-content"
+                rows={8}
+                value={content}
+                onChange={(event) => {
+                  setContent(event.target.value)
+                  setUploadedFile(null)
+                }}
+                className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 font-mono text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                placeholder="print('hello')"
+              />
+            </div>
+          )}
         </div>
 
         <div>

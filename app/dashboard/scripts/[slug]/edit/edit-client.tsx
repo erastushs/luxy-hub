@@ -1,14 +1,30 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { updateScriptAction } from '@/app/actions/scripts'
-import type { ScriptRow } from '@/app/lib/services/script-service'
+import { FileUploadZone } from '@/app/dashboard/components/FileUploadZone'
+import { BuildInfoPanel } from '@/app/dashboard/components/BuildInfoPanel'
+import type { DashboardBuildInfo } from '@/app/lib/services/dashboard-build-service'
+import type { ScriptRow, VersionSummaryRow } from '@/app/lib/services/script-service'
+import type { SourceFileMetadata } from '@/app/dashboard/lib/source-file'
 
-export default function EditScriptClient({ script }: { script: ScriptRow }) {
+export default function EditScriptClient({
+  script,
+  currentVersion,
+  buildInfo,
+  lastUploadedFilename,
+}: {
+  script: ScriptRow
+  currentVersion: VersionSummaryRow | null
+  buildInfo: DashboardBuildInfo | null
+  lastUploadedFilename: string | null
+}) {
   const updateWithSlug = updateScriptAction.bind(null, script.slug)
   const [state, formAction, isPending] = useActionState(updateWithSlug, { success: false })
+  const [replacementContent, setReplacementContent] = useState('')
+  const [replacementFile, setReplacementFile] = useState<SourceFileMetadata | null>(null)
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -21,11 +37,19 @@ export default function EditScriptClient({ script }: { script: ScriptRow }) {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-white">Edit Script</h1>
-          <p className="mt-1 text-sm text-zinc-400">/{script.slug}</p>
+          <p className="mt-1 text-sm text-zinc-400">
+            /{script.slug}
+            {currentVersion && (
+              <span className="ml-2 text-xs text-zinc-600">v{currentVersion.version}</span>
+            )}
+          </p>
         </div>
       </div>
 
       <form action={formAction} className="space-y-6">
+        <input type="hidden" name="content" value={replacementContent} />
+        <input type="hidden" name="source_filename" value={replacementFile?.name ?? ''} />
+
         {state?.message && !state.success && (
           <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">
             {state.message}
@@ -77,11 +101,27 @@ export default function EditScriptClient({ script }: { script: ScriptRow }) {
           </select>
         </div>
 
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3">
-          <p className="text-xs text-zinc-500">
-            Content editing and version management are available in the version history section.
-          </p>
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-sm font-medium text-zinc-300">Replace Lua File</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Current content remains unchanged unless a replacement file is selected.
+            </p>
+          </div>
+          <FileUploadZone
+            fallbackName={replacementFile ? null : lastUploadedFilename}
+            onFileReady={({ content, metadata }) => {
+              setReplacementContent(content)
+              setReplacementFile(metadata)
+            }}
+            onFileRejected={() => {
+              setReplacementContent('')
+              setReplacementFile(null)
+            }}
+          />
         </div>
+
+        <BuildInfoPanel build={buildInfo} />
 
         <div className="flex items-center gap-3">
           <button
