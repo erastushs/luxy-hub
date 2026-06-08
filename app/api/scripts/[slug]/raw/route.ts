@@ -35,7 +35,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'public, max-age=300, s-maxage=3600',
+        'Cache-Control': isAuthenticated ? 'no-store' : 'public, max-age=300, s-maxage=3600',
       },
     })
   } catch {

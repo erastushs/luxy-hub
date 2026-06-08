@@ -22,7 +22,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { key } = await req.json()
+    const body = await req.json().catch(() => null)
+    const { key } = body || {}
+
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json(
+        { success: false, message: 'Invalid JSON body' },
+        { status: 400 }
+      )
+    }
 
     const result = await validateKey(key)
 

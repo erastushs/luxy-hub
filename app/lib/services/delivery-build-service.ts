@@ -37,7 +37,6 @@ class BuildInputError extends Error {
 
 function getPayloadSecret(): string {
   const secret = process.env.DELIVERY_PAYLOAD_SECRET
-    || process.env.CRON_SECRET
     || process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (secret) return secret

@@ -2,7 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/app/lib/rate-limiter'
 import { logEvent } from '@/app/lib/logger'
 import { getCurrentUser, requireAuth, AuthError } from '@/app/lib/auth/session-auth'
-import { getVisibleScript, updateScript, deleteScript } from '@/app/lib/services/script-service'
+import { getVisibleScript, updateScript, deleteScript, type ScriptRow } from '@/app/lib/services/script-service'
+
+function toPublicScript(script: ScriptRow) {
+  return {
+    slug: script.slug,
+    name: script.name,
+    description: script.description,
+    visibility: script.visibility,
+    created_at: script.created_at,
+    updated_at: script.updated_at,
+  }
+}
 
 export async function GET(
   req: NextRequest,
@@ -37,7 +48,10 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ success: true, script: result.script })
+    return NextResponse.json({
+      success: true,
+      script: actor ? result.script : toPublicScript(result.script),
+    })
   } catch {
     return NextResponse.json(
       { success: false, message: 'Failed to fetch script' },

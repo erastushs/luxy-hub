@@ -2,7 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/app/lib/rate-limiter'
 import { logEvent } from '@/app/lib/logger'
 import { requireAuth, AuthError } from '@/app/lib/auth/session-auth'
-import { listPublicScripts, createScript } from '@/app/lib/services/script-service'
+import { listPublicScripts, createScript, type ScriptRow } from '@/app/lib/services/script-service'
+
+function toPublicScript(script: ScriptRow) {
+  return {
+    slug: script.slug,
+    name: script.name,
+    description: script.description,
+    visibility: script.visibility,
+    created_at: script.created_at,
+    updated_at: script.updated_at,
+  }
+}
 
 export async function GET(req: NextRequest) {
   const clientIP = getClientIP(req)
@@ -38,7 +49,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      scripts: result.scripts,
+      scripts: result.scripts.map(toPublicScript),
       total: result.total,
       limit: typeof limit === 'string' ? parseInt(limit, 10) || 20 : 20,
       offset: typeof offset === 'string' ? parseInt(offset, 10) || 0 : 0,

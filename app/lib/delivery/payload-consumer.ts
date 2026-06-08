@@ -35,7 +35,6 @@ export class PayloadConsumerError extends Error {
 function getPayloadSecret(explicitSecret?: string): string {
   const secret = explicitSecret
     || process.env.DELIVERY_PAYLOAD_SECRET
-    || process.env.CRON_SECRET
     || process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (secret) return secret

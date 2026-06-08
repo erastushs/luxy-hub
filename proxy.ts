@@ -7,9 +7,7 @@ const API_MAX_BODY = 64 * 1024
 export async function proxy(request: NextRequest) {
   if (request.method === 'OPTIONS' && request.nextUrl.pathname.startsWith('/api/')) {
     const response = new NextResponse(null, { status: 204 })
-    response.headers.set('Access-Control-Allow-Origin', '*')
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    setCorsHeaders(request, response)
     return response
   }
 
@@ -29,9 +27,7 @@ export async function proxy(request: NextRequest) {
   const response = await updateSession(request)
 
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    response.headers.set('Access-Control-Allow-Origin', '*')
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    setCorsHeaders(request, response)
   }
 
   const csp = [
@@ -64,4 +60,52 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: '/((?!_next/static|_next/image|favicon.ico).*)',
+}
+
+function setCorsHeaders(request: NextRequest, response: NextResponse) {
+  const origin = request.headers.get('origin')
+  const allowOrigin = getAllowedCorsOrigin(request, origin)
+
+  if (allowOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', allowOrigin)
+  }
+
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+}
+
+function getAllowedCorsOrigin(request: NextRequest, origin: string | null): string | null {
+  if (!isSensitiveCorsPath(request.nextUrl.pathname)) {
+    return '*'
+  }
+
+  if (!origin) {
+    return null
+  }
+
+  return isTrustedOrigin(request, origin) ? origin : null
+}
+
+function isSensitiveCorsPath(pathname: string): boolean {
+  if (pathname === '/api/validate' || pathname === '/api/cleanup') {
+    return true
+  }
+
+  if (pathname.startsWith('/api/admin/')) {
+    return true
+  }
+
+  return pathname.startsWith('/api/scripts/') && pathname.endsWith('/raw')
+}
+
+function isTrustedOrigin(request: NextRequest, origin: string): boolean {
+  try {
+    const parsedOrigin = new URL(origin)
+    const requestOrigin = request.nextUrl.origin
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+
+    return origin === requestOrigin || (siteUrl ? parsedOrigin.origin === new URL(siteUrl).origin : false)
+  } catch {
+    return false
+  }
 }

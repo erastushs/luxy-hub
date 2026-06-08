@@ -75,7 +75,7 @@ export type ListScriptsResult = {
 }
 
 function getPepper(): string {
-  return process.env.ANALYTICS_PEPPER || process.env.CRON_SECRET || 'dev-pepper'
+  return process.env.ANALYTICS_PEPPER || 'dev-pepper'
 }
 
 export async function hashIdentifier(value: string): Promise<string> {
