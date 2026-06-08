@@ -2,11 +2,15 @@
 
 import { useActionState, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Hammer } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Hammer } from 'lucide-react'
 import { updateScriptAction } from '@/app/actions/scripts'
 import { FileUploadZone } from '@/app/dashboard/components/FileUploadZone'
 import { BuildInfoPanel } from '@/app/dashboard/components/BuildInfoPanel'
+import { CopyLoaderButton } from '@/app/dashboard/components/CopyLoaderButton'
+import { LoaderSnippetCard } from '@/app/dashboard/components/LoaderSnippetCard'
 import { RebuildButton } from '@/app/dashboard/components/RebuildButton'
+import { ScriptMetadataSummaryCard } from '@/app/dashboard/components/ScriptMetadataSummaryCard'
+import { Tooltip } from '@/app/dashboard/components/Tooltip'
 import type { DashboardBuildInfo } from '@/app/lib/services/dashboard-build-service'
 import type { ScriptRow, VersionSummaryRow } from '@/app/lib/services/script-service'
 import type { SourceFileMetadata } from '@/app/dashboard/lib/source-file'
@@ -28,28 +32,56 @@ export default function EditScriptClient({
   const [replacementFile, setReplacementFile] = useState<SourceFileMetadata | null>(null)
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard/scripts"
-          className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-white">Edit Script</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            /{script.slug}
-            {currentVersion && (
-              <span className="ml-2 text-xs text-zinc-600">v{currentVersion.version}</span>
-            )}
-          </p>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <Tooltip text="Back to Scripts">
+            <Link
+              href="/dashboard/scripts"
+              className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+              aria-label="Back to scripts"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          </Tooltip>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Edit Script</h1>
+            <p className="mt-1 text-sm text-zinc-400">
+              /{script.slug}
+              {currentVersion && (
+                <span className="ml-2 text-xs text-zinc-600">v{currentVersion.version}</span>
+              )}
+            </p>
+          </div>
+        </div>
+        <CopyLoaderButton slug={script.slug} scriptName={script.name} />
+      </div>
+
+      <ScriptMetadataSummaryCard
+        slug={script.slug}
+        currentVersion={currentVersion}
+        buildInfo={buildInfo}
+      />
+
+      <LoaderSnippetCard slug={script.slug} />
+
+      <div className="rounded-lg border border-amber-900/50 bg-amber-950/10 p-4">
+        <div className="flex gap-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" aria-hidden="true" />
+          <div>
+            <h2 className="text-sm font-semibold text-amber-300">Slug Safety</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Loader URLs are tied to the script slug. Slugs are fixed after creation in the current dashboard, so existing loader users keep the same URL.
+            </p>
+          </div>
         </div>
       </div>
 
       <form action={formAction} className="space-y-6">
-        <input type="hidden" name="content" value={replacementContent} />
-        <input type="hidden" name="source_filename" value={replacementFile?.name ?? ''} />
+        <div>
+          <input type="hidden" name="content" value={replacementContent} />
+          <input type="hidden" name="source_filename" value={replacementFile?.name ?? ''} />
+        </div>
 
         {state?.message && !state.success && (
           <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-400">

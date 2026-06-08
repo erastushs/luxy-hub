@@ -19,6 +19,8 @@ export function RebuildButton({ slug }: RebuildButtonProps) {
           type="submit"
           disabled={isPending}
           className="inline-flex items-center gap-2 rounded-lg border border-red-700/50 bg-red-600/10 px-3 py-2 text-sm font-semibold text-red-300 transition hover:border-red-600 hover:bg-red-600/20 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Rebuild latest version"
+          title="Rebuild latest version"
         >
           <Hammer className="h-4 w-4" aria-hidden="true" />
           {isPending ? 'Rebuilding...' : 'Rebuild'}

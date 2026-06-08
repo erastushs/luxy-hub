@@ -6,6 +6,8 @@ import { BarChart3, Edit, Hammer, History, Trash2 } from 'lucide-react'
 import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
 import { formatDate } from '@/app/dashboard/lib/format-date'
 import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
+import { CopyLoaderButton } from '@/app/dashboard/components/CopyLoaderButton'
+import { Tooltip } from '@/app/dashboard/components/Tooltip'
 import type { DashboardScriptListItem } from '@/app/dashboard/lib/script-list-item'
 
 type ScriptTableProps = {
@@ -84,41 +86,53 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-1">
-                    <Link
-                      href={`/dashboard/scripts/${script.slug}/edit`}
-                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-                      aria-label={`Edit ${script.name}`}
-                    >
-                      <Edit className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                    <Link
-                      href={`/dashboard/scripts/${script.slug}/builds`}
-                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-                      aria-label={`View builds for ${script.name}`}
-                    >
-                      <Hammer className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                    <Link
-                      href={`/dashboard/versions/${script.slug}`}
-                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-                      aria-label={`View versions for ${script.name}`}
-                    >
-                      <History className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                    <Link
-                      href="/dashboard/analytics"
-                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-                      aria-label={`View analytics for ${script.name}`}
-                    >
-                      <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                    <button
-                      onClick={() => onDeleteClick(script.slug)}
-                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-red-900/30 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-                      aria-label={`Delete ${script.name}`}
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    <Tooltip text="Edit">
+                      <Link
+                        href={`/dashboard/scripts/${script.slug}/edit`}
+                        className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                        aria-label={`Edit ${script.name}`}
+                      >
+                        <Edit className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </Tooltip>
+                    <CopyLoaderButton slug={script.slug} scriptName={script.name} variant="icon" />
+                    <Tooltip text="Build History">
+                      <Link
+                        href={`/dashboard/scripts/${script.slug}/builds`}
+                        className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                        aria-label={`View builds for ${script.name}`}
+                      >
+                        <Hammer className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </Tooltip>
+                    <Tooltip text="Versions">
+                      <Link
+                        href={`/dashboard/versions/${script.slug}`}
+                        className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                        aria-label={`View versions for ${script.name}`}
+                      >
+                        <History className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </Tooltip>
+                    <Tooltip text="Analytics">
+                      <Link
+                        href="/dashboard/analytics"
+                        className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                        aria-label={`View analytics for ${script.name}`}
+                      >
+                        <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </Tooltip>
+                    <Tooltip text="Delete">
+                      <button
+                        type="button"
+                        onClick={() => onDeleteClick(script.slug)}
+                        className="rounded-md p-1.5 text-zinc-500 transition hover:bg-red-900/30 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                        aria-label={`Delete ${script.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </Tooltip>
                   </div>
                 </td>
               </tr>

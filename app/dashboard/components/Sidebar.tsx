@@ -10,10 +10,10 @@ import {
   History,
   UserCircle,
   LogOut,
-  X,
   type LucideIcon,
 } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
+import { Tooltip } from '@/app/dashboard/components/Tooltip'
 import { useState } from 'react'
 
 type NavItem = {
@@ -100,15 +100,18 @@ export function Sidebar() {
       )}
 
       <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4 lg:hidden">
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-          aria-label="Open navigation menu"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-sm font-bold text-white">
-            L
-          </div>
-        </button>
+        <Tooltip text="Open Menu" side="bottom">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+            aria-label="Open navigation menu"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-sm font-bold text-white">
+              L
+            </div>
+          </button>
+        </Tooltip>
         <span className="text-sm font-medium text-zinc-200">LuxyHub</span>
         <div className="w-8" />
       </div>

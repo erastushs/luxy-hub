@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { VersionList } from '@/app/dashboard/components/VersionList'
 import { Pagination } from '@/app/dashboard/components/Pagination'
+import { Tooltip } from '@/app/dashboard/components/Tooltip'
 import type { VersionSummaryRow, ScriptRow } from '@/app/lib/services/script-service'
 import type { DashboardBuildListItem } from '@/app/lib/services/build-operations-service'
 
@@ -40,13 +41,15 @@ export default function VersionsHistoryClient({
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard/versions"
-          className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-          aria-label="Back to script list"
-        >
-          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-        </Link>
+        <Tooltip text="Back to Versions">
+          <Link
+            href="/dashboard/versions"
+            className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+            aria-label="Back to script list"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        </Tooltip>
         <div>
           <h1 className="text-2xl font-bold text-white">Version History</h1>
           <p className="mt-1 text-sm text-zinc-400">

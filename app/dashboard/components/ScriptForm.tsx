@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
+import { AlertTriangle } from 'lucide-react'
 
 type ScriptFormData = {
   name: string
@@ -96,6 +97,12 @@ export function ScriptForm({
             Slug
           </label>
           <p className="mt-1 text-xs text-zinc-500">Lowercase letters, numbers, and hyphens. 3-64 characters.</p>
+          <div className="mt-2 flex gap-2 rounded-lg border border-amber-900/50 bg-amber-950/10 px-3 py-2 text-xs text-amber-200">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+            <p>
+              Changing the slug will change your loader URL and may break existing users.
+            </p>
+          </div>
           <input
             id="slug"
             name="slug"

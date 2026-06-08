@@ -113,6 +113,10 @@ Last updated: 2026-06-08
 | 101 | **Code** | Phase 6D Delivery Fetch Context | `POST /api/delivery/fetch` context response |
 | 102 | **Tests** | Phase 6D Loader Tests | `__tests__/loader-api.test.ts`, `__tests__/loader-runtime-v1.test.ts` |
 | 103 | **Docs** | Phase 6D Production Loader Documentation | `PHASE6D_PRODUCTION_LOADER.md` |
+| 104 | **UI** | Phase 6E Dashboard Action Tooltips | `Tooltip`, dashboard icon actions |
+| 105 | **UI** | Phase 6E Loader Copy Workflow | `CopyLoaderButton`, `LoaderSnippetCard`, script metadata summary |
+| 106 | **Tests** | Phase 6E Dashboard UX Polish Tests | `__tests__/dashboard-ux-polish.test.tsx` |
+| 107 | **Docs** | Phase 6E UX Polish Documentation | `PHASE6E_UX_POLISH.md` |
 
 ---
 
@@ -187,13 +191,14 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 6B | Build Operations + Delivery Visibility | Complete | 100% |
 | Phase 6C | Build Automation | Complete | 100% |
 | Phase 6D | Production Loader | Complete | 100% |
-| Phase 6 | Loader Integration | Production Loader Complete / Executor Verification Pending | 75% |
+| Phase 6E | Dashboard UX Polish | Complete | 100% |
+| Phase 6 | Loader Integration | Production Loader + UX Polish Complete / Executor Verification Pending | 80% |
 | Phase 7 | License & Key Management | Not Started | 0% |
 | Phase 8 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 9 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 6D Complete — Transitioning to Phase 7
-> Phase 6D adds the loader bootstrap endpoint, safe delivery fetch context, loader-runtime-v1 validation, standardized AAD handling, and production loader documentation. Next: Phase 7 — License & Key Management.
+## Current Phase: Phase 6E Complete — Transitioning to Phase 7
+> Phase 6E adds dashboard action tooltips, loader copy workflow, loader snippet visibility, slug safety guidance, and accessibility polish. Next: Phase 7 — License & Key Management.
 ---
 
 # Phase 1 — Infrastructure & Monitoring
@@ -517,6 +522,11 @@ Integrate LuxyHub delivery system with script loaders.
 - [x] Production session validation
 - [x] Loader context strategy for `version_id` + `source_sha256`
 - [x] Script bootstrap architecture
+- [x] Dashboard action tooltips and accessible icon labels
+- [x] Copy Loader action in script table, script cards, and edit page
+- [x] Loader snippet card and script metadata summary card
+- [x] Slug safety guidance for loader URLs
+- [x] Dashboard UX polish documentation and tests
 - [ ] Executor compatibility testing
 
 Success Criteria:
@@ -531,6 +541,10 @@ Success Criteria:
 - [x] Manual rebuild remains available
 - [x] Build lifecycle is consistent
 - [x] Production loader can retrieve scripts securely
+- [x] Dashboard icon actions are understandable
+- [x] Loader URL is easy to discover and copy
+- [x] Slug risks are clearly communicated
+- [x] No delivery/security behavior changed by UX polish
 - [ ] Executor compatibility verified
 
 ---

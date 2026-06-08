@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/app/lib/auth/session-auth'
 import { getBuildDetails } from '@/app/lib/services/build-operations-service'
 import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
 import { RebuildButton } from '@/app/dashboard/components/RebuildButton'
+import { Tooltip } from '@/app/dashboard/components/Tooltip'
 import { formatDateTime } from '@/app/dashboard/lib/format-date'
 
 function dateOrDash(value: string | null): string {
@@ -35,13 +36,15 @@ export default async function BuildDetailPage({
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <Link
-            href={`/dashboard/scripts/${result.script.slug}/builds`}
-            className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
-            aria-label="Back to build history"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Link>
+          <Tooltip text="Back to Builds">
+            <Link
+              href={`/dashboard/scripts/${result.script.slug}/builds`}
+              className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+              aria-label="Back to build history"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          </Tooltip>
           <div>
             <h1 className="text-2xl font-bold text-white">Build Detail</h1>
             <p className="mt-1 font-mono text-xs text-zinc-500">{result.build.buildId}</p>

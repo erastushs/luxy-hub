@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/app/lib/auth/session-auth'
 import { listBuildHistory } from '@/app/lib/services/build-operations-service'
 import { BuildHistoryTable } from '@/app/dashboard/components/BuildHistoryTable'
 import { RebuildButton } from '@/app/dashboard/components/RebuildButton'
+import { Tooltip } from '@/app/dashboard/components/Tooltip'
 
 function pageHref(slug: string, page: number): string {
   return `/dashboard/scripts/${slug}/builds?page=${page}`
@@ -38,13 +39,15 @@ export default async function ScriptBuildsPage({
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/scripts"
-            className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
-            aria-label="Back to scripts"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Link>
+          <Tooltip text="Back to Scripts">
+            <Link
+              href="/dashboard/scripts"
+              className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+              aria-label="Back to scripts"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          </Tooltip>
           <div>
             <h1 className="text-2xl font-bold text-white">Build History</h1>
             <p className="mt-1 text-sm text-zinc-400">

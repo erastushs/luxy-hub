@@ -2,10 +2,11 @@
 
 import { useActionState, useState, type FormEvent } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Clipboard, UploadCloud } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Clipboard, UploadCloud } from 'lucide-react'
 import { createScriptAction } from '@/app/actions/scripts'
 import { cn } from '@/app/lib/utils'
 import { FileUploadZone } from '@/app/dashboard/components/FileUploadZone'
+import { Tooltip } from '@/app/dashboard/components/Tooltip'
 import type { SourceFileMetadata } from '@/app/dashboard/lib/source-file'
 
 type SourceMode = 'upload' | 'paste'
@@ -37,12 +38,15 @@ export default function NewScriptPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard/scripts"
-          className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
+        <Tooltip text="Back to Scripts">
+          <Link
+            href="/dashboard/scripts"
+            className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+            aria-label="Back to scripts"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        </Tooltip>
         <div>
           <h1 className="text-2xl font-bold text-white">New Script</h1>
           <p className="mt-1 text-sm text-zinc-400">Create a new script</p>
@@ -78,6 +82,12 @@ export default function NewScriptPage() {
           <p className="mt-1 text-xs text-zinc-500">
             Lowercase letters, numbers, and hyphens. 3-64 characters.
           </p>
+          <div className="mt-2 flex gap-2 rounded-lg border border-amber-900/50 bg-amber-950/10 px-3 py-2 text-xs text-amber-200">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+            <p>
+              Choose carefully. This slug becomes the loader URL and changing it later would break existing users.
+            </p>
+          </div>
           <input
             id="slug"
             name="slug"
