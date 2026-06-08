@@ -125,7 +125,7 @@ delivery session service
 return encrypted payload
 ```
 
-The fetch response returns encrypted payload data only. It never reads or returns `script_versions.content`.
+The fetch response returns encrypted payload data and, as of Phase 6D, safe loader context. It never reads or returns `script_versions.content`.
 
 ## 4. Endpoint Catalog
 
@@ -178,6 +178,12 @@ Success:
 ```json
 {
   "payload": "...",
+  "context": {
+    "build_id": "...",
+    "version_id": "...",
+    "source_sha256": "...",
+    "payload_sha256": "..."
+  },
   "payload_format_version": "inline-json-v1",
   "build_version": "delivery-build-v1"
 }
@@ -194,6 +200,7 @@ Failure:
 
 Notes:
 
+- Phase 6D adds safe loader context to the fetch response.
 - Expired, missing, malformed, reused, and build-missing tokens share the same response.
 - The session is consumed before the payload response is returned.
 - Successful responses use `Cache-Control: no-store`.

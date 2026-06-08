@@ -23,6 +23,7 @@ const WINDOW_MS: Record<string, number> = {
   DASHBOARD_VERSIONS_GET: 60_000,
   DELIVERY_SESSION: 60_000,
   DELIVERY_FETCH: 60_000,
+  LOADER_BOOTSTRAP: 60_000,
 }
 
 const MAX_REQUESTS: Record<string, number> = {
@@ -48,6 +49,7 @@ const MAX_REQUESTS: Record<string, number> = {
   DASHBOARD_VERSIONS_GET: 60,
   DELIVERY_SESSION: 20,
   DELIVERY_FETCH: 40,
+  LOADER_BOOTSTRAP: 60,
 }
 
 export type LimitKey = keyof typeof WINDOW_MS

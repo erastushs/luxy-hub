@@ -22,10 +22,18 @@ export type ValidateDeliverySessionResult =
   | { success: true; session: DeliverySessionRow; build: DeliveryBuildRow }
   | { success: false; message: string; status: number }
 
+export type DeliveryFetchContext = {
+  build_id: string
+  version_id: string
+  source_sha256: string
+  payload_sha256: string
+}
+
 export type ConsumeDeliverySessionResult =
   | {
       success: true
       payload: string
+      context: DeliveryFetchContext
       payload_format_version: string
       build_version: string
       session: DeliverySessionRow
@@ -49,11 +57,17 @@ function isScriptDeliverable(script: ScriptRow): boolean {
   return script.visibility === 'public' || script.visibility === 'unlisted'
 }
 
+function isSha256Hex(value: string | null): value is string {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value)
+}
+
 function isReadyBuildDeliverable(build: DeliveryBuildRow): boolean {
   return build.build_status === 'ready'
     && build.payload_storage_kind === 'inline_encrypted'
     && typeof build.payload_ciphertext === 'string'
     && build.payload_ciphertext.length > 0
+    && isSha256Hex(build.source_sha256)
+    && isSha256Hex(build.payload_sha256)
 }
 
 export async function createDeliverySession(slug: unknown): Promise<CreateDeliverySessionResult> {
@@ -132,6 +146,12 @@ export async function consumeDeliverySession(sessionToken: unknown): Promise<Con
   return {
     success: true,
     payload: validation.build.payload_ciphertext ?? '',
+    context: {
+      build_id: validation.build.id,
+      version_id: validation.build.version_id,
+      source_sha256: validation.build.source_sha256,
+      payload_sha256: validation.build.payload_sha256 ?? '',
+    },
     payload_format_version: validation.build.payload_format_version,
     build_version: validation.build.build_version,
     session: consumedSession,

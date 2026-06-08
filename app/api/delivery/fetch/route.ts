@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         payload: result.payload,
+        context: result.context,
         payload_format_version: result.payload_format_version,
         build_version: result.build_version,
       },

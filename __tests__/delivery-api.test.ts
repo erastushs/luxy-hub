@@ -66,6 +66,12 @@ describe('Phase 5C delivery API routes', () => {
     mockedConsumeDeliverySession.mockResolvedValue({
       success: true,
       payload: 'encrypted-payload',
+      context: {
+        build_id: 'build-uuid-1',
+        version_id: 'version-uuid-1',
+        source_sha256: '0'.repeat(64),
+        payload_sha256: '1'.repeat(64),
+      },
       payload_format_version: 'inline-json-v1',
       build_version: 'delivery-build-v1',
       session: {
@@ -109,6 +115,12 @@ describe('Phase 5C delivery API routes', () => {
     expect(response.status).toBe(200)
     expect(body).toEqual({
       payload: 'encrypted-payload',
+      context: {
+        build_id: 'build-uuid-1',
+        version_id: 'version-uuid-1',
+        source_sha256: '0'.repeat(64),
+        payload_sha256: '1'.repeat(64),
+      },
       payload_format_version: 'inline-json-v1',
       build_version: 'delivery-build-v1',
     })

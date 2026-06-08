@@ -201,9 +201,27 @@ describe('Phase 5C delivery session service', () => {
     expect(mockedConsumeSession).toHaveBeenCalledWith(session.id)
     if (result.success) {
       expect(result.payload).toBe('encrypted-payload')
+      expect(result.context).toEqual({
+        build_id: 'build-uuid-1',
+        version_id: 'version-uuid-1',
+        source_sha256: '0'.repeat(64),
+        payload_sha256: '1'.repeat(64),
+      })
       expect(result.payload_format_version).toBe('inline-json-v1')
       expect(result.build_version).toBe('delivery-build-v1')
       expect(result.session.consumed_at).toBe(consumed.consumed_at)
+    }
+  })
+
+  it('rejects sessions when the ready build is missing safe context hashes', async () => {
+    mockedGetSessionByTokenHash.mockResolvedValue(mockSessionRow())
+    mockedGetBuildById.mockResolvedValue(mockBuildRow({ payload_sha256: null }))
+
+    const result = await validateDeliverySession('test-session-token-that-is-long-enough')
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.message).toBe('Invalid delivery session')
     }
   })
 

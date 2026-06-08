@@ -23,11 +23,11 @@ import {
   markBuildReady,
 } from '@/app/lib/repositories/delivery-build-repository'
 import {
-  decryptPayload,
-  decompressPayload,
-  PayloadConsumerError,
-  validatePayload,
-} from '@/app/lib/delivery/payload-consumer'
+  buildPayloadAad,
+  consumeDeliveryPayloadV1,
+  LoaderRuntimeError,
+  validatePayloadIntegrity,
+} from '@/app/lib/loader/loader-runtime-v1'
 
 const mockedGetVersionById = vi.mocked(getVersionById)
 const mockedCreateBuild = vi.mocked(createBuild)
@@ -128,83 +128,82 @@ async function buildPayloadFromSource(source: string): Promise<DeliveryBuildRow>
   return result.build
 }
 
-describe('Phase 5D delivery payload consumer', () => {
+function deliveryResponseFromBuild(build: DeliveryBuildRow) {
+  return {
+    payload: build.payload_ciphertext ?? '',
+    context: {
+      build_id: build.id,
+      version_id: build.version_id,
+      source_sha256: build.source_sha256,
+      payload_sha256: build.payload_sha256 ?? '',
+    },
+    payload_format_version: build.payload_format_version,
+    build_version: build.build_version,
+  }
+}
+
+describe('Phase 6D loader runtime v1', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     process.env.DELIVERY_PAYLOAD_SECRET = TEST_SECRET
     process.env.DELIVERY_PAYLOAD_KEY_ID = 'test-key'
   })
 
-  it('decrypts and decompresses Phase 5B output back to normalized source', async () => {
-    const source = 'print("hello")\r\n'
-    const build = await buildPayloadFromSource(source)
-
-    const envelope = validatePayload(build.payload_ciphertext ?? '')
-    const compressedPayload = decryptPayload({
-      payload: envelope,
-      versionId: build.version_id,
-      sourceSha256: build.source_sha256,
-      secret: TEST_SECRET,
+  it('standardizes AAD as payload format, version id, and source hash', () => {
+    const aad = buildPayloadAad({
+      payloadFormatVersion: 'inline-json-v1',
+      versionId: 'version-uuid-1',
+      sourceSha256: 'a'.repeat(64),
     })
-    const recoveredSource = decompressPayload(compressedPayload)
 
-    expect(recoveredSource).toBe(normalizeSource(source))
+    expect(aad).toBe(`inline-json-v1:version-uuid-1:${'a'.repeat(64)}`)
   })
 
-  it('consumes payload returned by the delivery API response shape', async () => {
-    const source = 'local value = 42\nprint(value)'
+  it('validates, decrypts, decompresses, and executes a delivery response', async () => {
+    const source = 'local value = 42\r\nprint(value)'
     const build = await buildPayloadFromSource(source)
-    const deliveryApiResponse = {
-      payload: build.payload_ciphertext ?? '',
-      context: {
-        build_id: build.id,
-        version_id: build.version_id,
-        source_sha256: build.source_sha256,
-        payload_sha256: build.payload_sha256,
-      },
-      payload_format_version: build.payload_format_version,
-      build_version: build.build_version,
+    const execute = vi.fn()
+
+    const result = await consumeDeliveryPayloadV1({
+      response: deliveryResponseFromBuild(build),
+      secret: TEST_SECRET,
+      execute,
+    })
+
+    expect(result.source).toBe(normalizeSource(source))
+    expect(result.aad).toBe(`${build.payload_format_version}:${build.version_id}:${build.source_sha256}`)
+    expect(execute).toHaveBeenCalledWith(normalizeSource(source))
+  })
+
+  it('rejects payload integrity mismatches before decrypting', async () => {
+    const build = await buildPayloadFromSource('print("integrity")')
+    const response = deliveryResponseFromBuild(build)
+    response.context.payload_sha256 = 'f'.repeat(64)
+
+    await expect(consumeDeliveryPayloadV1({
+      response,
+      secret: TEST_SECRET,
+    })).rejects.toThrow(LoaderRuntimeError)
+  })
+
+  it('rejects unsupported build versions', async () => {
+    const build = await buildPayloadFromSource('print("version")')
+    const response = {
+      ...deliveryResponseFromBuild(build),
+      build_version: 'delivery-build-v9',
     }
 
-    expect(deliveryApiResponse.payload_format_version).toBe('inline-json-v1')
-    expect(deliveryApiResponse.build_version).toBe('delivery-build-v1')
-
-    const recoveredSource = decompressPayload(decryptPayload({
-      payload: deliveryApiResponse.payload,
-      versionId: deliveryApiResponse.context.version_id,
-      sourceSha256: deliveryApiResponse.context.source_sha256,
+    await expect(consumeDeliveryPayloadV1({
+      response,
       secret: TEST_SECRET,
-    }))
-
-    expect(recoveredSource).toBe(normalizeSource(source))
+    })).rejects.toThrow(LoaderRuntimeError)
   })
 
-  it('rejects invalid payload JSON', () => {
-    expect(() => validatePayload('not-json')).toThrow(PayloadConsumerError)
-  })
+  it('exposes direct payload hash validation for runtime adapters', async () => {
+    const build = await buildPayloadFromSource('print("hash")')
+    const response = deliveryResponseFromBuild(build)
 
-  it('rejects invalid payload format versions', () => {
-    const payload = JSON.stringify({
-      v: 'future-format-v9',
-      alg: 'aes-256-gcm:v1',
-      kid: 'test-key',
-      compression: 'gzip',
-      iv: 'AAAAAAAAAAAAAAAA',
-      tag: 'AAAAAAAAAAAAAAAAAAAAAA==',
-      data: 'AAAA',
-    })
-
-    expect(() => validatePayload(payload)).toThrow(PayloadConsumerError)
-  })
-
-  it('rejects decryption with invalid payload context', async () => {
-    const build = await buildPayloadFromSource('print("context")')
-
-    expect(() => decryptPayload({
-      payload: build.payload_ciphertext ?? '',
-      versionId: build.version_id,
-      sourceSha256: 'f'.repeat(64),
-      secret: TEST_SECRET,
-    })).toThrow(PayloadConsumerError)
+    expect(() => validatePayloadIntegrity(response.payload, response.context)).not.toThrow()
+    expect(() => validatePayloadIntegrity(`${response.payload}tampered`, response.context)).toThrow(LoaderRuntimeError)
   })
 })

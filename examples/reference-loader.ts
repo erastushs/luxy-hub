@@ -1,8 +1,4 @@
-import {
-  decryptPayload,
-  decompressPayload,
-  validatePayload,
-} from '../app/lib/delivery/payload-consumer'
+import { consumeDeliveryPayloadV1 } from '../app/lib/loader/loader-runtime-v1'
 
 type DeliverySessionResponse = {
   session_token: string
@@ -11,6 +7,12 @@ type DeliverySessionResponse = {
 
 type DeliveryFetchResponse = {
   payload: string
+  context: {
+    build_id: string
+    version_id: string
+    source_sha256: string
+    payload_sha256: string
+  }
   payload_format_version: string
   build_version: string
 }
@@ -18,8 +20,6 @@ type DeliveryFetchResponse = {
 export type ReferenceLoaderParams = {
   baseUrl: string
   slug: string
-  versionId: string
-  sourceSha256: string
   payloadSecret?: string
   execute?: (source: string) => void | Promise<void>
 }
@@ -55,18 +55,11 @@ export async function runReferenceLoader(params: ReferenceLoaderParams): Promise
     { session_token: session.session_token }
   )
 
-  const payload = validatePayload(delivery.payload)
-  const compressedPayload = decryptPayload({
-    payload,
-    versionId: params.versionId,
-    sourceSha256: params.sourceSha256,
+  const result = await consumeDeliveryPayloadV1({
+    response: delivery,
     secret: params.payloadSecret,
+    execute: params.execute,
   })
-  const recoveredSource = decompressPayload(compressedPayload)
 
-  if (params.execute) {
-    await params.execute(recoveredSource)
-  }
-
-  return recoveredSource
+  return result.source
 }
