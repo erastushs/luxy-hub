@@ -30,6 +30,9 @@ www.luxyhub.space
 ├── /dashboard/scripts/new
 ├── /dashboard/scripts/[slug]/edit
 ├── /dashboard/scripts/[slug]/webhooks
+├── /dashboard/scripts/[slug]/events
+├── /dashboard/scripts/[slug]/events/[eventId]
+├── /dashboard/scripts/[slug]/events/dead-letter
 ├── /dashboard/analytics
 ├── /dashboard/versions
 ├── /dashboard/versions/[slug]
@@ -341,7 +344,7 @@ Current priorities:
 - Phase 5 — Secure Script Delivery: complete
 - Phase 6 — Loader Integration: complete
 - Phase 7 — License & Delivery Authorization: planning (5 sub-phases)
-- Phase 8 — Event Reporting & Webhook Platform: Phases 8B.1-8C.1 implemented (database, API, queue worker, Discord provider, dashboard webhook management); 1 remaining sub-phase (Slack/Telegram providers)
+- Phase 8 — Event Reporting & Webhook Platform: Phases 8B.1-8C.2 implemented (database, API, queue worker, Discord provider, dashboard webhook management, event operations); 1 remaining sub-phase (Slack/Telegram providers)
 - Phase 9 — Internal Operations & Release Workflow
 - Phase 10 — Scale & Infrastructure (Optional)
 

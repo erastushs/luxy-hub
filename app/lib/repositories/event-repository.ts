@@ -157,6 +157,31 @@ export async function getEventsByScriptId(
   return (data as unknown as EventLogRow[]) ?? []
 }
 
+export async function countEventsByScriptId(
+  scriptId: string,
+  options?: {
+    eventType?: EventType
+    deliveryStatus?: EventDeliveryStatus
+  }
+): Promise<number> {
+  let query = supabaseAdmin
+    .from('event_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('script_id', scriptId)
+
+  if (options?.eventType !== undefined) {
+    query = query.eq('event_type', options.eventType)
+  }
+  if (options?.deliveryStatus !== undefined) {
+    query = query.eq('delivery_status', options.deliveryStatus)
+  }
+
+  const { count, error } = await query
+
+  if (error) throw error
+  return count ?? 0
+}
+
 export async function updateEventDeliveryStatus(params: {
   eventId: string
   deliveryStatus: EventDeliveryStatus
