@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useActionState } from 'react'
-import { UserCircle, Pencil, LogOut } from 'lucide-react'
+import { useEffect, useRef, useState, useActionState } from 'react'
+import { Lock, UserCircle, Pencil, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateProfileAction } from '@/app/actions/profile'
+import { changePasswordAction } from '@/app/actions/security'
 import { logout } from '@/app/actions/auth'
 import { CopyButton } from '@/app/dashboard/components/CopyButton'
 import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
@@ -33,6 +34,19 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
   const [state, formAction, isPending] = useActionState(updateProfileAction, {
     success: false,
   })
+  const passwordFormRef = useRef<HTMLFormElement>(null)
+  const [securityState, securityAction, isSecurityPending] = useActionState(changePasswordAction, {
+    success: false,
+  })
+
+  useEffect(() => {
+    if (!securityState.success) {
+      return
+    }
+
+    passwordFormRef.current?.reset()
+    toast.success(securityState.message ?? 'Password updated')
+  }, [securityState.success, securityState.message])
 
   if (state.success) {
     if (editing) {
@@ -199,6 +213,73 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
           </form>
         </div>
       )}
+
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600/20 text-red-400" aria-hidden="true">
+            <Lock className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-white">Security</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Change the password for your Supabase Auth account.
+            </p>
+          </div>
+        </div>
+
+        <form ref={passwordFormRef} action={securityAction} className="mt-6 space-y-5">
+          {securityState.message && !securityState.success && (
+            <ErrorBanner message={securityState.message} />
+          )}
+
+          <div>
+            <label
+              htmlFor="new_password"
+              className="block text-sm font-medium text-zinc-300"
+            >
+              New Password
+            </label>
+            <p className="mt-1 text-xs text-zinc-500">
+              Use at least 8 characters. Passwords are stored only by Supabase Auth.
+            </p>
+            <input
+              id="new_password"
+              name="new_password"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              required
+              className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="confirm_password"
+              className="block text-sm font-medium text-zinc-300"
+            >
+              Confirm New Password
+            </label>
+            <input
+              id="confirm_password"
+              name="confirm_password"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              required
+              className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSecurityPending}
+            className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          >
+            {isSecurityPending ? 'Saving password...' : 'Save Password'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
