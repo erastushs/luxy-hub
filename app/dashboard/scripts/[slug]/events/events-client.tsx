@@ -18,6 +18,24 @@ import { replayEventAction, replayAllDeadLettersAction } from '@/app/actions/eve
 import type { EventDashboardDTO } from '@/app/lib/services/event-dashboard-service'
 
 // ---------------------------------------------------------------------------
+// URL builders (client-side — NEVER pass functions as props through RSC boundary)
+// ---------------------------------------------------------------------------
+
+function eventsPageHref(slug: string, page: number, status: string, type: string): string {
+  const params = new URLSearchParams()
+  if (page > 1) params.set('page', String(page))
+  if (status && status !== 'all') params.set('status', status)
+  if (type && type !== 'all') params.set('type', type)
+  const qs = params.toString()
+  return `/dashboard/scripts/${encodeURIComponent(slug)}/events${qs ? '?' + qs : ''}`
+}
+
+function deadLetterPageHref(slug: string, page: number): string {
+  const qs = page > 1 ? '?page=' + page : ''
+  return `/dashboard/scripts/${encodeURIComponent(slug)}/events/dead-letter${qs}`
+}
+
+// ---------------------------------------------------------------------------
 // EventStatusBadge
 // ---------------------------------------------------------------------------
 
@@ -58,13 +76,13 @@ export function EventStatusBadge({ status, retryCount }: { status: string; retry
 
 const EVENT_TYPES = [
   'execute',
-  'purchase',
   'error',
-  'ban',
-  'key_redeem',
+  'license_check',
+  'script_loaded',
+  'script_unloaded',
+  'delivery_session_created',
   'heartbeat',
-  'license_activate',
-  'license_revoke',
+  'admin',
 ] as const
 
 export function EventsTable({
@@ -76,8 +94,6 @@ export function EventsTable({
   statusFilter,
   typeFilter,
   totalPages,
-  pageHref,
-  filterHref,
 }: {
   slug: string
   events: EventDashboardDTO[]
@@ -87,15 +103,13 @@ export function EventsTable({
   statusFilter: string
   typeFilter: string
   totalPages: number
-  pageHref: (page: number) => string
-  filterHref: (status: string, type: string) => string
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   const handleFilterChange = (newStatus: string, newType: string) => {
     startTransition(() => {
-      router.push(filterHref(newStatus, newType))
+      router.push(eventsPageHref(slug, 1, newStatus, newType))
     })
   }
 
@@ -193,13 +207,15 @@ export function EventsTable({
       {/* Pagination */}
       <div className="flex items-center justify-between text-sm text-zinc-400">
         <span>
-          {total === 0 ? 'No events' : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}`}
+          {total === 0
+            ? 'No events'
+            : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}`}
         </span>
 
         {totalPages > 1 && (
           <div className="flex items-center gap-2">
             <Link
-              href={pageHref(page - 1)}
+              href={eventsPageHref(slug, page - 1, statusFilter, typeFilter)}
               className={cn(
                 'inline-flex items-center gap-1 rounded-lg border border-zinc-800 px-3 py-1.5 text-sm transition-colors',
                 page <= 1
@@ -215,7 +231,7 @@ export function EventsTable({
               {page} / {totalPages}
             </span>
             <Link
-              href={pageHref(page + 1)}
+              href={eventsPageHref(slug, page + 1, statusFilter, typeFilter)}
               className={cn(
                 'inline-flex items-center gap-1 rounded-lg border border-zinc-800 px-3 py-1.5 text-sm transition-colors',
                 page >= totalPages
@@ -245,7 +261,6 @@ export function DeadLetterTable({
   page,
   pageSize,
   totalPages,
-  pageHref,
 }: {
   slug: string
   events: EventDashboardDTO[]
@@ -253,7 +268,6 @@ export function DeadLetterTable({
   page: number
   pageSize: number
   totalPages: number
-  pageHref: (page: number) => string
 }) {
   const [replayingIds, setReplayingIds] = useState<Set<string>>(new Set())
   const [replayResults, setReplayResults] = useState<Record<string, string>>({})
@@ -358,13 +372,15 @@ export function DeadLetterTable({
       {/* Pagination */}
       <div className="flex items-center justify-between text-sm text-zinc-400">
         <span>
-          {total === 0 ? 'No events' : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}`}
+          {total === 0
+            ? 'No events'
+            : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}`}
         </span>
 
         {totalPages > 1 && (
           <div className="flex items-center gap-2">
             <Link
-              href={pageHref(page - 1)}
+              href={deadLetterPageHref(slug, page - 1)}
               className={cn(
                 'inline-flex items-center gap-1 rounded-lg border border-zinc-800 px-3 py-1.5 text-sm transition-colors',
                 page <= 1
@@ -380,7 +396,7 @@ export function DeadLetterTable({
               {page} / {totalPages}
             </span>
             <Link
-              href={pageHref(page + 1)}
+              href={deadLetterPageHref(slug, page + 1)}
               className={cn(
                 'inline-flex items-center gap-1 rounded-lg border border-zinc-800 px-3 py-1.5 text-sm transition-colors',
                 page >= totalPages
@@ -452,9 +468,9 @@ function formatTimestamp(iso: string): string {
     return d.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
+      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: false,
     })
   } catch {

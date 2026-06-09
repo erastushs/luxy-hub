@@ -5,9 +5,6 @@ import { getCurrentUser } from '@/app/lib/auth/session-auth'
 import { getDeadLetters } from '@/app/lib/services/event-dashboard-service'
 import { DeadLetterTable } from '../events-client'
 
-function pageHref(slug: string, page: number): string {
-  return `/dashboard/scripts/${encodeURIComponent(slug)}/events/dead-letter${page > 1 ? '?page=' + page : ''}`
-}
 
 export default async function DeadLetterPage({
   params,
@@ -59,7 +56,6 @@ export default async function DeadLetterPage({
         page={result.page}
         pageSize={result.pageSize}
         totalPages={totalPages}
-        pageHref={(p) => pageHref(slug, p)}
       />
     </div>
   )

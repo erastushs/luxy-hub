@@ -6,14 +6,6 @@ import { getEventHistory } from '@/app/lib/services/event-dashboard-service'
 import { EventsTable } from './events-client'
 import type { EventType, EventDeliveryStatus } from '@/app/lib/repositories/event-repository'
 
-function pageHref(slug: string, page: number, status?: string, type?: string): string {
-  const params = new URLSearchParams()
-  if (page > 1) params.set('page', String(page))
-  if (status && status !== 'all') params.set('status', status)
-  if (type && type !== 'all') params.set('type', type)
-  const qs = params.toString()
-  return `/dashboard/scripts/${encodeURIComponent(slug)}/events${qs ? '?' + qs : ''}`
-}
 
 export default async function ScriptEventsPage({
   params,
@@ -79,8 +71,6 @@ export default async function ScriptEventsPage({
         statusFilter={statusFilter}
         typeFilter={typeFilter}
         totalPages={totalPages}
-        pageHref={(p) => pageHref(slug, p, statusFilter, typeFilter)}
-        filterHref={(status, type) => pageHref(slug, 1, status, type)}
       />
     </div>
   )
