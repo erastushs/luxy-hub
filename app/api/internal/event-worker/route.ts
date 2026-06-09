@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { processEventQueue } from '@/app/lib/services/event-queue-service'
-import { mockProvider } from '@/app/lib/providers/mock-provider'
+import { processEventQueue, type DeliveryProvider } from '@/app/lib/services/event-queue-service'
+import { discordProvider } from '@/app/lib/providers/discord-provider'
 
 /**
  * Internal event queue worker — polls pending events and hands them
@@ -30,7 +30,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const stats = await processEventQueue(mockProvider)
+    const resolveProvider = (provider: string): DeliveryProvider | null => {
+      if (provider === 'discord') return discordProvider
+      return null
+    }
+
+    const stats = await processEventQueue(resolveProvider)
 
     return NextResponse.json({
       success: true,

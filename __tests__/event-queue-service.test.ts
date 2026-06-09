@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EventLogRow } from '@/app/lib/repositories/event-repository'
-import type { DeliveryProvider } from '@/app/lib/services/event-queue-service'
+import type { WebhookConfigRow } from '@/app/lib/repositories/webhook-config-repository'
+import type { DeliveryProvider, ProviderResolver } from '@/app/lib/services/event-queue-service'
 import {
   computeBackoffMs,
   isRetryDue,
@@ -53,22 +54,23 @@ function eventRow(overrides: Partial<EventLogRow> = {}): EventLogRow {
   }
 }
 
-function enabledConfig() {
+function enabledConfig(overrides: Partial<{ provider: string }> = {}): WebhookConfigRow {
   return {
     id: 'cfg-001',
     script_id: 'script-001',
-    config: { webhook_url: FAKE_WEBHOOK_URL },
+    creator_id: 'creator-001',
+    provider: (overrides.provider ?? 'discord') as WebhookConfigRow['provider'],
+    config: { webhook_url: FAKE_WEBHOOK_URL } as Record<string, unknown>,
     enabled: true,
-  }
+    created_at: '2026-06-09T12:00:00.000Z',
+    updated_at: '2026-06-09T12:00:00.000Z',
+  } as WebhookConfigRow
 }
 
-function enabledConfigNoUrl() {
-  return {
-    id: 'cfg-001',
-    script_id: 'script-001',
-    config: {},
-    enabled: true,
-  }
+function enabledConfigNoUrl(): WebhookConfigRow {
+  const cfg = enabledConfig()
+  cfg.config = {} as Record<string, unknown>
+  return cfg
 }
 
 function succeedProvider(): DeliveryProvider {
@@ -85,6 +87,13 @@ function fatalProvider(error = 'invalid-webhook'): DeliveryProvider {
 
 function crashingProvider(error = 'network timeout'): DeliveryProvider {
   return { deliver: vi.fn().mockRejectedValue(new Error(error)) }
+}
+
+function resolveProvider(provider: DeliveryProvider): ProviderResolver {
+  return (type: string) => {
+    if (type === 'discord') return provider
+    return null
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +153,7 @@ describe('processEventQueue', () => {
     mockedGetEnabledConfig.mockResolvedValue(enabledConfig())
 
     const provider = succeedProvider()
-    await processEventQueue(provider)
+    await processEventQueue(resolveProvider(provider))
 
     expect(provider.deliver).toHaveBeenCalledWith(ev, FAKE_WEBHOOK_URL)
     expect(mockedUpdateEventDeliveryStatus).toHaveBeenCalledWith(
@@ -157,7 +166,7 @@ describe('processEventQueue', () => {
     mockedGetEnabledConfig.mockResolvedValue(null)
 
     const provider = succeedProvider()
-    const result = await processEventQueue(provider)
+    const result = await processEventQueue(resolveProvider(provider))
 
     expect(result.delivered).toBe(1)
     expect(provider.deliver).not.toHaveBeenCalled()
@@ -168,17 +177,29 @@ describe('processEventQueue', () => {
     mockedGetEnabledConfig.mockResolvedValue(enabledConfigNoUrl())
 
     const provider = succeedProvider()
-    const result = await processEventQueue(provider)
+    const result = await processEventQueue(resolveProvider(provider))
 
     expect(result.delivered).toBe(1)
     expect(provider.deliver).not.toHaveBeenCalled()
+  })
+
+  it('dead-letters event when provider type is unknown', async () => {
+    mockedGetPendingEvents.mockResolvedValue([eventRow()])
+    mockedGetEnabledConfig.mockResolvedValue(enabledConfig({ provider: 'telegram' }))
+
+    const result = await processEventQueue(resolveProvider(succeedProvider()))
+
+    expect(result.deadLettered).toBe(1)
+    expect(mockedUpdateEventDeliveryStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ deliveryStatus: 'dead_letter', errorMessage: 'Unknown provider: telegram' })
+    )
   })
 
   it('increments retry_count on retryable failure', async () => {
     mockedGetPendingEvents.mockResolvedValue([eventRow({ retry_count: 0 })])
     mockedGetEnabledConfig.mockResolvedValue(enabledConfig())
 
-    const result = await processEventQueue(retryableProvider())
+    const result = await processEventQueue(resolveProvider(retryableProvider()))
 
     expect(result.failed).toBe(1)
     expect(mockedUpdateEventDeliveryStatus).toHaveBeenCalledWith(
@@ -190,7 +211,7 @@ describe('processEventQueue', () => {
     mockedGetPendingEvents.mockResolvedValue([eventRow({ retry_count: 0 })])
     mockedGetEnabledConfig.mockResolvedValue(enabledConfig())
 
-    const result = await processEventQueue(crashingProvider())
+    const result = await processEventQueue(resolveProvider(crashingProvider()))
 
     expect(result.failed).toBe(1)
     expect(mockedUpdateEventDeliveryStatus).toHaveBeenCalledWith(
@@ -202,7 +223,7 @@ describe('processEventQueue', () => {
     mockedGetPendingEvents.mockResolvedValue([eventRow()])
     mockedGetEnabledConfig.mockResolvedValue(enabledConfig())
 
-    const result = await processEventQueue(fatalProvider())
+    const result = await processEventQueue(resolveProvider(fatalProvider()))
 
     expect(result.deadLettered).toBe(1)
     expect(mockedUpdateEventDeliveryStatus).toHaveBeenCalledWith(
@@ -214,7 +235,7 @@ describe('processEventQueue', () => {
     mockedGetPendingEvents.mockResolvedValue([eventRow({ retry_count: 4 })])
     mockedGetEnabledConfig.mockResolvedValue(enabledConfig())
 
-    const result = await processEventQueue(retryableProvider())
+    const result = await processEventQueue(resolveProvider(retryableProvider()))
 
     expect(result.deadLettered).toBe(1)
     expect(mockedUpdateEventDeliveryStatus).toHaveBeenCalledWith(
@@ -229,7 +250,7 @@ describe('processEventQueue', () => {
     mockedGetPendingEvents.mockResolvedValue(events)
     mockedGetEnabledConfig.mockResolvedValue(null)
 
-    const result = await processEventQueue(succeedProvider())
+    const result = await processEventQueue(resolveProvider(succeedProvider()))
 
     expect(mockedGetPendingEvents).toHaveBeenCalledWith(50)
     expect(result.processed).toBe(80)
@@ -242,7 +263,7 @@ describe('processEventQueue', () => {
     mockedGetEnabledConfig.mockResolvedValue(enabledConfig())
 
     const provider = succeedProvider()
-    const result = await processEventQueue(provider)
+    const result = await processEventQueue(resolveProvider(provider))
 
     expect(result.skipped).toBe(1)
     expect(result.delivered).toBe(1)
@@ -250,7 +271,7 @@ describe('processEventQueue', () => {
   })
 
   it('returns zeros when queue is empty', async () => {
-    const result = await processEventQueue(succeedProvider())
+    const result = await processEventQueue(resolveProvider(succeedProvider()))
     expect(result).toEqual({ processed: 0, delivered: 0, failed: 0, deadLettered: 0, skipped: 0 })
   })
 
@@ -274,7 +295,7 @@ describe('processEventQueue', () => {
       }),
     }
 
-    const result = await processEventQueue(provider)
+    const result = await processEventQueue(resolveProvider(provider))
     expect(result.delivered).toBe(2)
     expect(result.failed).toBe(1)
     expect(result.deadLettered).toBe(0)

@@ -9,6 +9,8 @@ export type DeliveryProvider = {
   deliver(event: EventLogRow, webhookUrl: string): Promise<DeliveryResult>
 }
 
+export type ProviderResolver = (provider: string) => DeliveryProvider | null
+
 export type DeliveryResult = {
   success: boolean
   retryable: boolean
@@ -24,27 +26,34 @@ export type QueueBatchResult = {
   skipped: number
 }
 
-// ---------------------------------------------------------------------------
-// Backoff
-// ---------------------------------------------------------------------------
-
-const BACKOFF_SCHEDULE_MS: readonly number[] = [10_000, 30_000, 90_000, 270_000, 810_000]
+const BACKOFF_SCHEDULE_MS: readonly number[] = [
+  10_000,   // attempt 1: 10s
+  30_000,   // attempt 2: 30s
+  90_000,   // attempt 3: 90s
+  270_000,  // attempt 4: 270s
+  810_000,  // attempt 5: 810s
+]
 
 const MAX_RETRIES = 5
 const BATCH_SIZE = 50
 
+// ---------------------------------------------------------------------------
+// Backoff
+// ---------------------------------------------------------------------------
+
 export function computeBackoffMs(retryCount: number): number {
-  if (retryCount < 1) return 0
-  const index = Math.min(retryCount - 1, BACKOFF_SCHEDULE_MS.length - 1)
-  return BACKOFF_SCHEDULE_MS[index]
+  if (retryCount <= 0) return 0
+  const idx = Math.min(retryCount - 1, BACKOFF_SCHEDULE_MS.length - 1)
+  return BACKOFF_SCHEDULE_MS[idx]
 }
 
 export function isRetryDue(event: Pick<EventLogRow, 'retry_count' | 'last_retry_at' | 'received_at'>): boolean {
-  if (event.retry_count === 0) return true
+  if (event.retry_count === 0) return true // never attempted
   const backoffMs = computeBackoffMs(event.retry_count)
-  const lastAttempt = event.last_retry_at ?? event.received_at
-  const elapsed = Date.now() - new Date(lastAttempt).getTime()
-  return elapsed >= backoffMs
+  const lastAttempt = event.last_retry_at
+    ? new Date(event.last_retry_at).getTime()
+    : new Date(event.received_at).getTime()
+  return Date.now() - lastAttempt >= backoffMs
 }
 
 // ---------------------------------------------------------------------------
@@ -56,26 +65,25 @@ async function attemptDelivery(
   provider: DeliveryProvider,
   webhookUrl: string,
 ): Promise<{ status: EventDeliveryStatus; errorMessage?: string }> {
-  let result: DeliveryResult
   try {
-    result = await provider.deliver(event, webhookUrl)
-  } catch (err) {
-    result = {
-      success: false,
-      retryable: true,
-      error: err instanceof Error ? err.message : 'Delivery error',
+    const result = await provider.deliver(event, webhookUrl)
+
+    if (result.success) {
+      return { status: 'delivered' }
     }
-  }
 
-  if (result.success) {
-    return { status: 'delivered' }
-  }
+    if (result.retryable && event.retry_count + 1 < MAX_RETRIES) {
+      return { status: 'pending', errorMessage: result.error }
+    }
 
-  if (result.retryable) {
-    return { status: 'pending', errorMessage: result.error }
+    return { status: 'dead_letter', errorMessage: result.error }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown delivery error'
+    if (event.retry_count + 1 < MAX_RETRIES) {
+      return { status: 'pending', errorMessage: message }
+    }
+    return { status: 'dead_letter', errorMessage: message }
   }
-
-  return { status: 'dead_letter', errorMessage: result.error }
 }
 
 // ---------------------------------------------------------------------------
@@ -83,13 +91,13 @@ async function attemptDelivery(
 // ---------------------------------------------------------------------------
 
 export async function processEventQueue(
-  provider: DeliveryProvider,
+  resolveProvider: ProviderResolver,
   batchSize: number = BATCH_SIZE,
 ): Promise<QueueBatchResult> {
   const events = await getPendingEvents(batchSize)
 
   const stats: QueueBatchResult = {
-    processed: events.length,
+    processed: 0,
     delivered: 0,
     failed: 0,
     deadLettered: 0,
@@ -97,75 +105,87 @@ export async function processEventQueue(
   }
 
   for (const event of events) {
+    // Respect backoff schedule
     if (!isRetryDue(event)) {
       stats.skipped++
       continue
     }
 
-    const config = await getEnabledWebhookConfigByScriptId(event.script_id)
+    // Look up webhook config for this script
+    let config = null as { webhookUrl: string | null; provider: string } | null
+    try {
+      const row = await getEnabledWebhookConfigByScriptId(event.script_id)
+      if (row) {
+        config = {
+          webhookUrl: (row.config as Record<string, unknown>)?.webhook_url as string | undefined ?? null,
+          provider: row.provider,
+        }
+      }
+    } catch {
+      // Config lookup failed — treat as no config
+    }
 
-    if (!config) {
+    if (!config || !config.webhookUrl) {
+      // No enabled webhook configured — mark as delivered (no-op)
       await updateEventDeliveryStatus({
         eventId: event.id,
         deliveryStatus: 'delivered',
+        deliveredAt: new Date().toISOString(),
+        lastRetryAt: new Date().toISOString(),
       })
       stats.delivered++
+      stats.processed++
       continue
     }
 
-    const webhookUrl = config.config?.webhook_url
-    if (!webhookUrl || typeof webhookUrl !== 'string') {
-      await updateEventDeliveryStatus({
-        eventId: event.id,
-        deliveryStatus: 'delivered',
-      })
-      stats.delivered++
-      continue
-    }
-
-    const { status, errorMessage } = await attemptDelivery(event, provider, webhookUrl)
-
-    if (status === 'delivered') {
-      await updateEventDeliveryStatus({
-        eventId: event.id,
-        deliveryStatus: 'delivered',
-      })
-      stats.delivered++
-      continue
-    }
-
-    const nextRetryCount = event.retry_count + 1
-
-    if (status === 'dead_letter') {
+    const provider = resolveProvider(config.provider)
+    if (!provider) {
+      // Unknown provider type → permanent failure, dead-letter
       await updateEventDeliveryStatus({
         eventId: event.id,
         deliveryStatus: 'dead_letter',
-        retryCount: nextRetryCount,
-        errorMessage,
+        retryCount: event.retry_count + 1,
+        lastRetryAt: new Date().toISOString(),
+        errorMessage: `Unknown provider: ${config.provider}`,
       })
       stats.deadLettered++
+      stats.processed++
       continue
     }
 
-    // status === 'pending' — retryable failure
-    if (nextRetryCount >= MAX_RETRIES) {
+    const result = await attemptDelivery(event, provider, config.webhookUrl)
+
+    stats.processed++
+
+    if (result.status === 'delivered') {
+      await updateEventDeliveryStatus({
+        eventId: event.id,
+        deliveryStatus: 'delivered',
+        deliveredAt: new Date().toISOString(),
+        retryCount: event.retry_count + 1,
+        lastRetryAt: new Date().toISOString(),
+        errorMessage: null,
+      })
+      stats.delivered++
+    } else if (result.status === 'pending') {
+      await updateEventDeliveryStatus({
+        eventId: event.id,
+        deliveryStatus: 'pending',
+        retryCount: event.retry_count + 1,
+        lastRetryAt: new Date().toISOString(),
+        errorMessage: result.errorMessage ?? null,
+      })
+      stats.failed++
+    } else {
       await updateEventDeliveryStatus({
         eventId: event.id,
         deliveryStatus: 'dead_letter',
-        retryCount: nextRetryCount,
-        errorMessage: errorMessage ?? 'Max retries exhausted',
+        retryCount: event.retry_count + 1,
+        lastRetryAt: new Date().toISOString(),
+        errorMessage: result.errorMessage ?? null,
       })
       stats.deadLettered++
-      continue
     }
-
-    await updateEventDeliveryStatus({
-      eventId: event.id,
-      deliveryStatus: 'pending',
-      retryCount: nextRetryCount,
-      errorMessage,
-    })
-    stats.failed++
   }
 
   return stats
@@ -180,8 +200,8 @@ export async function replayDeadLetterEvent(eventId: string): Promise<EventLogRo
     eventId,
     deliveryStatus: 'pending',
     retryCount: 0,
-    errorMessage: null,
     lastRetryAt: null,
     deliveredAt: null,
+    errorMessage: null,
   })
 }
