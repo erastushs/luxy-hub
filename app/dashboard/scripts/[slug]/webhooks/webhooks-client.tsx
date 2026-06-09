@@ -154,11 +154,11 @@ export default function WebhookSettings({
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <Tooltip text="Back to Scripts">
+          <Tooltip text="Back to Edit">
             <Link
-              href="/dashboard/scripts"
+              href={`/dashboard/scripts/${slug}/edit`}
               className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-              aria-label="Back to scripts"
+              aria-label="Back to edit script"
             >
               <ArrowLeft className="h-5 w-5" aria-hidden="true" />
             </Link>

@@ -44,7 +44,7 @@ export default async function ScriptEventsPage({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link
-            href={`/dashboard/scripts/${slug}`}
+            href={`/dashboard/scripts/${slug}/edit`}
             className="mb-1 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
           >
             <ArrowLeft className="h-3 w-3" aria-hidden="true" />
