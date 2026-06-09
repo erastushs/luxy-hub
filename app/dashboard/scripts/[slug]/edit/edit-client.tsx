@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, ArrowLeft, Hammer } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowLeft, Hammer, Webhook } from 'lucide-react'
 import { updateScriptAction } from '@/app/actions/scripts'
 import { FileUploadZone } from '@/app/dashboard/components/FileUploadZone'
 import { BuildInfoPanel } from '@/app/dashboard/components/BuildInfoPanel'
@@ -181,6 +181,20 @@ export default function EditScriptClient({
           >
             <Hammer className="h-4 w-4" aria-hidden="true" />
             Build History
+          </Link>
+          <Link
+            href={`/dashboard/scripts/${script.slug}/events`}
+            className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800"
+          >
+            <Activity className="h-4 w-4" aria-hidden="true" />
+            Events
+          </Link>
+          <Link
+            href={`/dashboard/scripts/${script.slug}/webhooks`}
+            className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800"
+          >
+            <Webhook className="h-4 w-4" aria-hidden="true" />
+            Webhooks
           </Link>
         </div>
       </div>

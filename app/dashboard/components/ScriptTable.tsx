@@ -2,7 +2,7 @@
 
 import { cn } from '@/app/lib/utils'
 import Link from 'next/link'
-import { BarChart3, Edit, Hammer, History, Trash2 } from 'lucide-react'
+import { Activity, BarChart3, Edit, Hammer, History, Trash2, Webhook } from 'lucide-react'
 import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
 import { formatDate } from '@/app/dashboard/lib/format-date'
 import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
@@ -121,6 +121,24 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
                         aria-label={`View analytics for ${script.name}`}
                       >
                         <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </Tooltip>
+                    <Tooltip text="Events">
+                      <Link
+                        href={`/dashboard/scripts/${script.slug}/events`}
+                        className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                        aria-label={`View events for ${script.name}`}
+                      >
+                        <Activity className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </Tooltip>
+                    <Tooltip text="Webhooks">
+                      <Link
+                        href={`/dashboard/scripts/${script.slug}/webhooks`}
+                        className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                        aria-label={`Webhook settings for ${script.name}`}
+                      >
+                        <Webhook className="h-4 w-4" aria-hidden="true" />
                       </Link>
                     </Tooltip>
                     <Tooltip text="Delete">
