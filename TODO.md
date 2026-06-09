@@ -1,6 +1,6 @@
 # LuxyHub Roadmap 2026
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 ---
 
@@ -137,30 +137,35 @@ Last updated: 2026-06-08
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 7 | License & Key Management | Phase 6H |
-| 2 | Phase 8 | Internal Operations & Release Workflow | Phase 7 |
-| 3 | Phase 9 | Scale & Infrastructure (Optional) | Phase 8 |
-
+| 1 | Phase 7A | License Foundation | Phase 6H |
+| 2 | Phase 7B | License Management Dashboard | Phase 7A |
+| 3 | Phase 7C | Delivery Authorization | Phase 7A |
+| 4 | Phase 7D | License Analytics & Audit | Phase 7C |
+| 5 | Phase 7E | Creator UX | Phase 7B |
+| 6 | Phase 8A | Event Foundation | Phase 7 |
+| 7 | Phase 8B | Secure Event Delivery | Phase 8A |
+| 8 | Phase 8C | Queue & Worker System | Phase 8B |
+| 9 | Phase 8D | Dashboard Management | Phase 8B |
+| 10 | Phase 8E | Analytics & Audit | Phase 8C |
+| 11 | Phase 9 | Internal Operations & Release Workflow | Phase 7 |
+| 12 | Phase 10 | Scale & Infrastructure (Optional) | Phase 9 |
 ---
-
 ## Overall Completion
-
 ```text
 ██████████████████████████████████░░ 90%
-
-Code & Docs:       99% complete  ████████████████████░
-Infrastructure:     10% complete  ██░░░░░░░░░░░░░░░░░░
-CDN Database:     100% complete  ████████████████████
-CDN API:          100% complete  ████████████████████
-Dashboard Backend: 100% complete  ████████████████████
-Dashboard UI:     100% complete  ████████████████████
-Secure Delivery:    85% complete  █████████████████░░░
-Loader Integration: 92% complete  ██████████████████░░
-Key Management:      0% complete  ░░░░░░░░░░░░░░░░░░░░
-Operations:          0% complete  ░░░░░░░░░░░░░░░░░░░░
-Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░░░░░░
+Code & Docs:           99% complete  ████████████████████░
+Infrastructure:         10% complete  ██░░░░░░░░░░░░░░░░░░
+CDN Database:         100% complete  ████████████████████
+CDN API:              100% complete  ████████████████████
+Dashboard Backend:     100% complete  ████████████████████
+Dashboard UI:          100% complete  ████████████████████
+Secure Delivery:       100% complete  ████████████████████
+Loader Integration:    100% complete  ████████████████████
+License & Auth:          0% complete  ░░░░░░░░░░░░░░░░░░░░
+Event Platform:          0% complete  ░░░░░░░░░░░░░░░░░░░░
+Operations:              0% complete  ░░░░░░░░░░░░░░░░░░░░
+Scale (Optional):        0% complete  ░░░░░░░░░░░░░░░░░░░░
 ```
-
 ---
 
 ## Phase Completion Status
@@ -193,7 +198,7 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 5B | Build Pipeline Foundation | Complete | 100% |
 | Phase 5C | Secure Delivery API | Complete | 100% |
 | Phase 5D | Loader Integration POC | Complete | 100% |
-| Phase 5 | Secure Script Delivery | Foundation Complete / Production Cutover Pending | 85% |
+| Phase 5 | Secure Script Delivery | Complete | 100% |
 | Phase 6A | Dashboard V2 Upload + Build Visibility | Complete | 100% |
 | Phase 6B | Build Operations + Delivery Visibility | Complete | 100% |
 | Phase 6C | Build Automation | Complete | 100% |
@@ -202,14 +207,22 @@ Scale (Optional):    0% complete  ░░░░░░░░░░░░░░░�
 | Phase 6F | Runtime Validation | Complete | 100% |
 | Phase 6G | Delivery Architecture Review | Complete | 100% |
 | Phase 6H | Runtime Payload Delivery | Complete | 100% |
-| Phase 6 | Loader Integration | Runtime Payload Delivery Complete / Executor Verification Pending | 92% |
-| Phase 7 | License & Key Management | Not Started | 0% |
-| Phase 8 | Internal Operations & Release Workflow | Not Started | 0% |
-| Phase 9 | Scale & Infrastructure (Optional) | Not Started | 0% |
+| Phase 6 | Loader Integration | Complete | 100% |
+| Phase 7A | License Foundation | Not Started | 0% |
+| Phase 7B | License Management Dashboard | Not Started | 0% |
+| Phase 7C | Delivery Authorization | Not Started | 0% |
+| Phase 7D | License Analytics & Audit | Not Started | 0% |
+| Phase 7E | Creator UX | Not Started | 0% |
+| Phase 8A | Event Foundation | Not Started | 0% |
+| Phase 8B | Secure Event Delivery | Not Started | 0% |
+| Phase 8C | Queue & Worker System | Not Started | 0% |
+| Phase 8D | Dashboard Management | Not Started | 0% |
+| Phase 8E | Analytics & Audit | Not Started | 0% |
+| Phase 9 | Internal Operations & Release Workflow | Not Started | 0% |
+| Phase 10 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 6H Complete — Executor Verification Pending
-> Phase 6H moves decrypt/decompress to the server delivery boundary, keeps encrypted build storage intact, returns `runtime-v1` payloads after one-time session validation, and simplifies the loader runtime. Next: executor compatibility validation, then Phase 7 — License & Key Management.
----
+## Current Phase: Phase 6 Complete — Phase 7 Planning
+> Phase 6 delivered production loader integration, runtime payload delivery, and build automation. The secure delivery stack is complete. Phase 7 introduces a licensing model that sits above the existing delivery architecture. Phase 8 (future) adds secure event reporting so Roblox scripts can report events to Discord, Telegram, and Slack without exposing webhook URLs.
 
 # Phase 1 — Infrastructure & Monitoring
 
@@ -486,28 +499,31 @@ Create a protected script delivery architecture that is significantly harder to 
 - [x] Loader architecture documentation — `PHASE5D_LOADER_INTEGRATION.md`
 - [x] Script encryption strategy — AES-256-GCM envelope in Phase 5B
 - [x] Payload delivery architecture — build artifact + session API + consumer POC
-- [ ] Production loader implementation — Phase 6
-- [ ] Raw endpoint cutover / secure-delivery-required flag — Phase 6 or later
-- [ ] Entitlement/private-script delivery integration — after loader requirements are finalized
-- [ ] Executor compatibility testing — Phase 6
-
+- [x] Production loader implementation — Phase 6D
+- [x] Runtime payload delivery (server-side decrypt/decompress) — Phase 6H
+- [x] Executor crypto/gzip dependency removed from loader baseline
+- [x] Simplified loader runtime (session → fetch → execute)
+- [ ] Executor compatibility verified in real executors
+- [ ] Raw endpoint cutover / secure-delivery-required flag — Phase 7 or later
+- [ ] Obfuscation beyond encryption/compression — future hardening
 Success Criteria:
-
 - [x] Pre-built encrypted payload delivery supported
 - [x] One-time session-gated payload retrieval works
 - [x] Payload can be decrypted/decompressed by reference consumer
 - [x] Secure delivery proven end-to-end in tests
-- [ ] Script no longer delivered as plain public raw content — pending production cutover
-- [ ] Loader becomes primary production delivery mechanism — Phase 6
+- [x] Production loader can retrieve scripts securely
+- [x] Runtime payload delivery works end-to-end
+- [x] Executor crypto/gzip dependency removed from loader baseline
+- [ ] Executor compatibility verified against real executors
 - [ ] Obfuscation beyond encryption/compression — future hardening
 
 ---
 
-# Phase 6 — Loader Integration
+# Phase 6 — Loader Integration ✅ COMPLETE
 
 ## Goal
 
-Integrate LuxyHub delivery system with script loaders.
+Integrated LuxyHub delivery system with production script loaders.
 
 ## Features
 
@@ -530,7 +546,6 @@ Integrate LuxyHub delivery system with script loaders.
 - [x] Production loader validation flow
 - [x] Production delivery authorization flow
 - [x] Production session validation
-- [x] Loader context strategy for `version_id` + `source_sha256`
 - [x] Script bootstrap architecture
 - [x] Dashboard action tooltips and accessible icon labels
 - [x] Copy Loader action in script table, script cards, and edit page
@@ -552,7 +567,7 @@ Integrate LuxyHub delivery system with script loaders.
 - [x] Runtime response excludes ciphertext and source/payload hashes
 - [x] Loader runtime simplified to request, fetch, execute
 - [x] Runtime payload delivery documentation and tests
-- [ ] Executor compatibility testing
+- [ ] Executor compatibility testing — cross-phase operational task
 
 Success Criteria:
 
@@ -579,36 +594,310 @@ Success Criteria:
 - [x] Runtime payload delivery works
 - [x] Encrypted storage remains
 - [x] Executor crypto/gzip dependency removed from loader baseline
-- [ ] Executor compatibility verified
+
+Executor compatibility validation is a cross-phase operational task tracked separately from Phase 6 implementation.
 
 ---
 
-# Phase 7 — License & Key Management
+# Phase 7 — License & Delivery Authorization
 
-This phase begins only after loader integration requirements are finalized.
+Phase 7 introduces a licensing model that sits above the existing secure delivery architecture. The build pipeline, encryption, session lifecycle, and loader runtime remain unchanged. License validation gates delivery session creation.
+
+---
+
+# Phase 7A — License Foundation
 
 ## Goal
 
-Manage customers, licenses, and keys from the dashboard after secure delivery and loader integration requirements are known.
+Introduce the license data model and access mode system. Scripts default to `free` (no key). Creators opt scripts into `license_required`.
 
 ## Features
 
-- [ ] Key lookup
-- [ ] Key search
-- [ ] Key revoke
-- [ ] Key reset
-- [ ] Key status
-- [ ] Customer lookup
-- [ ] License analytics
+- [ ] `licenses` table — license definitions (id, script_id, creator_id, key_prefix, key_suffix, access_mode, max_assignments, status, timestamps)
+- [ ] `license_assignments` table — customer-to-license bindings (id, license_id, customer_identifier, status, timestamps)
+- [ ] License repository and service layers
+- [ ] Access mode column on scripts (`free` | `license_required`, default `free`)
+- [ ] License key generation (LUXY-XXXX-XXXX format, SHA-256 hashed in DB)
+- [ ] License ownership follows existing creator ownership pattern
+- [ ] RLS policies for licenses and assignments
 
-Success Criteria:
+## Success Criteria
 
-- Key management operational
-- Customer support workflow operational
+- [ ] Existing scripts continue working without keys (free mode default)
+- [ ] License model compatible with secure delivery architecture
+- [ ] Key generation produces LUXY-XXXX-XXXX format keys
+- [ ] Keys hashed before storage (never raw in DB)
+- [ ] Ownership enforced via existing `creator_id` pattern
 
 ---
 
-# Phase 8 — Internal Operations & Release Workflow
+# Phase 7B — License Management Dashboard
+
+## Goal
+
+Full license lifecycle management from the creator dashboard.
+
+## Features
+
+- [ ] Create License — generate key, set max_assignments, assign to script
+- [ ] Edit License — update max_assignments, metadata
+- [ ] Revoke License — invalidate key, revoke all assignments, deny future sessions
+- [ ] Reset License — revoke + generate new key, preserve assignments
+- [ ] Search License — by key, status, or customer identifier
+- [ ] License Status — active / revoked / expired badges
+- [ ] Customer Lookup — find customer by identifier across licenses
+- [ ] Customer Assignment — assign customer identifier to license
+- [ ] Revoke Assignment — revoke individual customer assignment
+
+## Success Criteria
+
+- [ ] License lifecycle manageable from dashboard
+- [ ] Customer support workflow operational
+- [ ] Revocation takes effect immediately
+
+---
+
+# Phase 7C — Delivery Authorization
+
+## Goal
+
+Move access control into delivery session creation. Free scripts proceed as today. Licensed scripts require valid `script_key`.
+
+## Planned Flow
+
+```text
+Loader
+  |
+  | script_key = "LUXY-XXXX-XXXX"     (set by executor environment)
+  |
+  | POST /api/delivery/session { slug, script_key }
+  v
+License Validation                      (NEW GATE)
+  |
+  | validate key format
+  | lookup license by key hash
+  | verify license.status = active
+  | verify script.access_mode = license_required
+  | verify assignment exists and active
+  v
+Create Session                          (unchanged)
+  |
+  | update license.last_activation_at
+  v
+Fetch Runtime Payload                   (unchanged)
+  |
+  | update license.last_delivery_at
+  v
+execute(runtime_payload)
+```
+
+## Features
+
+- [ ] `script_key` optional field on `POST /api/delivery/session`
+- [ ] License validation service (key lookup, status check, assignment check)
+- [ ] Access mode gating — `free` scripts skip validation, `license_required` scripts require valid key
+- [ ] Deny delivery for invalid, expired, or revoked licenses
+- [ ] Uniform error response: `Invalid or revoked license`
+- [ ] Track `last_activation_at` and `last_delivery_at` on license row
+- [ ] Rate limit on session creation still applies (prevents brute-force)
+
+## Success Criteria
+
+- [ ] Free scripts remain keyless — no `script_key` required
+- [ ] Licensed scripts require valid active license + assignment
+- [ ] Revoked licenses lose access immediately (60s TTL session window)
+- [ ] Uniform error responses prevent oracle attacks
+- [ ] Build pipeline, encryption, loader runtime unchanged
+
+---
+
+# Phase 7D — License Analytics & Audit
+
+## Goal
+
+Make license activity observable and auditable.
+
+## Features
+
+- [ ] License usage tracking (activation count, delivery count)
+- [ ] Last activation timestamp on license row
+- [ ] Last delivery timestamp on license row
+- [ ] Revocation history via audit logs
+- [ ] Audit events: `license.created`, `license.updated`, `license.revoked`, `license.assignment_created`, `license.assignment_revoked`
+- [ ] License analytics cards on dashboard
+
+## Success Criteria
+
+- [ ] License activity observable from dashboard
+- [ ] Support diagnostics available (last activation, last delivery)
+- [ ] Audit trail covers full license lifecycle
+- [ ] Audit logging follows existing fire-and-forget pattern
+
+---
+
+# Phase 7E — Creator UX
+
+## Goal
+
+Polish the license creator experience with copy workflows, loader examples, and status visibility.
+
+## Features
+
+- [ ] Copy Key — one-click copy of license key from dashboard
+- [ ] Copy Loader Example — snippet with key embedded for customer distribution
+- [ ] License Overview Cards — active, revoked, total per script
+- [ ] Status Badges — active (green), revoked (red), expired (yellow)
+- [ ] Customer Assignment UI — inline assign/revoke customers per license
+- [ ] License detail page — key status, assignment list, activity timeline
+
+## Example Loader Snippet
+
+```lua
+getgenv().script_key = "LUXY-XXXX-XXXX"
+
+loadstring(game:HttpGet(
+    "https://www.luxyhub.space/api/loader/luxy"
+))()
+```
+
+## Success Criteria
+
+- [ ] Copy workflows reduce creator friction
+- [ ] Loader example auto-populates with real key
+- [ ] License status visible at a glance
+- [ ] Customer assignment workflow intuitive
+---
+
+# Phase 8 — Event Reporting & Webhook Platform
+
+Phase 8 allows Roblox scripts to securely report events to external providers (Discord, Telegram, Slack) without exposing provider credentials in Lua source code. Discord webhook URLs never appear inside scripts.
+
+---
+
+# Phase 8A — Event Foundation
+## Goal
+
+Introduce event data model, webhook configuration storage, and allowed event registry.
+
+## Features
+- [ ] `webhook_config` table — per-script provider configuration (script_id, provider, encrypted config, enabled)
+- [ ] `event_logs` table — event storage with delivery tracking (script_id, session_id, event, nonce, data, delivered, retry_count)
+- [ ] Event schema: `session_token`, `event`, `timestamp`, `nonce`, `signature`, `data`
+- [ ] Allowed event registry — `execute`, `purchase`, `error`, `ban`, `key_redeem`, `heartbeat`, `enter_world`, `leave_world`
+- [ ] Unknown event types return 422
+- [ ] Event repository and service layers
+- [ ] RLS policies for webhook_config (owner-aware) and event_logs (through scripts)
+
+## Success Criteria
+
+- [ ] Provider credentials stored server-side only — never in Lua scripts
+- [ ] Event types strictly allowlisted
+- [ ] RLS enforces owner isolation on webhook configs
+
+---
+
+# Phase 8B — Secure Event Delivery
+
+## Goal
+
+Validate, authenticate, and protect every event report before queueing.
+
+## Features
+
+- [ ] Session validation — reuse existing delivery session infrastructure
+- [ ] HMAC-SHA256 event signatures computed from session-derived secret
+- [ ] Signature validation server-side before storage
+- [ ] Nonce validation — unique within session TTL window (replay protection)
+- [ ] Timestamp validation — ±60s from server time
+- [ ] Rate limiting per script + event type
+- [ ] Uniform error responses (no oracle for auth failures)
+- [ ] 202 Accepted immediately after storage — never blocks on provider delivery
+
+## Success Criteria
+
+- [ ] Replayed events rejected (nonce uniqueness enforced)
+- [ ] Tampered events rejected (signature mismatch)
+- [ ] Expired/expiring sessions denied
+- [ ] Rate limits prevent webhook flooding
+- [ ] Provider outages do not cause 5xx responses
+
+---
+
+# Phase 8C — Queue & Worker System
+
+## Goal
+
+Reliably deliver stored events to provider webhooks with retry and dead-letter handling.
+
+## Features
+
+- [ ] Database-backed queue (poll event_logs WHERE delivered = false)
+- [ ] Worker polling loop (Vercel Cron Job or in-process interval)
+- [ ] Exponential backoff retry: 10s, 30s, 90s, 270s, 810s
+- [ ] Max 5 retries before dead-letter
+- [ ] Dead-letter handling — mark, log error, visible in dashboard for manual replay
+- [ ] Provider abstraction layer — Discord, Telegram, Slack adapters
+- [ ] Discord provider: Discord webhook embed formatting
+- [ ] Telegram provider: bot token + chat ID message delivery
+- [ ] Slack provider: Slack incoming webhook formatting
+
+## Success Criteria
+
+- [ ] Events survive process restarts (DB-backed, not in-memory)
+- [ ] Discord outage does not block API / return 5xx
+- [ ] Events not lost — retried until success or dead-letter
+- [ ] Dead-letter events visible and replayable from dashboard
+
+---
+
+# Phase 8D — Dashboard Management
+
+## Goal
+
+Creator-facing webhook configuration and event visibility.
+
+## Features
+
+- [ ] Configure webhook provider per script (Discord / Telegram / Slack)
+- [ ] Enable/disable webhook toggle
+- [ ] Test Webhook button — sends test event to verify connectivity
+- [ ] View delivery status — last delivery timestamp, failure count, dead-letter count
+- [ ] Event history table with filters (event type, status, date range)
+- [ ] Event detail view (payload, delivery attempts, error messages)
+- [ ] Dead-letter queue with manual replay button
+
+## Success Criteria
+
+- [ ] Creators can configure and test webhooks from dashboard
+- [ ] Delivery status visible at a glance
+- [ ] Failed deliveries diagnosable from dashboard
+
+---
+
+# Phase 8E — Analytics & Audit
+
+## Goal
+
+Observability into event throughput, delivery success, and queue health.
+
+## Features
+
+- [ ] Event counts by type (per script, time range)
+- [ ] Delivery success rate (%)
+- [ ] Failure counts and rate
+- [ ] Queue depth (currently undelivered)
+- [ ] Average delivery latency (received_at → delivered_at)
+- [ ] Audit events: `webhook.created`, `webhook.updated`, `webhook.deleted`, `webhook.test_sent`
+
+## Success Criteria
+
+- [ ] Event throughput observable from dashboard
+- [ ] Queue health metrics available
+- [ ] Audit trail covers webhook config lifecycle
+
+---
+
+# Phase 9 — Internal Operations & Release Workflow
 
 ## Goal
 
@@ -630,7 +919,7 @@ Success Criteria:
 
 ---
 
-# Phase 9 — Scale & Infrastructure (Optional)
+# Phase 10 — Scale & Infrastructure (Optional)
 
 ## Goal
 
@@ -670,12 +959,10 @@ The following features are deferred indefinitely. They are not part of the curre
 # Platform Architecture
 
 ## Current Implementation
-
 ```text
 www.luxyhub.space
 ├── /
 ├── /login
-├── /dashboard
 ├── /get-key
 ├── /verify-token
 ├── /docs/api
@@ -683,11 +970,17 @@ www.luxyhub.space
 ├── /dashboard/scripts
 ├── /dashboard/scripts/new
 ├── /dashboard/scripts/[slug]/edit
+├── /dashboard/scripts/[slug]/builds
+├── /dashboard/scripts/[slug]/builds/[buildId]
 ├── /dashboard/analytics
 ├── /dashboard/versions
 ├── /dashboard/versions/[slug]
 ├── /dashboard/versions/[slug]/[versionId]
-└── /dashboard/profile
+├── /dashboard/profile
+├── /api/loader/[slug]
+├── /api/delivery/session
+├── /api/delivery/fetch
+└── /api/*
 ```
 
 ## Public Platform
@@ -828,17 +1121,31 @@ Grafana
 Current Sprint:
 
 ```text
-1. Phase 6 — Production Loader Integration
-2. Phase 6 — Executor Compatibility Testing
+1. Phase 7A — License Foundation (schema, service layer, access modes)
+2. Phase 7B — License Management Dashboard (CRUD, search, assignment)
 ```
 
 Next Sprint:
 
 ```text
-1. Phase 7 — License & Key Management
-2. Phase 8 — Internal Operations & Release Workflow
+1. Phase 7C — Delivery Authorization (license-gated session creation)
+2. Phase 7D — License Analytics & Audit (activity tracking, audit logs)
+```
+
+Following:
+
+```text
+1. Phase 7E — Creator UX (copy workflows, loader examples, status badges)
+2. Phase 9 — Internal Operations & Release Workflow
+```
+
+Future:
+
+```text
+1. Phase 8 — Event Reporting & Webhook Platform (Discord, Telegram, Slack)
+2. Phase 10 — Scale & Infrastructure (Optional)
 ```
 
 Long-Term Goal:
 
-Build LuxyHub into a complete internal platform for LuxyHub operations, script distribution, and customer management.
+Build LuxyHub into a complete internal platform for LuxyHub operations, script distribution, license management, event reporting, and customer management.

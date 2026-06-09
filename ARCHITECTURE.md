@@ -329,14 +329,16 @@ Current priorities:
 - Phase 4.2 — Performance Review: complete
 - Phase 4.3 — Documentation Review: updated after recent security hardening
 - Phase 4.4 — Production Hardening: complete
-- Phase 5 — Secure Script Delivery: delivery builds and delivery sessions implemented
-- Phase 6 — Loader Integration: production loader bootstrap and runtime payload delivery implemented
-- Phase 7 — License & Key Management, only after loader requirements are finalized
-- Phase 8 — Internal Operations & Release Workflow
-- Phase 9 — Scale & Infrastructure (Optional)
+- Phase 5 — Secure Script Delivery: complete
+- Phase 6 — Loader Integration: complete
+- Phase 7 — License & Delivery Authorization: planning (5 sub-phases)
+- Phase 8 — Event Reporting & Webhook Platform: future (5 sub-phases)
+- Phase 9 — Internal Operations & Release Workflow
+- Phase 10 — Scale & Infrastructure (Optional)
 
 Deprecated roadmap assumptions removed from current architecture:
 
 - Separate `dashboard.luxyhub.space`, `api.luxyhub.space`, `cdn.luxyhub.space`, and `vault.luxyhub.space` services are not implemented.
 - Marketplace architecture is not part of the current roadmap.
-- License management is not the immediate next phase.
+- License management has been planned — see `PHASE7_LICENSE_ARCHITECTURE.md`.
+- Event reporting platform has been designed — see `PHASE8_EVENT_PLATFORM_ARCHITECTURE.md`.
