@@ -38,6 +38,7 @@ www.luxyhub.space
 ├── /api/delivery/session
 ├── /api/delivery/fetch
 ├── /api/events/report
+├── /api/internal/event-worker
 └── /api/*
 ```
 
@@ -220,7 +221,8 @@ Security posture:
 - `delivery_sessions.session_token_hash` stores SHA-256 hashes, never raw delivery tokens.
 - `webhook_config` is owner-aware with service-role compatibility; one config per script.
 - `event_logs` is service-role-only; browser users never access it directly.
-- `delivery_sessions.event_secret` is nullable for future event signing and is not exposed by the current delivery API.
+- `delivery_sessions.event_secret` is nullable for event signing and is not exposed by the current delivery API.
+- Queue worker polls `event_logs` via `POST /api/internal/event-worker` (CRON_SECRET auth, 5-min cron).
 
 ## Script Delivery State
 
@@ -338,7 +340,7 @@ Current priorities:
 - Phase 5 — Secure Script Delivery: complete
 - Phase 6 — Loader Integration: complete
 - Phase 7 — License & Delivery Authorization: planning (5 sub-phases)
-- Phase 8 — Event Reporting & Webhook Platform: Phase 8B.1 database foundation implemented; Phase 8B.2 event ingestion API implemented (3 remaining sub-phases)
+- Phase 8 — Event Reporting & Webhook Platform: Phase 8B.1-8B.3 implemented (database, API, queue worker with mock provider); 2 remaining sub-phases
 - Phase 9 — Internal Operations & Release Workflow
 - Phase 10 — Scale & Infrastructure (Optional)
 
