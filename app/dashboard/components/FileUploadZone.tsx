@@ -1,9 +1,8 @@
 'use client'
-
 import { useRef, useState } from 'react'
 import { UploadCloud } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
-import { readSourceFile, type SourceFileMetadata } from '@/app/dashboard/lib/source-file'
+import { readSourceFile, formatFileSize, MAX_SOURCE_FILE_BYTES, type SourceFileMetadata } from '@/app/dashboard/lib/source-file'
 import { FileMetadataCard } from '@/app/dashboard/components/FileMetadataCard'
 
 type FileUploadZoneProps = {
@@ -59,7 +58,7 @@ export function FileUploadZone({ onFileReady, onFileRejected, fallbackName }: Fi
       >
         <UploadCloud className="h-7 w-7 text-zinc-400" aria-hidden="true" />
         <span className="mt-3 text-sm font-medium text-white">Upload Lua or text source</span>
-        <span className="mt-1 text-xs text-zinc-500">Drop a .lua or .txt file here</span>
+        <span className="mt-1 text-xs text-zinc-500">Drop a .lua or .txt file here. Max {formatFileSize(MAX_SOURCE_FILE_BYTES)}.</span>
       </button>
 
       <input

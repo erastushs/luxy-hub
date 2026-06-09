@@ -163,7 +163,7 @@ export default function NewScriptPage() {
               <label htmlFor="source-content" className="block text-sm font-medium text-zinc-300">
                 Content
               </label>
-              <p className="mt-1 text-xs text-zinc-500">Script body. Max 62 KB.</p>
+              <p className="mt-1 text-xs text-zinc-500">Script body. Max 1 MB.</p>
               <textarea
                 id="source-content"
                 rows={8}

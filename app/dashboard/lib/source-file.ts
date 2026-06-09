@@ -1,4 +1,6 @@
-export const MAX_SOURCE_FILE_BYTES = 62 * 1024
+import { MAX_SCRIPT_SIZE_BYTES } from '@/app/lib/constants/size-limits'
+
+export const MAX_SOURCE_FILE_BYTES = MAX_SCRIPT_SIZE_BYTES
 export const ACCEPTED_SOURCE_EXTENSIONS = ['.lua', '.txt'] as const
 
 const ARCHIVE_EXTENSIONS = new Set([
@@ -96,7 +98,7 @@ export function validateSourceFileMetadata(file: SourceFileLike): string | null 
   }
 
   if (file.size > MAX_SOURCE_FILE_BYTES) {
-    return 'File must not exceed 62 KB'
+    return `File is ${formatFileSize(file.size)}; maximum is ${formatFileSize(MAX_SOURCE_FILE_BYTES)}`
   }
 
   if (file.type && BLOCKED_MIME_TYPES.has(file.type.toLowerCase())) {

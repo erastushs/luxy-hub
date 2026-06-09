@@ -1,6 +1,8 @@
+import { MAX_SCRIPT_SIZE_BYTES } from '@/app/lib/constants/size-limits'
+
 const KEY_REGEX = /^LUXY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
 const MAX_TOKEN_LENGTH = 256
-const MAX_BODY_SIZE = 64 * 1024
+const MAX_BODY_SIZE = 2_097_152 // 2 MB proxy overhead ceiling
 
 export function isValidKeyFormat(key: unknown): key is string {
   return typeof key === 'string' && KEY_REGEX.test(key)
@@ -20,7 +22,7 @@ const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const USERNAME_REGEX = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/
 const MAX_SLUG_LENGTH = 64
 const MAX_NAME_LENGTH = 100
-const MAX_CONTENT_LENGTH = 62 * 1024
+const MAX_CONTENT_LENGTH = MAX_SCRIPT_SIZE_BYTES
 const MAX_DISPLAY_NAME_LENGTH = 80
 export const VALID_VISIBILITIES = ['public', 'private', 'unlisted'] as const
 export type Visibility = (typeof VALID_VISIBILITIES)[number]

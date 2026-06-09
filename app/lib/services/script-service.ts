@@ -94,7 +94,7 @@ export async function createScript(params: {
   }
 
   if (!isValidScriptContent(params.content)) {
-    return { success: false, message: 'Content is required and must not exceed 62 KB', status: 400 }
+    return { success: false, message: 'Content is required and must not exceed 1 MB', status: 400 }
   }
 
   const visibility = params.visibility !== undefined ? params.visibility : 'private'
@@ -297,7 +297,7 @@ export async function updateScript(
   }
 
   if (params.content !== undefined && !isValidScriptContent(params.content)) {
-    return { success: false, message: 'Content must not exceed 62 KB', status: 400 }
+    return { success: false, message: 'Content must not exceed 1 MB', status: 400 }
   }
 
   try {
