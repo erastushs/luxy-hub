@@ -36,7 +36,7 @@ export default async function ScriptBuildsPage({
   const totalPages = Math.max(1, Math.ceil(result.total / limit))
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Tooltip text="Back to Scripts">

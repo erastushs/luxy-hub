@@ -1,6 +1,6 @@
 export default function VersionHistoryLoading() {
   return (
-    <div className="mx-auto max-w-4xl space-y-6 animate-pulse">
+    <div className="mx-auto max-w-5xl space-y-6 animate-pulse">
       <div className="flex items-center gap-3">
         <div className="h-5 w-5 rounded bg-zinc-800" />
         <div>

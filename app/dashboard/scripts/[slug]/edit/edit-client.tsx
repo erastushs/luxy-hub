@@ -32,7 +32,7 @@ export default function EditScriptClient({
   const [replacementFile, setReplacementFile] = useState<SourceFileMetadata | null>(null)
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Tooltip text="Back to Scripts">

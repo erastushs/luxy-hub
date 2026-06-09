@@ -32,7 +32,7 @@ export default async function DeadLetterPage({
   const totalPages = Math.max(1, Math.ceil(result.total / pageSize))
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link
