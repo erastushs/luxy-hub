@@ -110,6 +110,7 @@ function mockSessionRow(overrides: Partial<DeliverySessionRow> = {}): DeliverySe
     session_token_hash: hashDeliverySessionToken('test-session-token-that-is-long-enough'),
     expires_at: futureIso(),
     consumed_at: null,
+    event_secret: null,
     created_at: '2026-01-01T00:00:00.000Z',
     ...overrides,
   }
@@ -147,6 +148,33 @@ describe('Phase 5C delivery session service', () => {
       expect(createParams.tokenHash).not.toBe(result.session_token)
       expect(result.expires_in).toBe(60)
       expect(result.session.session_token_hash).toBe(createParams.tokenHash)
+    }
+  })
+
+  it('keeps event_secret nullable and absent from session creation behavior', async () => {
+    mockedFindScriptBySlug.mockResolvedValue(mockScriptRow())
+    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
+    mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
+      script_id: params.scriptId,
+      build_id: params.buildId,
+      session_token_hash: params.tokenHash,
+      expires_at: params.expiresAt,
+      event_secret: params.eventSecret ?? null,
+    }))
+
+    const result = await createDeliverySession('my-script')
+
+    expect(result.success).toBe(true)
+    expect(mockedCreateSession).toHaveBeenCalledWith(expect.objectContaining({
+      scriptId: 'script-uuid-1',
+      buildId: 'build-uuid-1',
+      tokenHash: expect.any(String),
+      expiresAt: expect.any(String),
+    }))
+    expect(mockedCreateSession.mock.calls[0][0]).not.toHaveProperty('eventSecret')
+    if (result.success) {
+      expect(result.session.event_secret).toBeNull()
+      expect(result).not.toHaveProperty('event_secret')
     }
   })
 

@@ -49,6 +49,7 @@ describe('Phase 5C delivery API routes', () => {
         session_token_hash: '0'.repeat(64),
         expires_at: '2026-01-01T00:01:00.000Z',
         consumed_at: null,
+        event_secret: null,
         created_at: '2026-01-01T00:00:00.000Z',
       },
     })
@@ -76,6 +77,7 @@ describe('Phase 5C delivery API routes', () => {
         session_token_hash: '0'.repeat(64),
         expires_at: '2026-01-01T00:01:00.000Z',
         consumed_at: '2026-01-01T00:00:10.000Z',
+        event_secret: null,
         created_at: '2026-01-01T00:00:00.000Z',
       },
       build: {

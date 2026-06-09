@@ -7,6 +7,7 @@ export type DeliverySessionRow = {
   session_token_hash: string
   expires_at: string
   consumed_at: string | null
+  event_secret: string | null
   created_at: string
 }
 
@@ -17,6 +18,7 @@ const SESSION_SELECT = [
   'session_token_hash',
   'expires_at',
   'consumed_at',
+  'event_secret',
   'created_at',
 ].join(', ')
 
@@ -25,6 +27,7 @@ export async function createSession(params: {
   buildId: string
   tokenHash: string
   expiresAt: string
+  eventSecret?: string | null
 }): Promise<DeliverySessionRow> {
   const { data, error } = await supabaseAdmin
     .from('delivery_sessions')
@@ -33,6 +36,7 @@ export async function createSession(params: {
       build_id: params.buildId,
       session_token_hash: params.tokenHash,
       expires_at: params.expiresAt,
+      event_secret: params.eventSecret ?? null,
       consumed_at: null,
       created_at: new Date().toISOString(),
     })

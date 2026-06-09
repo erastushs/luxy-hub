@@ -207,6 +207,8 @@ Current tables:
 - `audit_logs`
 - `delivery_builds`
 - `delivery_sessions`
+- `webhook_config`
+- `event_logs`
 
 Security posture:
 
@@ -215,6 +217,9 @@ Security posture:
 - Operational tables remain service-role-only for browser users.
 - Application services use Supabase admin access with explicit auth and ownership checks.
 - `delivery_sessions.session_token_hash` stores SHA-256 hashes, never raw delivery tokens.
+- `webhook_config` is owner-aware with service-role compatibility; one config per script.
+- `event_logs` is service-role-only; browser users never access it directly.
+- `delivery_sessions.event_secret` is nullable for future event signing and is not exposed by the current delivery API.
 
 ## Script Delivery State
 

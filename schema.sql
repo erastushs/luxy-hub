@@ -196,6 +196,7 @@ CREATE TABLE IF NOT EXISTS delivery_sessions (
     CHECK (session_token_hash ~ '^[a-f0-9]{64}$'),
   expires_at timestamp with time zone NOT NULL,
   consumed_at timestamp with time zone,
+  event_secret text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT delivery_sessions_expires_after_created
     CHECK (expires_at > created_at)
@@ -209,6 +210,76 @@ CREATE INDEX IF NOT EXISTS idx_delivery_sessions_expires_at
 
 CREATE INDEX IF NOT EXISTS idx_delivery_sessions_build_id
   ON delivery_sessions (build_id);
+
+-- ============================================================================
+-- LuxyHub Event Platform - Phase 8B.1
+-- Apply migrations/008_event_platform.sql after running this section
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS webhook_config (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  script_id uuid NOT NULL UNIQUE REFERENCES scripts(id) ON DELETE CASCADE,
+  creator_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  provider text NOT NULL CHECK (provider IN ('discord', 'telegram', 'slack')),
+  config jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(config) = 'object'),
+  enabled boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_config_script_id
+  ON webhook_config (script_id);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_config_creator_id
+  ON webhook_config (creator_id);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_config_enabled_provider
+  ON webhook_config (enabled, provider)
+  WHERE enabled = true;
+
+CREATE TABLE IF NOT EXISTS event_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  script_id uuid NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
+  session_id uuid REFERENCES delivery_sessions(id) ON DELETE SET NULL,
+  event_type text NOT NULL CHECK (event_type IN (
+    'execute', 'purchase', 'error', 'ban',
+    'key_redeem', 'heartbeat',
+    'license_activate', 'license_revoke'
+  )),
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(payload) = 'object'),
+  delivery_status text NOT NULL DEFAULT 'pending'
+    CHECK (delivery_status IN ('pending', 'delivered', 'dead_letter')),
+  retry_count integer NOT NULL DEFAULT 0 CHECK (retry_count >= 0 AND retry_count <= 5),
+  timestamp timestamp with time zone NOT NULL,
+  received_at timestamp with time zone NOT NULL DEFAULT now(),
+  nonce text NOT NULL,
+  last_retry_at timestamp with time zone,
+  delivered_at timestamp with time zone,
+  error_message text,
+  created_at timestamp with time zone NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_logs_pending_delivery
+  ON event_logs (received_at ASC)
+  WHERE delivery_status = 'pending';
+
+CREATE INDEX IF NOT EXISTS idx_event_logs_session_nonce
+  ON event_logs (session_id, nonce);
+
+CREATE INDEX IF NOT EXISTS idx_event_logs_script_event_time
+  ON event_logs (script_id, event_type, received_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_event_logs_dead_letter
+  ON event_logs (script_id, received_at DESC)
+  WHERE delivery_status = 'dead_letter';
+
+CREATE INDEX IF NOT EXISTS idx_event_logs_delivered_latency
+  ON event_logs (script_id, received_at)
+  WHERE delivery_status = 'delivered';
+
+CREATE INDEX IF NOT EXISTS idx_event_logs_delivered_created
+  ON event_logs (created_at)
+  WHERE delivery_status = 'delivered';
 
 -- ============================================================================
 -- LuxyHub Creator Identity — Phase 3A
