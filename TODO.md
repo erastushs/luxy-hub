@@ -129,7 +129,9 @@ Last updated: 2026-06-09
 
 ### In Progress 🚧
 
-(none)
+| # | Phase | Task | Artifact |
+|---|-------|------|----------|
+| 1 | Phase 8A | Event Foundation Design | `PHASE8A_EVENT_FOUNDATION_DESIGN.md` |
 
 ---
 
@@ -213,7 +215,7 @@ Scale (Optional):        0% complete  ░░░░░░░░░░░░░░
 | Phase 7C | Delivery Authorization | Not Started | 0% |
 | Phase 7D | License Analytics & Audit | Not Started | 0% |
 | Phase 7E | Creator UX | Not Started | 0% |
-| Phase 8A | Event Foundation | Not Started | 0% |
+| Phase 8A | Event Foundation | In Progress | 50% |
 | Phase 8B | Secure Event Delivery | Not Started | 0% |
 | Phase 8C | Queue & Worker System | Not Started | 0% |
 | Phase 8D | Dashboard Management | Not Started | 0% |
@@ -221,8 +223,8 @@ Scale (Optional):        0% complete  ░░░░░░░░░░░░░░
 | Phase 9 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 10 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 6 Complete — Phase 7 Planning
-> Phase 6 delivered production loader integration, runtime payload delivery, and build automation. The secure delivery stack is complete. Phase 7 introduces a licensing model that sits above the existing delivery architecture. Phase 8 (future) adds secure event reporting so Roblox scripts can report events to Discord, Telegram, and Slack without exposing webhook URLs.
+## Current Phase: Phase 7 Planning — Phase 8A Design In Progress
+> Phase 6 delivered production loader integration, runtime payload delivery, and build automation. Phase 7 introduces a licensing model that sits above the existing delivery architecture. Phase 8A Event Foundation design is underway — architecture and schema review, no implementation yet.
 
 # Phase 1 — Infrastructure & Monitoring
 
