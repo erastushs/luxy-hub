@@ -8,6 +8,9 @@ import {
   FileCode,
   Download,
   Eye,
+  BookOpen,
+  Code2,
+  Zap,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -76,6 +79,51 @@ export default async function DashboardHomePage() {
             Analytics section
           </Link>.
         </p>
+      </div>
+
+      {/* Developer Resources */}
+      <div>
+        <h2 className="text-lg font-semibold text-white mb-4">Developer Resources</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Link
+            href="/docs/api"
+            className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 hover:border-zinc-600 hover:bg-zinc-900 transition-colors"
+          >
+            <Code2 className="h-5 w-5 text-zinc-500 group-hover:text-red-400 transition-colors" aria-hidden="true" />
+            <h3 className="mt-3 text-sm font-semibold text-white group-hover:text-red-400 transition-colors">
+              API Integration
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
+              Validate API keys from any runtime — Luau, Python, Node.js, and more.
+            </p>
+          </Link>
+
+          <Link
+            href="/docs/event-platform"
+            className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 hover:border-zinc-600 hover:bg-zinc-900 transition-colors"
+          >
+            <Zap className="h-5 w-5 text-zinc-500 group-hover:text-red-400 transition-colors" aria-hidden="true" />
+            <h3 className="mt-3 text-sm font-semibold text-white group-hover:text-red-400 transition-colors">
+              Event Platform
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
+              Send telemetry events securely — no exposed Discord webhooks.
+            </p>
+          </Link>
+
+          <Link
+            href="/docs/event-platform/quickstart"
+            className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 hover:border-zinc-600 hover:bg-zinc-900 transition-colors"
+          >
+            <BookOpen className="h-5 w-5 text-zinc-500 group-hover:text-red-400 transition-colors" aria-hidden="true" />
+            <h3 className="mt-3 text-sm font-semibold text-white group-hover:text-red-400 transition-colors">
+              Quickstart Guide
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
+              5-minute guide to sending your first event.
+            </p>
+          </Link>
+        </div>
       </div>
     </div>
   )

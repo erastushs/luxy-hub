@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Webhook, Send, Loader2, CheckCircle2, XCircle, AlertTriangle, Power, PowerOff } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, BookOpen, Webhook, Send, Loader2, CheckCircle2, XCircle, AlertTriangle, Power, PowerOff } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
 import { saveWebhookAction, toggleWebhookAction, sendTestEventAction } from '@/app/actions/webhooks'
 import { Tooltip } from '@/app/dashboard/components/Tooltip'
@@ -311,11 +311,30 @@ export default function WebhookSettings({
         </div>
       </form>
 
-      {/* Info */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3">
-        <p className="text-xs text-zinc-500">
-          Webhook events are queued and delivered every 5 minutes. You can send a test event to verify your configuration immediately.
-        </p>
+      {/* Event Platform help card */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 mt-0.5">
+            <BookOpen className="h-5 w-5 text-zinc-500" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-white">
+              Need help integrating events?
+            </h3>
+            <p className="mt-1 text-xs text-zinc-400 leading-relaxed">
+              Learn how to create delivery sessions, generate HMAC signatures,
+              send events from your runtime, and use webhook delivery safely —
+              without exposing your Discord webhook URL to clients.
+            </p>
+            <Link
+              href="/docs/event-platform"
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
+            >
+              View Event Platform Docs
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   )
