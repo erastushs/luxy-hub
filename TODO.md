@@ -134,13 +134,6 @@ Last updated: 2026-06-09
 | 122 | **Docs** | Phase 8 Monitoring Foundation | `PHASE8D_MONITORING_FOUNDATION.md` |
 ---
 
-### In Progress 🚧
-
-| # | Phase | Task | Artifact |
-|---|-------|------|----------|
-| 1 | Phase 8E | Full Analytics & Audit Dashboard | Complete |
-
----
 
 ### Pending ❌
 
@@ -151,10 +144,9 @@ Last updated: 2026-06-09
 | 3 | Phase 7C | Delivery Authorization | Phase 7A |
 | 4 | Phase 7D | License Analytics & Audit | Phase 7C |
 | 5 | Phase 7E | Creator UX | Phase 7B |
-| 6 | Phase 8E | Analytics Dashboard Expansion | Phase 8D Monitoring Foundation |
-| 7 | Phase 8 Providers | Telegram / Slack Providers | Discord provider parity |
-| 11 | Phase 9 | Internal Operations & Release Workflow | Phase 7 |
-| 12 | Phase 10 | Scale & Infrastructure (Optional) | Phase 9 |
+| 6 | Phase 8 Providers | Telegram / Slack Providers | Discord provider parity |
+| 7 | Phase 9 | Internal Operations & Release Workflow | Phase 7 |
+| 8 | Phase 10 | Scale & Infrastructure (Optional) | Phase 9 |
 ---
 ## Overall Completion
 ```text
@@ -168,8 +160,7 @@ Dashboard UI:          100% complete  ██████████████
 Secure Delivery:       100% complete  ████████████████████
 Loader Integration:    100% complete  ████████████████████
 License & Auth:          0% complete  ░░░░░░░░░░░░░░░░░░░░
-Event Platform:         85% complete  █████████████████░░░
-Operations:              0% complete  ░░░░░░░░░░░░░░░░░░░░
+Event Platform:         95% complete  ███████████████████░
 Scale (Optional):        0% complete  ░░░░░░░░░░░░░░░░░░░░
 ```
 ---
@@ -227,8 +218,8 @@ Scale (Optional):        0% complete  ░░░░░░░░░░░░░░
 | Phase 9 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 10 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 8E Analytics & Audit Expansion
-> Phase 8 hardening resolved the highest-risk audit findings: event secret issuance, queue claim leases, isolated webhook tests, retention cleanup, and lightweight monitoring counters. Remaining Phase 8 work is full analytics/audit dashboard expansion plus deferred Telegram/Slack providers.
+## Current Phase: Phase 8 Final Hardening (Closeout)
+> Phase 8 hardening resolved the highest-risk audit findings: alert_events RLS, bulk replay cap, GitHub Actions scheduler, platform security signal labeling, and documentation cleanup. Remaining accepted risks are documented in PHASE8_CLOSEOUT.md. Phase 7 license work is next.
 
 # Phase 1 — Infrastructure & Monitoring
 
@@ -254,7 +245,13 @@ Scale (Optional):        0% complete  ░░░░░░░░░░░░░░
 - [x] Create INCIDENT_RESPONSE.md — `INCIDENT_RESPONSE.md` (560 lines)
 - [x] Create BACKUP_STRATEGY.md — `BACKUP_STRATEGY.md` (470 lines)
 - [x] Create MONITORING.md — `MONITORING.md` (420 lines)
-- [x] Create vercel.json (cron config) — `vercel.json`
+- [x] Create vercel.json (cron config) — `vercel.json` (daily cleanup only; 5-minute worker scheduled by GitHub Actions)
+
+**Deployment Requirements:**
+
+- **Development:** Vercel Hobby + GitHub Actions scheduler (`.github/workflows/event-worker.yml`)
+- **Production:** Vercel Pro (native `*/5 * * * *` crons) OR GitHub Actions scheduler
+- See `PHASE8_GITHUB_ACTIONS_SCHEDULER.md` for setup and migration path.
 
 Success Criteria:
 
@@ -778,6 +775,20 @@ loadstring(game:HttpGet(
 
 Phase 8 allows Roblox scripts to securely report events to external providers (Discord, Telegram, Slack) without exposing provider credentials in Lua source code. Discord webhook URLs never appear inside scripts.
 
+## Deployment Requirements
+
+Development:
+
+- [x] Vercel Hobby-compatible deployment
+- [x] GitHub Actions scheduler invokes `/api/internal/event-worker` every 5 minutes
+- [x] Vercel daily cron remains for `/api/cleanup`
+
+Production:
+
+- [x] Vercel Pro cron for `/api/internal/event-worker` OR GitHub Actions scheduler
+- [x] `/api/internal/check-alerts` route retained for manual/debug/future Pro use
+- [x] Dedicated check-alerts cron not required because event worker runs `checkAlerts()` after `processEventQueue()`
+
 ---
 
 # Phase 8A — Event Foundation
@@ -837,7 +848,7 @@ Reliably deliver stored events to provider webhooks with retry and dead-letter h
 ## Features
 
 - [x] Database-backed queue (`event_logs.delivery_status = 'pending'`)
-- [x] Worker polling loop (Vercel Cron Job)
+- [x] Worker polling loop (GitHub Actions scheduler on Vercel Hobby; Vercel Pro cron optional)
 - [x] Queue claim lease (`event_logs.claimed_at`) prevents overlapping workers processing the same event concurrently
 - [x] Exponential backoff retry: 10s, 30s, 90s, 270s, 810s
 - [x] Max 5 retries before dead-letter
@@ -895,6 +906,7 @@ Creator-facing webhook configuration and event visibility.
 - [x] Webhook counters: delivery success, retryable failure, provider failure
 - [x] Security monitoring dashboard: risk classification, anomaly detection, security events table
 - [x] Internal alert system: threshold evaluation, auto-resolution, Discord notifications, admin dashboard
+- [x] GitHub Actions scheduler for Vercel Hobby-compatible 5-minute worker cadence
 ---
 
 # Phase 9 — Internal Operations & Release Workflow

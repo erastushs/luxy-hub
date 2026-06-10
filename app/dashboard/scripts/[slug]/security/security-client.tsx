@@ -70,80 +70,86 @@ function SecurityOverviewCards({ overview }: { overview: SecurityDashboardDTO['o
         : 'text-red-400'
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-      {/* Invalid Signatures */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-            Invalid Sigs
-          </span>
-          <Ban className="h-4 w-4 text-red-400" />
+    <div>
+      <p className="mb-2 text-xs text-zinc-600 leading-relaxed">
+        These are platform-wide security signals aggregated across all scripts.
+        Values are not scoped to individual scripts.
+      </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {/* Invalid Signatures */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              Invalid Sigs
+            </span>
+            <Ban className="h-4 w-4 text-red-400" />
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-amber-400">
+              {overview.invalidSignatures.toLocaleString()}
+            </span>
+          </div>
         </div>
-        <div className="mt-3">
-          <span className="text-2xl font-bold text-amber-400">
-            {overview.invalidSignatures.toLocaleString()}
-          </span>
-        </div>
-      </div>
 
-      {/* Replay Attempts */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-            Replay Attempts
-          </span>
-          <ShieldAlert className="h-4 w-4 text-red-500" />
+        {/* Replay Attempts */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              Replay Attempts
+            </span>
+            <ShieldAlert className="h-4 w-4 text-red-500" />
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-red-400">
+              {overview.replayAttempts.toLocaleString()}
+            </span>
+          </div>
         </div>
-        <div className="mt-3">
-          <span className="text-2xl font-bold text-red-400">
-            {overview.replayAttempts.toLocaleString()}
-          </span>
-        </div>
-      </div>
 
-      {/* Rate Limit Hits */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-            Rate Limits
-          </span>
-          <Zap className="h-4 w-4 text-amber-400" />
+        {/* Rate Limit Hits */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              Rate Limits
+            </span>
+            <Zap className="h-4 w-4 text-amber-400" />
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-amber-300">
+              {overview.rateLimitHits.toLocaleString()}
+            </span>
+          </div>
         </div>
-        <div className="mt-3">
-          <span className="text-2xl font-bold text-amber-300">
-            {overview.rateLimitHits.toLocaleString()}
-          </span>
-        </div>
-      </div>
 
-      {/* Auth Failures */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-            Auth Failures
-          </span>
-          <AlertTriangle className="h-4 w-4 text-zinc-400" />
+        {/* Auth Failures */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              Auth Failures
+            </span>
+            <AlertTriangle className="h-4 w-4 text-zinc-400" />
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-zinc-300">
+              {overview.authFailures.toLocaleString()}
+            </span>
+          </div>
         </div>
-        <div className="mt-3">
-          <span className="text-2xl font-bold text-zinc-300">
-            {overview.authFailures.toLocaleString()}
-          </span>
-        </div>
-      </div>
 
-      {/* Security Score */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-            Score
-          </span>
-          <Shield className="h-4 w-4 text-zinc-400" />
-        </div>
-        <div className="mt-3">
-          <span className={`text-2xl font-bold ${scoreColor}`}>
-            {overview.securityScore}
-          </span>
-          <span className="ml-1 text-xs text-zinc-500">/100</span>
+        {/* Security Score */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              Score
+            </span>
+            <Shield className="h-4 w-4 text-zinc-400" />
+          </div>
+          <div className="mt-3">
+            <span className={`text-2xl font-bold ${scoreColor}`}>
+              {overview.securityScore}
+            </span>
+            <span className="ml-1 text-xs text-zinc-500">/100</span>
+          </div>
         </div>
       </div>
     </div>

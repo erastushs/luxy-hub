@@ -65,7 +65,7 @@ export type EventDetailResult =
   | { success: false; message: string; status: number }
 
 export type ReplayResult =
-  | { success: true; message: string; replayed: number }
+  | { success: true; message: string; replayed: number; remaining?: number }
   | { success: false; message: string; status: number }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +250,10 @@ export async function replayEvent(
   return { success: true, message: 'Event queued for redelivery', replayed: 1 }
 }
 
+
+/** Maximum number of dead-letter events replayed in a single bulk operation. */
+const BULK_REPLAY_CAP = 100
+
 // ---------------------------------------------------------------------------
 // Replay all dead-letter events for a script (ownership-enforced via slug)
 // ---------------------------------------------------------------------------
@@ -271,15 +275,24 @@ export async function replayAllDeadLetters(
     return { success: false, message: 'No dead-letter events to replay', status: 400 }
   }
 
+  const toReplay = deadLetters.slice(0, BULK_REPLAY_CAP)
+  const remaining = deadLetters.length - toReplay.length
+
   let replayed = 0
-  for (const event of deadLetters) {
+  for (const event of toReplay) {
     const result = await replayDeadLetterEvent(event.id)
     if (result) replayed++
   }
 
+  const message = remaining > 0
+    ? `${replayed} replayed, ${remaining} remaining`
+    : `${replayed} of ${deadLetters.length} dead-letter events replayed`
+
   return {
     success: true,
-    message: `${replayed} of ${deadLetters.length} dead-letter events replayed`,
+    message,
     replayed,
+    ...(remaining > 0 ? { remaining } : {}),
   }
 }
+

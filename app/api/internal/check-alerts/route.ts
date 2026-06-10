@@ -3,10 +3,13 @@ import { checkAlerts } from '@/app/lib/services/internal-alert-service'
 
 /**
  * Internal alert check — evaluates all alert thresholds and creates/resolves
- * alerts as needed. Called by Vercel Cron alongside the event worker.
+ * alerts as needed.
  *
- * Auth: CRON_SECRET (Bearer token), same as /api/cleanup and /api/internal/event-worker.
- * Invocation: Vercel Cron every 5 minutes (after event worker).
+ * Auth: CRON_SECRET (Bearer token).
+ *
+ * Not independently scheduled.  Alert evaluation runs inline after
+ * /api/internal/event-worker queue processing.  This route is available
+ * for ad-hoc manual invocation, debugging, and post-incident checks.
  */
 
 export async function POST(req: NextRequest) {

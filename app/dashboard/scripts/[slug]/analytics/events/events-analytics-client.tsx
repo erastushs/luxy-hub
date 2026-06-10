@@ -363,10 +363,13 @@ function SecurityMetricsCard({
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-          Security
+          Platform Security Signals
         </span>
         <Shield className="h-4 w-4 text-zinc-400" />
       </div>
+      <p className="mt-1 text-xs text-zinc-600 leading-relaxed">
+        Platform-wide monitoring data, not specific to this script.
+      </p>
       <div className="mt-3 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs text-zinc-500">Invalid Signatures</span>

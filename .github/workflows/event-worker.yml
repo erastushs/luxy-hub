@@ -1,0 +1,49 @@
+name: Event Worker Scheduler
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run-event-worker:
+    name: Run event worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Invoke event worker
+        env:
+          EVENT_WORKER_URL: ${{ secrets.EVENT_WORKER_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$EVENT_WORKER_URL" ]; then
+            echo "EVENT_WORKER_URL secret is not configured." >&2
+            exit 1
+          fi
+
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET secret is not configured." >&2
+            exit 1
+          fi
+
+          response=$(curl --silent --show-error --write-out '\n%{http_code}' \
+            --request POST "$EVENT_WORKER_URL" \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            --header "Content-Type: application/json" \
+            --max-time 540 \
+            --connect-timeout 10)
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP $http_code"
+
+          if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
+            echo "$body"
+            exit 0
+          else
+            echo "Worker returned non-200 status: $http_code"
+            echo "$body"
+            exit 1
+          fi

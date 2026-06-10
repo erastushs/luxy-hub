@@ -33,6 +33,9 @@ www.luxyhub.space
 ├── /dashboard/scripts/[slug]/events
 ├── /dashboard/scripts/[slug]/events/[eventId]
 ├── /dashboard/scripts/[slug]/events/dead-letter
+├── /dashboard/scripts/[slug]/analytics/events
+├── /dashboard/scripts/[slug]/security
+├── /dashboard/admin/alerts
 ├── /dashboard/analytics
 ├── /dashboard/versions
 ├── /dashboard/versions/[slug]
@@ -43,6 +46,8 @@ www.luxyhub.space
 ├── /api/delivery/fetch
 ├── /api/events/report
 ├── /api/internal/event-worker
+├── /api/internal/check-alerts
+├── /api/cleanup
 └── /api/*
 ```
 
@@ -95,6 +100,11 @@ Implemented dashboard sections:
 - `/dashboard/scripts` — script listing with search, visibility filter, pagination, desktop table, and mobile cards
 - `/dashboard/scripts/new` — create script form
 - `/dashboard/scripts/[slug]/edit` — edit script metadata form
+- `/dashboard/scripts/[slug]/webhooks` — Discord webhook configuration and test
+- `/dashboard/scripts/[slug]/events` — event history, detail, and dead-letter operations with replay
+- `/dashboard/scripts/[slug]/analytics/events` — event analytics: overview, trends, provider health, queue health, platform security signals
+- `/dashboard/scripts/[slug]/security` — security dashboard: platform-wide signal monitoring, risk assessment, anomaly detection
+- `/dashboard/admin/alerts` — admin-only internal alert dashboard with active/resolved views and severity filters
 - `/dashboard/analytics` — portfolio analytics cards, 7-day/30-day SVG charts, top scripts table
 - `/dashboard/versions` — script selector for version history
 - `/dashboard/versions/[slug]` — paginated version history for one script
@@ -196,9 +206,6 @@ Implemented API groups:
 - Loader and delivery APIs: `/api/loader/[slug]`, `/api/delivery/session`, `/api/delivery/fetch`
 
 Dashboard UI primarily uses Server Components and Server Actions. The dashboard API routes exist for programmatic access and are still protected by session auth, rate limits, service-layer validation, and ownership checks.
-
-## Database Architecture
-
 Current tables:
 
 - `keys`
@@ -215,20 +222,22 @@ Current tables:
 - `delivery_sessions`
 - `webhook_config`
 - `event_logs`
+- `alert_events`
 
 Security posture:
 
-- RLS is enabled across the schema.
+- RLS is enabled across the schema, including `alert_events`.
 - `scripts` and `script_versions` have owner-aware policies.
-- Operational tables remain service-role-only for browser users.
+- Operational tables (`verification_logs`, `event_logs`, `alert_events`, `rate_limits`, `key_usage`, `used_workink_tokens`, `delivery_sessions`) have deny-all policies for `anon` and `authenticated`; Supabase service-role access only.
+- `webhook_config` is owner-aware with service-role compatibility; one config per script.
 - Application services use Supabase admin access with explicit auth and ownership checks.
 - `delivery_sessions.session_token_hash` stores SHA-256 hashes, never raw delivery tokens.
-- `webhook_config` is owner-aware with service-role compatibility; one config per script.
-- `event_logs` is service-role-only; browser users never access it directly.
 - `delivery_sessions.event_secret` is generated per delivery session, persisted server-side, and returned only to the runtime alongside the raw session token for HMAC event signing; session token hashes remain server-only.
-- Queue worker polls `event_logs` via `POST /api/internal/event-worker` (CRON_SECRET auth, 5-min cron) and uses `event_logs.claimed_at` leases to prevent overlapping workers from processing the same pending event concurrently.
-
+- Queue worker polls `event_logs` via `POST /api/internal/event-worker` (CRON_SECRET auth).  Scheduled every 5 minutes by GitHub Actions on Vercel Hobby, or by Vercel Cron on Pro deployments.  Uses `event_logs.claimed_at` leases to prevent overlapping workers from processing the same pending event concurrently.
+- Alert evaluation runs inline after queue processing — no dedicated alert cron.
+- Bulk dead-letter replay is capped at 100 events per operation; remaining events must be replayed in subsequent batches.
 ## Script Delivery State
+
 
 Raw script delivery remains available through:
 
@@ -306,6 +315,21 @@ Loader delivery rate limits:
 - `DELIVERY_SESSION`: 20 requests per minute per IP
 - `DELIVERY_FETCH`: 40 requests per minute per IP
 
+## Deployment Requirements
+
+Development:
+
+- Vercel Hobby deployment for the Next.js app.
+- GitHub Actions scheduler invokes `/api/internal/event-worker` every 5 minutes.
+- Required GitHub repository secrets: `EVENT_WORKER_URL` and `CRON_SECRET`.
+- Vercel daily cron remains for `/api/cleanup`.
+
+Production:
+
+- Vercel Pro cron for `/api/internal/event-worker` every 5 minutes, or the GitHub Actions scheduler.
+- The worker route must receive `Authorization: Bearer <CRON_SECRET>`.
+- A dedicated `/api/internal/check-alerts` cron is not required because the event worker runs `checkAlerts()` after `processEventQueue()`.
+
 ## Security Status
 
 Implemented:
@@ -342,9 +366,7 @@ Current priorities:
 - Phase 4.3 — Documentation Review: updated after recent security hardening
 - Phase 4.4 — Production Hardening: complete
 - Phase 5 — Secure Script Delivery: complete
-- Phase 6 — Loader Integration: complete
-- Phase 7 — License & Delivery Authorization: planning (5 sub-phases)
-- Phase 8 — Event Reporting & Webhook Platform: Phases 8B.1-8D monitoring foundation implemented (database, API, queue worker with claim leases, Discord provider, dashboard webhook management, event operations, retention cleanup, monitoring counters); Telegram/Slack providers remain deferred.
+- Phase 8 — Event Reporting & Webhook Platform: complete (database foundation, API, queue worker with claim leases, Discord provider, dashboard webhook management, event operations, analytics, security monitoring, internal alerts, RLS hardening). Bulk replay capped at 100 events. Queue scheduled via GitHub Actions on Vercel Hobby or Vercel Cron on Pro. Alert evaluation inlined. Security dashboard metrics labeled as platform-wide. Telegram/Slack providers remain deferred.
 - Phase 9 — Internal Operations & Release Workflow
 - Phase 10 — Scale & Infrastructure (Optional)
 

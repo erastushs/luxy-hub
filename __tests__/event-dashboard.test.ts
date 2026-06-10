@@ -446,7 +446,7 @@ describe('replayAllDeadLetters', () => {
     if (!result.success) expect(result.message).toContain('No dead-letter')
   })
 
-  it('replays all dead letters', async () => {
+  it('replays all dead letters within cap', async () => {
     mockedGetOwnedScript.mockResolvedValue(ownedScript())
     mockedGetEventsByScriptId.mockResolvedValue([
       eventRow({ id: 'e1', delivery_status: 'dead_letter' }),
@@ -464,6 +464,46 @@ describe('replayAllDeadLetters', () => {
     if (result.success) {
       expect(result.replayed).toBe(2)
       expect(result.message).toContain('2 of 3')
+      expect(result.remaining).toBeUndefined()
+    }
+  })
+
+  it('caps replay at 100 and returns remaining count', async () => {
+    mockedGetOwnedScript.mockResolvedValue(ownedScript())
+    const overCap = Array.from({ length: 153 }, (_, i) =>
+      eventRow({ id: `e${i}`, delivery_status: 'dead_letter' }),
+    )
+    mockedGetEventsByScriptId.mockResolvedValue(overCap)
+    // All replays succeed
+    mockedReplayDeadLetterEvent.mockImplementation(async (id) =>
+      eventRow({ id: typeof id === 'string' ? id : 'unknown', delivery_status: 'pending' }),
+    )
+
+    const result = await replayAllDeadLetters(SCRIPT_SLUG, OWNER_ID)
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.replayed).toBe(100)
+      expect(result.remaining).toBe(53)
+      expect(result.message).toBe('100 replayed, 53 remaining')
+    }
+  })
+
+  it('does not include remaining when under cap', async () => {
+    mockedGetOwnedScript.mockResolvedValue(ownedScript())
+    mockedGetEventsByScriptId.mockResolvedValue([
+      eventRow({ id: 'e1', delivery_status: 'dead_letter' }),
+    ])
+    mockedReplayDeadLetterEvent.mockResolvedValueOnce(
+      eventRow({ id: 'e1', delivery_status: 'pending' }),
+    )
+
+    const result = await replayAllDeadLetters(SCRIPT_SLUG, OWNER_ID)
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.replayed).toBe(1)
+      expect(result.remaining).toBeUndefined()
     }
   })
 

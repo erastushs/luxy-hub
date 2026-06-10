@@ -312,10 +312,15 @@ CREATE INDEX IF NOT EXISTS idx_alert_events_severity_status
 
 CREATE INDEX IF NOT EXISTS idx_alert_events_created_at
   ON alert_events (created_at DESC);
-
 CREATE INDEX IF NOT EXISTS idx_alert_events_resolved_at
   ON alert_events (resolved_at DESC)
   WHERE status = 'resolved';
+
+
+
+-- alert_events RLS: migrations/011_alert_events_rls.sql
+-- enables RLS with deny-all for anon/authenticated (service-role only)
+
 
 -- ============================================================================
 -- LuxyHub Creator Identity — Phase 3A

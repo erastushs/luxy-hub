@@ -5,10 +5,17 @@ import { checkAlerts } from '@/app/lib/services/internal-alert-service'
 
 /**
  * Internal event queue worker — polls pending events and hands them
- * off to the configured delivery provider.
+ * off to the configured delivery provider, then runs alert evaluation.
  *
  * Auth: CRON_SECRET (Bearer token), same as /api/cleanup.
- * Invocation: Vercel Cron every 5 minutes.
+ *
+ * Scheduling: triggered by GitHub Actions every 5 minutes on Vercel
+ * Hobby, or by Vercel Cron every 5 minutes on Pro deployments. The
+ * route is also callable manually for ad-hoc debugging and incident
+ * response.
+ *
+ * Alert evaluation runs inline after queue processing so queue
+ * counters are fresh.  No dedicated alert cron is needed.
  */
 
 export async function POST(req: NextRequest) {
