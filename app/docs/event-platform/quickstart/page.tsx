@@ -3,8 +3,8 @@ import Link from 'next/link'
 import { DOC_PATHS } from '@/app/lib/docs/document-paths'
 import { DocsMarkdownContent } from '@/app/lib/docs/docs-markdown-content'
 
-export default function ApiDocsPage() {
-  const content = fs.readFileSync(DOC_PATHS.apiIntegration, 'utf-8')
+export default function EventPlatformQuickstartPage() {
+  const content = fs.readFileSync(DOC_PATHS.eventPlatformQuickstart, 'utf-8')
 
   return (
     <div className="min-h-screen bg-[#0d0d0d]">
