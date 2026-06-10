@@ -52,12 +52,12 @@ Two additional application-level states:
 | State | Visibility | Meaning |
 |-------|-----------|---------|
 | `pending` | DB column | Awaiting delivery or retry |
-| `processing` | Application | Event included in current worker batch |
+| `processing` | `claimed_at IS NOT NULL` | Leased by a worker for delivery processing |
 | `delivered` | DB column | Successfully delivered to provider |
 | `failed` | Derived | `delivery_status = 'pending' AND retry_count > 0` |
 | `dead_letter` | DB column | Exhausted all retries or non-retryable error |
 
-`processing` and `failed` are derived at the application level — no database column or CHECK constraint change was needed.
+`processing` is represented by `event_logs.claimed_at`, added by `migrations/009_event_platform_hardening.sql`. Workers claim a pending event before provider delivery. Rows with no claim, or claims older than the 15-minute lease window, are eligible for processing. Delivery status updates clear `claimed_at`, so worker crashes recover automatically after lease expiry.
 
 ## Retry Policy
 

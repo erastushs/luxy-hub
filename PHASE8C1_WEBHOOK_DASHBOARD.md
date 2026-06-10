@@ -65,7 +65,7 @@ Webhooks Page (Server Component)
       ├─ TestWebhookButton
       |   ├─ Disabled until config is valid + enabled + has URL
       |   ├─ Creates heartbeat event via service layer
-      |   ├─ Delivers through normal processEventQueue flow
+      |   ├─ Delivers only that created event through processSingleEvent()
       |   └─ Shows result inline (success/failure message)
       |
       └─ Info panel: "Events are queued and delivered every 5 minutes"
@@ -132,19 +132,19 @@ sendTestEventAction(slug) → requireAuth() → sendTestWebhookEvent(slug, userI
   ├─ Config check → exists, enabled, has valid URL
   ├─ createEventLog({ eventType: 'heartbeat', payload: { test: true, … } })
   |   └─ sessionId sentinel: '00000000-0000-0000-0000-000000000000'
-  ├─ processEventQueue(resolveProvider, 50)
+  ├─ processSingleEvent(event.id, resolveProvider)
   |   └─ resolveProvider maps 'discord' → discordProvider
   |   └─ discordProvider.deliver() POSTs to webhook
   └─ Result: success (delivered/failed) or failure (dead_letter/invalid)
 ```
 
-The test event goes through the **exact same queue/provider flow** as production events. No bypass, no special route.
+The test event goes through the same queue/provider delivery logic as production events, but it is isolated to the newly created heartbeat event. Dashboard test sends do not drain or process unrelated global pending queue entries.
 
 ## Architecture Integration
 
 The queue worker and provider architecture is **unchanged**:
 
-- Queue service: same `processEventQueue(resolveProvider, batchSize)` signature
+- Queue service: `processEventQueue(resolveProvider, batchSize)` for cron batches and `processSingleEvent(eventId, resolveProvider)` for isolated dashboard tests
 - Discord provider: same `discordProvider.deliver(event, webhookUrl)` implementation
 - Worker route: same `POST /api/internal/event-worker` with CRON_SECRET auth
 - Vercel Cron: same 5-minute schedule
@@ -172,4 +172,4 @@ Nothing yet — this is the first dashboard consumer.
 - `app/lib/repositories/webhook-config-repository` — CRUD operations
 - `app/lib/repositories/event-repository` — `createEventLog`
 - `app/lib/providers/discord-provider` — `validateWebhookUrl`, `validateConfig`
-- `app/lib/services/event-queue-service` — `processEventQueue`, `ProviderResolver`
+- `app/lib/services/event-queue-service` — `processEventQueue`, `processSingleEvent`, `ProviderResolver`

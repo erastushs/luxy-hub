@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 
 const migration = readFileSync('migrations/008_event_platform.sql', 'utf8')
 const rollback = readFileSync('migrations/008_event_platform_rollback.sql', 'utf8')
+const hardeningMigration = readFileSync('migrations/009_event_platform_hardening.sql', 'utf8')
+const hardeningRollback = readFileSync('migrations/009_event_platform_hardening_rollback.sql', 'utf8')
 
 function indexOf(fragment: string): number {
   const index = migration.indexOf(fragment)
@@ -103,5 +105,19 @@ describe('Phase 8B.1 event platform migration', () => {
     expect(rollback.indexOf('DROP TABLE IF EXISTS webhook_config')).toBeLessThan(
       rollback.indexOf('DROP COLUMN IF EXISTS event_secret')
     )
+  })
+})
+
+describe('Phase 8 hardening migration', () => {
+  it('adds a recoverable queue claim lease column and index', () => {
+    expect(hardeningMigration).toContain('ADD COLUMN IF NOT EXISTS claimed_at timestamp with time zone')
+    expect(hardeningMigration).toContain('CREATE INDEX IF NOT EXISTS idx_event_logs_pending_claim')
+    expect(hardeningMigration).toContain('ON event_logs (claimed_at, received_at ASC)')
+    expect(hardeningMigration).toContain("WHERE delivery_status = 'pending'")
+  })
+
+  it('rolls back the queue claim lease safely', () => {
+    expect(hardeningRollback).toContain('DROP INDEX IF EXISTS idx_event_logs_pending_claim')
+    expect(hardeningRollback).toContain('DROP COLUMN IF EXISTS claimed_at')
   })
 })

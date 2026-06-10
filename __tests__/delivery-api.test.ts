@@ -41,6 +41,7 @@ describe('Phase 5C delivery API routes', () => {
     mockedCreateDeliverySession.mockResolvedValue({
       success: true,
       session_token: 'raw-session-token',
+      event_secret: 'event-secret',
       expires_in: 60,
       session: {
         id: 'session-uuid-1',
@@ -49,7 +50,7 @@ describe('Phase 5C delivery API routes', () => {
         session_token_hash: '0'.repeat(64),
         expires_at: '2026-01-01T00:01:00.000Z',
         consumed_at: null,
-        event_secret: null,
+        event_secret: 'event-secret',
         created_at: '2026-01-01T00:00:00.000Z',
       },
     })
@@ -58,7 +59,7 @@ describe('Phase 5C delivery API routes', () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(body).toEqual({ session_token: 'raw-session-token', expires_in: 60 })
+    expect(body).toEqual({ session_token: 'raw-session-token', event_secret: 'event-secret', expires_in: 60 })
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     expect(mockedCreateDeliverySession).toHaveBeenCalledWith('my-script')
   })
@@ -70,6 +71,7 @@ describe('Phase 5C delivery API routes', () => {
       build_version: 'delivery-build-v1',
       version_id: 'version-uuid-1',
       runtime_format_version: 'runtime-v1',
+      event_secret: 'event-secret',
       session: {
         id: 'session-uuid-1',
         script_id: 'script-uuid-1',
@@ -77,7 +79,7 @@ describe('Phase 5C delivery API routes', () => {
         session_token_hash: '0'.repeat(64),
         expires_at: '2026-01-01T00:01:00.000Z',
         consumed_at: '2026-01-01T00:00:10.000Z',
-        event_secret: null,
+        event_secret: 'event-secret',
         created_at: '2026-01-01T00:00:00.000Z',
       },
       build: {
@@ -115,6 +117,7 @@ describe('Phase 5C delivery API routes', () => {
       build_version: 'delivery-build-v1',
       version_id: 'version-uuid-1',
       runtime_format_version: 'runtime-v1',
+      event_secret: 'event-secret',
     })
     expect(body).not.toHaveProperty('payload')
     expect(body).not.toHaveProperty('context')

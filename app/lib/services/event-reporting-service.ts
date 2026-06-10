@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/app/lib/supabase'
 import { hashDeliverySessionToken } from '@/app/lib/services/delivery-session-service'
 import { getSessionByTokenHash } from '@/app/lib/repositories/delivery-session-repository'
 import { createEventLog, findEventByNonce, isValidEventType, type EventType } from '@/app/lib/repositories/event-repository'
+import { recordSecurityCounter } from '@/app/lib/services/event-monitoring-service'
 
 const EVENT_REJECTED_MESSAGE = 'Event rejected'
 const INVALID_SESSION_MESSAGE = 'Invalid event session'
@@ -106,27 +107,31 @@ export async function checkEventRateLimit(sessionId: string): Promise<{ allowed:
 
 export async function reportEvent(input: EventReportInput): Promise<EventReportResult> {
   if (!isValidSessionId(input.sessionId)) {
+    recordSecurityCounter('event.auth_failure', 'invalid session_id format')
     return { success: false, message: INVALID_SESSION_MESSAGE, status: 401 }
   }
 
   if (typeof input.event !== 'string' || input.event.length === 0 || !isValidEventType(input.event)) {
     return { success: false, message: UNKNOWN_EVENT_MESSAGE, status: 422 }
   }
-
   if (!isValidTimestamp(input.timestamp)) {
+    recordSecurityCounter('event.auth_failure', 'invalid timestamp')
     return { success: false, message: INVALID_TIMESTAMP_MESSAGE, status: 400 }
   }
 
   const nowSeconds = Date.now() / 1000
   if (Math.abs(nowSeconds - input.timestamp) > MAX_TIMESTAMP_SKEW_SECONDS) {
+    recordSecurityCounter('event.auth_failure', 'timestamp skew')
     return { success: false, message: INVALID_TIMESTAMP_MESSAGE, status: 400 }
   }
 
   if (!isValidNonce(input.nonce)) {
+    recordSecurityCounter('event.auth_failure', 'invalid nonce')
     return { success: false, message: INVALID_PAYLOAD_MESSAGE, status: 400 }
   }
 
   if (!isValidSignature(input.signature)) {
+    recordSecurityCounter('event.auth_failure', 'invalid signature format')
     return { success: false, message: INVALID_PAYLOAD_MESSAGE, status: 400 }
   }
 
@@ -142,6 +147,7 @@ export async function reportEvent(input: EventReportInput): Promise<EventReportR
   try {
     const row = await getSessionByTokenHash(tokenHash)
     if (!row || !row.event_secret || new Date(row.expires_at).getTime() <= Date.now()) {
+      recordSecurityCounter('event.auth_failure', 'invalid or expired session')
       return { success: false, message: INVALID_SESSION_MESSAGE, status: 401 }
     }
     eventSecret = row.event_secret
@@ -162,16 +168,19 @@ export async function reportEvent(input: EventReportInput): Promise<EventReportR
   const expectedBuf = Buffer.from(expectedSignature, 'hex')
   const providedBuf = Buffer.from(input.signature, 'hex')
   if (expectedBuf.length !== providedBuf.length || !timingSafeEqual(expectedBuf, providedBuf)) {
+    recordSecurityCounter('event.invalid_signature', `session:${sessionId}`)
     return { success: false, message: INVALID_SESSION_MESSAGE, status: 401 }
   }
 
   const rateLimit = await checkEventRateLimit(sessionId)
   if (!rateLimit.allowed) {
+    recordSecurityCounter('event.rate_limited', `session:${sessionId}`)
     return { success: false, message: TOO_MANY_EVENTS_MESSAGE, status: 429, retryAfter: rateLimit.retryAfter }
   }
 
   const existing = await findEventByNonce(sessionId, input.nonce)
   if (existing) {
+    recordSecurityCounter('event.replay_attempt', `session:${sessionId}`)
     return { success: false, message: INVALID_SESSION_MESSAGE, status: 401 }
   }
 

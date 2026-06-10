@@ -13,6 +13,7 @@ Implemented:
 - `webhook_config` table
 - `event_logs` table
 - nullable `delivery_sessions.event_secret`
+- `event_logs.claimed_at` queue lease column via `migrations/009_event_platform_hardening.sql`
 - database indexes recommended by Phase 8A
 - repository selectors/CRUD for future phases
 - repository and migration tests
@@ -64,6 +65,7 @@ Columns:
 - `last_retry_at timestamptz`
 - `delivered_at timestamptz`
 - `error_message text`
+- `claimed_at timestamptz` (hardening lease column)
 - `created_at timestamptz not null default now()`
 
 Allowed `event_type` values:
@@ -115,6 +117,13 @@ Compatibility:
 1. Drops `event_logs` policies and table.
 2. Drops `webhook_config` policies and table.
 3. Drops `delivery_sessions.event_secret`.
+
+`migrations/009_event_platform_hardening.sql`:
+
+1. Adds nullable `event_logs.claimed_at` for queue claim leases.
+2. Adds `idx_event_logs_pending_claim` for pending queue lease recovery.
+
+`migrations/009_event_platform_hardening_rollback.sql` removes the claim index and column.
 
 ## RLS Review
 
@@ -179,17 +188,17 @@ Only Phase 8A recommended indexes were added.
   - Purpose: later delivery latency analytics.
 - `idx_event_logs_delivered_created` on `(created_at) where delivery_status = 'delivered'`
   - Purpose: cleanup of old delivered events.
+- `idx_event_logs_pending_claim` on `(claimed_at, received_at asc) where delivery_status = 'pending'`
+  - Purpose: worker claim lease lookup and stale claim recovery.
 
 No speculative indexes were added.
 
 ## Compatibility Review
 
-Existing delivery/session flow remains unchanged:
+Delivery/session compatibility after hardening:
 
-- `createDeliverySession()` still returns only `session_token`, `expires_in`, and `session` internally.
-- `POST /api/delivery/session` response remains `{ session_token, expires_in }`.
-- `createSession()` accepts optional `eventSecret`, but existing callers do not pass it.
-- repository tests assert `event_secret` remains nullable and absent from session creation behavior.
-- rollback removes event tables and `event_secret`, returning the schema to Phase 5C/6H shape for delivery sessions.
-
-No API endpoints, providers, workers, queues, dashboard pages, or webhook delivery paths were added.
+- Existing session token validation and consume-once behavior remains unchanged.
+- `createDeliverySession()` now generates a per-session `event_secret` and stores it with the session.
+- `POST /api/delivery/session` and `POST /api/delivery/fetch` return `event_secret` to the runtime for HMAC signing.
+- `session_token_hash` remains server-only and is never returned.
+- Queue hardening adds `claimed_at` without changing the public event report schema.

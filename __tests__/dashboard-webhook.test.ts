@@ -44,6 +44,7 @@ vi.mock('@/app/lib/providers/discord-provider', () => ({
 
 vi.mock('@/app/lib/services/event-queue-service', () => ({
   processEventQueue: vi.fn(),
+  processSingleEvent: vi.fn(),
 }))
 
 // ---------------------------------------------------------------------------
@@ -58,7 +59,7 @@ import {
 } from '@/app/lib/repositories/webhook-config-repository'
 import { createEventLog } from '@/app/lib/repositories/event-repository'
 import { validateWebhookUrl, validateConfig } from '@/app/lib/providers/discord-provider'
-import { processEventQueue } from '@/app/lib/services/event-queue-service'
+import { processEventQueue, processSingleEvent } from '@/app/lib/services/event-queue-service'
 import {
   getWebhookConfigSafe,
   saveWebhookConfig,
@@ -74,6 +75,7 @@ const mockedCreateEventLog = vi.mocked(createEventLog)
 const mockedValidateWebhookUrl = vi.mocked(validateWebhookUrl)
 const mockedValidateConfig = vi.mocked(validateConfig)
 const mockedProcessEventQueue = vi.mocked(processEventQueue)
+const mockedProcessSingleEvent = vi.mocked(processSingleEvent)
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -118,7 +120,7 @@ function setValidWebhookUrl() {
 }
 
 function setDefaultProcessResult() {
-  mockedProcessEventQueue.mockResolvedValue({
+  mockedProcessSingleEvent.mockResolvedValue({
     processed: 1,
     delivered: 1,
     failed: 0,
@@ -428,6 +430,7 @@ describe('sendTestWebhookEvent', () => {
       last_retry_at: null,
       delivered_at: null,
       error_message: null,
+      claimed_at: null,
       created_at: '2026-06-09T12:00:00.000Z',
     })
     setDefaultProcessResult()
@@ -442,7 +445,8 @@ describe('sendTestWebhookEvent', () => {
         payload: { test: true, note: 'Webhook test event from dashboard' },
       })
     )
-    expect(mockedProcessEventQueue).toHaveBeenCalled()
+    expect(mockedProcessSingleEvent).toHaveBeenCalledWith('test-event', expect.any(Function))
+    expect(mockedProcessEventQueue).not.toHaveBeenCalled()
   })
 
   it('returns failure when event dead-letters', async () => {
@@ -463,9 +467,10 @@ describe('sendTestWebhookEvent', () => {
       last_retry_at: null,
       delivered_at: null,
       error_message: null,
+      claimed_at: null,
       created_at: '2026-06-09T12:00:00.000Z',
     })
-    mockedProcessEventQueue.mockResolvedValue({
+    mockedProcessSingleEvent.mockResolvedValue({
       processed: 1,
       delivered: 0,
       failed: 0,

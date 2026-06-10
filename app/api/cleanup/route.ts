@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/app/lib/supabase'
+import {
+  deleteDeadLetterEventsBefore,
+  deleteDeliveredEventsBefore,
+  deletePendingEventsBefore,
+} from '@/app/lib/repositories/event-repository'
 
 export async function POST(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
@@ -85,10 +90,21 @@ export async function POST(req: NextRequest) {
       console.error('Cleanup script_downloads error')
     }
 
+    const sevenDaysAgo = new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000
+    )
+
+    const eventCleanup = {
+      delivered: await deleteDeliveredEventsBefore(new Date(thirtyDaysAgo)),
+      deadLetter: await deleteDeadLetterEventsBefore(new Date(ninetyDaysAgo)),
+      pending: await deletePendingEventsBefore(sevenDaysAgo),
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Cleanup completed',
       timestamp: now,
+      event_logs: eventCleanup,
     })
   } catch {
     return NextResponse.json(

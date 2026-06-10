@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         session_token: result.session_token,
+        event_secret: result.event_secret,
         expires_in: result.expires_in,
       },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }

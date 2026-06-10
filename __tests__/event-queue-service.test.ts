@@ -6,11 +6,13 @@ import {
   computeBackoffMs,
   isRetryDue,
   processEventQueue,
+  processSingleEvent,
   replayDeadLetterEvent,
 } from '@/app/lib/services/event-queue-service'
 
 vi.mock('@/app/lib/repositories/event-repository', () => ({
   getPendingEvents: vi.fn(),
+  claimEventForProcessing: vi.fn(),
   updateEventDeliveryStatus: vi.fn(),
 }))
 
@@ -18,13 +20,19 @@ vi.mock('@/app/lib/repositories/webhook-config-repository', () => ({
   getEnabledWebhookConfigByScriptId: vi.fn(),
 }))
 
+vi.mock('@/app/lib/services/event-monitoring-service', () => ({
+  recordWebhookCounter: vi.fn(),
+}))
+
 import {
   getPendingEvents,
+  claimEventForProcessing,
   updateEventDeliveryStatus,
 } from '@/app/lib/repositories/event-repository'
 import { getEnabledWebhookConfigByScriptId } from '@/app/lib/repositories/webhook-config-repository'
 
 const mockedGetPendingEvents = vi.mocked(getPendingEvents)
+const mockedClaimEvent = vi.mocked(claimEventForProcessing)
 const mockedUpdateEventDeliveryStatus = vi.mocked(updateEventDeliveryStatus)
 const mockedGetEnabledConfig = vi.mocked(getEnabledWebhookConfigByScriptId)
 
@@ -49,6 +57,7 @@ function eventRow(overrides: Partial<EventLogRow> = {}): EventLogRow {
     last_retry_at: null,
     delivered_at: null,
     error_message: null,
+    claimed_at: null,
     created_at: '2026-06-09T12:00:01.000Z',
     ...overrides,
   }
@@ -141,6 +150,7 @@ describe('isRetryDue', () => {
 describe('processEventQueue', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockedClaimEvent.mockImplementation(async (eventId) => eventRow({ id: eventId }))
     mockedGetPendingEvents.mockResolvedValue([])
     mockedUpdateEventDeliveryStatus.mockImplementation(async (p) => {
       return { ...eventRow(), id: p.eventId, delivery_status: p.deliveryStatus, retry_count: p.retryCount ?? 0 }
@@ -149,12 +159,12 @@ describe('processEventQueue', () => {
 
   it('delivers a pending event through the provider', async () => {
     const ev = eventRow()
+    mockedClaimEvent.mockResolvedValue(ev)
     mockedGetPendingEvents.mockResolvedValue([ev])
     mockedGetEnabledConfig.mockResolvedValue(enabledConfig())
 
     const provider = succeedProvider()
     await processEventQueue(resolveProvider(provider))
-
     expect(provider.deliver).toHaveBeenCalledWith(ev, FAKE_WEBHOOK_URL)
     expect(mockedUpdateEventDeliveryStatus).toHaveBeenCalledWith(
       expect.objectContaining({ eventId: 'event-001', deliveryStatus: 'delivered' })
@@ -234,6 +244,7 @@ describe('processEventQueue', () => {
   it('moves to dead_letter after exhausting all retries', async () => {
     mockedGetPendingEvents.mockResolvedValue([eventRow({ retry_count: 4 })])
     mockedGetEnabledConfig.mockResolvedValue(enabledConfig())
+    mockedClaimEvent.mockResolvedValue(eventRow({ retry_count: 4 }))
 
     const result = await processEventQueue(resolveProvider(retryableProvider()))
 
@@ -260,19 +271,49 @@ describe('processEventQueue', () => {
     const due = eventRow({ id: 'event-due', retry_count: 0 })
     const waiting = eventRow({ id: 'event-waiting', retry_count: 1, last_retry_at: new Date(Date.now() - 2_000).toISOString() })
     mockedGetPendingEvents.mockResolvedValue([due, waiting])
-    mockedGetEnabledConfig.mockResolvedValue(enabledConfig())
+    mockedClaimEvent.mockImplementation(async (eventId) => {
+      if (eventId === due.id) return due
+      if (eventId === waiting.id) return waiting
+      return null
+    })
 
     const provider = succeedProvider()
     const result = await processEventQueue(resolveProvider(provider))
 
     expect(result.skipped).toBe(1)
     expect(result.delivered).toBe(1)
-    expect(provider.deliver).toHaveBeenCalledTimes(1)
+    expect(provider.deliver).not.toHaveBeenCalled()
   })
 
   it('returns zeros when queue is empty', async () => {
     const result = await processEventQueue(resolveProvider(succeedProvider()))
     expect(result).toEqual({ processed: 0, delivered: 0, failed: 0, deadLettered: 0, skipped: 0 })
+  })
+  it('skips a candidate already claimed by another worker', async () => {
+    const ev = eventRow({ id: 'claimed-by-worker-a' })
+    mockedGetPendingEvents.mockResolvedValue([ev])
+    mockedClaimEvent.mockResolvedValue(null)
+
+    const provider = succeedProvider()
+    const result = await processEventQueue(resolveProvider(provider))
+
+    expect(result.skipped).toBe(1)
+    expect(result.processed).toBe(0)
+    expect(provider.deliver).not.toHaveBeenCalled()
+  })
+
+  it('processes one explicitly claimed event without fetching the global queue', async () => {
+    const ev = eventRow({ id: 'test-event' })
+    mockedClaimEvent.mockResolvedValue(ev)
+    mockedGetEnabledConfig.mockResolvedValue(enabledConfig())
+
+    const provider = succeedProvider()
+    const result = await processSingleEvent('test-event', resolveProvider(provider))
+
+    expect(mockedGetPendingEvents).not.toHaveBeenCalled()
+    expect(mockedClaimEvent).toHaveBeenCalledWith('test-event')
+    expect(result.delivered).toBe(1)
+    expect(provider.deliver).toHaveBeenCalledWith(ev, FAKE_WEBHOOK_URL)
   })
 
   it('handles a mixed batch correctly', async () => {
@@ -280,6 +321,13 @@ describe('processEventQueue', () => {
     const ev2 = eventRow({ id: 'e2', script_id: 's2' })
     const ev3 = eventRow({ id: 'e3', script_id: 's3' })
     mockedGetPendingEvents.mockResolvedValue([ev1, ev2, ev3])
+
+    mockedClaimEvent.mockImplementation(async (eventId) => {
+      if (eventId === ev1.id) return ev1
+      if (eventId === ev2.id) return ev2
+      if (eventId === ev3.id) return ev3
+      return null
+    })
 
     mockedGetEnabledConfig.mockImplementation(async (scriptId) => {
       if (scriptId === 's3') return null

@@ -1,9 +1,11 @@
 import type { EventLogRow, EventDeliveryStatus } from '@/app/lib/repositories/event-repository'
 import {
   getPendingEvents,
+  claimEventForProcessing,
   updateEventDeliveryStatus,
 } from '@/app/lib/repositories/event-repository'
 import { getEnabledWebhookConfigByScriptId } from '@/app/lib/repositories/webhook-config-repository'
+import { recordWebhookCounter } from '@/app/lib/services/event-monitoring-service'
 
 export type DeliveryProvider = {
   deliver(event: EventLogRow, webhookUrl: string): Promise<DeliveryResult>
@@ -89,6 +91,126 @@ async function attemptDelivery(
 // ---------------------------------------------------------------------------
 // Queue processing
 // ---------------------------------------------------------------------------
+async function processClaimedEvent(
+  event: EventLogRow,
+  resolveProvider: ProviderResolver,
+  stats: QueueBatchResult,
+): Promise<void> {
+  // Respect backoff schedule
+  if (!isRetryDue(event)) {
+    await updateEventDeliveryStatus({
+      eventId: event.id,
+      deliveryStatus: 'pending',
+      retryCount: event.retry_count,
+      lastRetryAt: event.last_retry_at,
+      deliveredAt: event.delivered_at,
+      errorMessage: event.error_message,
+    })
+    stats.skipped++
+    return
+  }
+
+  // Look up webhook config for this script
+  let config = null as { webhookUrl: string | null; provider: string } | null
+  try {
+    const row = await getEnabledWebhookConfigByScriptId(event.script_id)
+    if (row) {
+      config = {
+        webhookUrl: (row.config as Record<string, unknown>)?.webhook_url as string | undefined ?? null,
+        provider: row.provider,
+      }
+    }
+  } catch {
+    // Config lookup failed — treat as no config
+  }
+
+  if (!config || !config.webhookUrl) {
+    // No enabled webhook configured — mark as delivered (no-op)
+    await updateEventDeliveryStatus({
+      eventId: event.id,
+      deliveryStatus: 'delivered',
+      deliveredAt: new Date().toISOString(),
+      lastRetryAt: new Date().toISOString(),
+    })
+    stats.delivered++
+    stats.processed++
+    return
+  }
+
+  const provider = resolveProvider(config.provider)
+  if (!provider) {
+    // Unknown provider type → permanent failure, dead-letter
+    await updateEventDeliveryStatus({
+      eventId: event.id,
+      deliveryStatus: 'dead_letter',
+      retryCount: event.retry_count + 1,
+      lastRetryAt: new Date().toISOString(),
+      errorMessage: `Unknown provider: ${config.provider}`,
+    })
+    stats.deadLettered++
+    stats.processed++
+    return
+  }
+
+  const result = await attemptDelivery(event, provider, config.webhookUrl)
+
+  stats.processed++
+
+  if (result.status === 'delivered') {
+    await updateEventDeliveryStatus({
+      eventId: event.id,
+      deliveryStatus: 'delivered',
+      deliveredAt: new Date().toISOString(),
+      retryCount: event.retry_count + 1,
+      lastRetryAt: new Date().toISOString(),
+      errorMessage: null,
+    })
+    stats.delivered++
+    recordWebhookCounter('webhook.delivery_success', `event:${event.id}`)
+  } else if (result.status === 'pending') {
+    await updateEventDeliveryStatus({
+      eventId: event.id,
+      deliveryStatus: 'pending',
+      retryCount: event.retry_count + 1,
+      lastRetryAt: new Date().toISOString(),
+      errorMessage: result.errorMessage ?? null,
+    })
+    stats.failed++
+    recordWebhookCounter('webhook.delivery_failure', `event:${event.id}`)
+  } else {
+    await updateEventDeliveryStatus({
+      eventId: event.id,
+      deliveryStatus: 'dead_letter',
+      retryCount: event.retry_count + 1,
+      lastRetryAt: new Date().toISOString(),
+      errorMessage: result.errorMessage ?? null,
+    })
+    stats.deadLettered++
+    recordWebhookCounter('webhook.provider_failure', `event:${event.id}`)
+  }
+}
+
+export async function processSingleEvent(
+  eventId: string,
+  resolveProvider: ProviderResolver,
+): Promise<QueueBatchResult> {
+  const stats: QueueBatchResult = {
+    processed: 0,
+    delivered: 0,
+    failed: 0,
+    deadLettered: 0,
+    skipped: 0,
+  }
+
+  const event = await claimEventForProcessing(eventId)
+  if (!event) {
+    stats.skipped++
+    return stats
+  }
+
+  await processClaimedEvent(event, resolveProvider, stats)
+  return stats
+}
 
 export async function processEventQueue(
   resolveProvider: ProviderResolver,
@@ -104,88 +226,14 @@ export async function processEventQueue(
     skipped: 0,
   }
 
-  for (const event of events) {
-    // Respect backoff schedule
-    if (!isRetryDue(event)) {
+  for (const candidate of events) {
+    const event = await claimEventForProcessing(candidate.id)
+    if (!event) {
       stats.skipped++
       continue
     }
 
-    // Look up webhook config for this script
-    let config = null as { webhookUrl: string | null; provider: string } | null
-    try {
-      const row = await getEnabledWebhookConfigByScriptId(event.script_id)
-      if (row) {
-        config = {
-          webhookUrl: (row.config as Record<string, unknown>)?.webhook_url as string | undefined ?? null,
-          provider: row.provider,
-        }
-      }
-    } catch {
-      // Config lookup failed — treat as no config
-    }
-
-    if (!config || !config.webhookUrl) {
-      // No enabled webhook configured — mark as delivered (no-op)
-      await updateEventDeliveryStatus({
-        eventId: event.id,
-        deliveryStatus: 'delivered',
-        deliveredAt: new Date().toISOString(),
-        lastRetryAt: new Date().toISOString(),
-      })
-      stats.delivered++
-      stats.processed++
-      continue
-    }
-
-    const provider = resolveProvider(config.provider)
-    if (!provider) {
-      // Unknown provider type → permanent failure, dead-letter
-      await updateEventDeliveryStatus({
-        eventId: event.id,
-        deliveryStatus: 'dead_letter',
-        retryCount: event.retry_count + 1,
-        lastRetryAt: new Date().toISOString(),
-        errorMessage: `Unknown provider: ${config.provider}`,
-      })
-      stats.deadLettered++
-      stats.processed++
-      continue
-    }
-
-    const result = await attemptDelivery(event, provider, config.webhookUrl)
-
-    stats.processed++
-
-    if (result.status === 'delivered') {
-      await updateEventDeliveryStatus({
-        eventId: event.id,
-        deliveryStatus: 'delivered',
-        deliveredAt: new Date().toISOString(),
-        retryCount: event.retry_count + 1,
-        lastRetryAt: new Date().toISOString(),
-        errorMessage: null,
-      })
-      stats.delivered++
-    } else if (result.status === 'pending') {
-      await updateEventDeliveryStatus({
-        eventId: event.id,
-        deliveryStatus: 'pending',
-        retryCount: event.retry_count + 1,
-        lastRetryAt: new Date().toISOString(),
-        errorMessage: result.errorMessage ?? null,
-      })
-      stats.failed++
-    } else {
-      await updateEventDeliveryStatus({
-        eventId: event.id,
-        deliveryStatus: 'dead_letter',
-        retryCount: event.retry_count + 1,
-        lastRetryAt: new Date().toISOString(),
-        errorMessage: result.errorMessage ?? null,
-      })
-      stats.deadLettered++
-    }
+    await processClaimedEvent(event, resolveProvider, stats)
   }
 
   return stats

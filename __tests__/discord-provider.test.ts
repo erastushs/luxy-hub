@@ -20,6 +20,7 @@ function eventRow(overrides: Partial<EventLogRow> = {}): EventLogRow {
     last_retry_at: null,
     delivered_at: null,
     error_message: null,
+    claimed_at: null,
     created_at: '2026-06-09T12:00:01.000Z',
     ...overrides,
   }

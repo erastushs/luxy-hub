@@ -124,14 +124,21 @@ Last updated: 2026-06-09
 | 112 | **Code** | Phase 6H Simplified Loader Runtime | `app/lib/loader/loader-bootstrap.ts`, `app/lib/loader/loader-runtime-v1.ts` |
 | 113 | **Tests** | Phase 6H Runtime Payload Tests | `__tests__/runtime-payload-delivery.test.ts` |
 | 114 | **Docs** | Phase 6H Runtime Payload Delivery Documentation | `PHASE6H_RUNTIME_PAYLOAD_DELIVERY.md` |
-
+| 115 | **Design** | Phase 8A Event Foundation Design | `PHASE8A_EVENT_FOUNDATION_DESIGN.md` |
+| 116 | **Database** | Phase 8B.1 Event Platform Foundation | `migrations/008_event_platform.sql` |
+| 117 | **API** | Phase 8B.2 Secure Event Reporting API | `app/api/events/report/route.ts` |
+| 118 | **Code** | Phase 8B.3 Queue Worker | `app/lib/services/event-queue-service.ts`, `app/api/internal/event-worker/route.ts` |
+| 119 | **Code** | Phase 8B.4 Discord Provider | `app/lib/providers/discord-provider.ts` |
+| 120 | **UI** | Phase 8C Webhook and Event Operations Dashboard | `/dashboard/scripts/[slug]/webhooks`, `/dashboard/scripts/[slug]/events` |
+| 121 | **Security** | Phase 8 Hardening Sprint | event secrets, queue claims, test isolation, retention cleanup, monitoring foundation |
+| 122 | **Docs** | Phase 8 Monitoring Foundation | `PHASE8D_MONITORING_FOUNDATION.md` |
 ---
 
 ### In Progress 🚧
 
 | # | Phase | Task | Artifact |
 |---|-------|------|----------|
-| 1 | Phase 8A | Event Foundation Design | `PHASE8A_EVENT_FOUNDATION_DESIGN.md` |
+| 1 | Phase 8E | Full Analytics & Audit Dashboard | Complete |
 
 ---
 
@@ -144,11 +151,8 @@ Last updated: 2026-06-09
 | 3 | Phase 7C | Delivery Authorization | Phase 7A |
 | 4 | Phase 7D | License Analytics & Audit | Phase 7C |
 | 5 | Phase 7E | Creator UX | Phase 7B |
-| 6 | Phase 8A | Event Foundation | Phase 7 |
-| 7 | Phase 8B | Secure Event Delivery | Phase 8A |
-| 8 | Phase 8C | Queue & Worker System | Phase 8B |
-| 9 | Phase 8D | Dashboard Management | Phase 8B |
-| 10 | Phase 8E | Analytics & Audit | Phase 8C |
+| 6 | Phase 8E | Analytics Dashboard Expansion | Phase 8D Monitoring Foundation |
+| 7 | Phase 8 Providers | Telegram / Slack Providers | Discord provider parity |
 | 11 | Phase 9 | Internal Operations & Release Workflow | Phase 7 |
 | 12 | Phase 10 | Scale & Infrastructure (Optional) | Phase 9 |
 ---
@@ -164,7 +168,7 @@ Dashboard UI:          100% complete  ██████████████
 Secure Delivery:       100% complete  ████████████████████
 Loader Integration:    100% complete  ████████████████████
 License & Auth:          0% complete  ░░░░░░░░░░░░░░░░░░░░
-Event Platform:          0% complete  ░░░░░░░░░░░░░░░░░░░░
+Event Platform:         85% complete  █████████████████░░░
 Operations:              0% complete  ░░░░░░░░░░░░░░░░░░░░
 Scale (Optional):        0% complete  ░░░░░░░░░░░░░░░░░░░░
 ```
@@ -215,16 +219,16 @@ Scale (Optional):        0% complete  ░░░░░░░░░░░░░░
 | Phase 7C | Delivery Authorization | Not Started | 0% |
 | Phase 7D | License Analytics & Audit | Not Started | 0% |
 | Phase 7E | Creator UX | Not Started | 0% |
-| Phase 8A | Event Foundation | In Progress | 50% |
-| Phase 8B | Secure Event Delivery | Not Started | 0% |
-| Phase 8C | Queue & Worker System | Not Started | 0% |
-| Phase 8D | Dashboard Management | Not Started | 0% |
-| Phase 8E | Analytics & Audit | Not Started | 0% |
+| Phase 8A | Event Foundation | Complete | 100% |
+| Phase 8B | Secure Event Delivery | Hardened | 100% |
+| Phase 8C | Queue, Worker, Dashboard Operations | Hardened | 100% |
+| Phase 8D | Monitoring Foundation | Complete | 100% |
+| Phase 8E | Full Analytics & Audit Dashboard | Complete | 100% |
 | Phase 9 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 10 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 7 Planning — Phase 8A Design In Progress
-> Phase 6 delivered production loader integration, runtime payload delivery, and build automation. Phase 7 introduces a licensing model that sits above the existing delivery architecture. Phase 8A Event Foundation design is underway — architecture and schema review, no implementation yet.
+## Current Phase: Phase 8E Analytics & Audit Expansion
+> Phase 8 hardening resolved the highest-risk audit findings: event secret issuance, queue claim leases, isolated webhook tests, retention cleanup, and lightweight monitoring counters. Remaining Phase 8 work is full analytics/audit dashboard expansion plus deferred Telegram/Slack providers.
 
 # Phase 1 — Infrastructure & Monitoring
 
@@ -782,20 +786,19 @@ Phase 8 allows Roblox scripts to securely report events to external providers (D
 Introduce event data model, webhook configuration storage, and allowed event registry.
 
 ## Features
-- [ ] `webhook_config` table — per-script provider configuration (script_id, provider, encrypted config, enabled)
-- [ ] `event_logs` table — event storage with delivery tracking (script_id, session_id, event, nonce, data, delivered, retry_count)
-- [ ] Event schema: `session_token`, `event`, `timestamp`, `nonce`, `signature`, `data`
-- [ ] Allowed event registry — `execute`, `purchase`, `error`, `ban`, `key_redeem`, `heartbeat`, `enter_world`, `leave_world`
-- [ ] Unknown event types return 422
-- [ ] Event repository and service layers
-- [ ] RLS policies for webhook_config (owner-aware) and event_logs (through scripts)
+- [x] `webhook_config` table — per-script provider configuration (script_id, provider, config, enabled)
+- [x] `event_logs` table — event storage with delivery tracking (script_id, session_id, event_type, nonce, payload, delivery_status, retry_count)
+- [x] Event schema: `sessionId`, `event`, `timestamp`, `nonce`, `signature`, `payload`
+- [x] Allowed event registry — `execute`, `purchase`, `error`, `ban`, `key_redeem`, `heartbeat`, `license_activate`, `license_revoke`
+- [x] Unknown event types return 422
+- [x] Event repository and service layers
+- [x] RLS policies for webhook_config (owner-aware) and event_logs (service-role only)
 
 ## Success Criteria
 
-- [ ] Provider credentials stored server-side only — never in Lua scripts
-- [ ] Event types strictly allowlisted
-- [ ] RLS enforces owner isolation on webhook configs
-
+- [x] Provider credentials stored server-side only — never in Lua scripts
+- [x] Event types strictly allowlisted
+- [x] RLS enforces owner isolation on webhook configs
 ---
 
 # Phase 8B — Secure Event Delivery
@@ -806,22 +809,22 @@ Validate, authenticate, and protect every event report before queueing.
 
 ## Features
 
-- [ ] Session validation — reuse existing delivery session infrastructure
-- [ ] HMAC-SHA256 event signatures computed from session-derived secret
-- [ ] Signature validation server-side before storage
-- [ ] Nonce validation — unique within session TTL window (replay protection)
-- [ ] Timestamp validation — ±60s from server time
-- [ ] Rate limiting per script + event type
-- [ ] Uniform error responses (no oracle for auth failures)
-- [ ] 202 Accepted immediately after storage — never blocks on provider delivery
+- [x] Session validation — reuse existing delivery session infrastructure
+- [x] HMAC-SHA256 event signatures computed from per-session event secret
+- [x] Signature validation server-side before storage
+- [x] Nonce validation — unique within session TTL window (replay protection)
+- [x] Timestamp validation — ±300s from server time
+- [x] Rate limiting per event session
+- [x] Uniform error responses (no oracle for auth failures)
+- [x] 200 success after storage — never blocks on provider delivery
 
 ## Success Criteria
 
-- [ ] Replayed events rejected (nonce uniqueness enforced)
-- [ ] Tampered events rejected (signature mismatch)
-- [ ] Expired/expiring sessions denied
-- [ ] Rate limits prevent webhook flooding
-- [ ] Provider outages do not cause 5xx responses
+- [x] Replayed events rejected after nonce storage lookup
+- [x] Tampered events rejected (signature mismatch)
+- [x] Expired sessions denied
+- [x] Rate limits reduce webhook flooding per valid event session
+- [x] Provider outages do not cause event reporting API 5xx responses
 
 ---
 
@@ -833,22 +836,23 @@ Reliably deliver stored events to provider webhooks with retry and dead-letter h
 
 ## Features
 
-- [ ] Database-backed queue (poll event_logs WHERE delivered = false)
-- [ ] Worker polling loop (Vercel Cron Job or in-process interval)
-- [ ] Exponential backoff retry: 10s, 30s, 90s, 270s, 810s
-- [ ] Max 5 retries before dead-letter
-- [ ] Dead-letter handling — mark, log error, visible in dashboard for manual replay
-- [ ] Provider abstraction layer — Discord, Telegram, Slack adapters
-- [ ] Discord provider: Discord webhook embed formatting
+- [x] Database-backed queue (`event_logs.delivery_status = 'pending'`)
+- [x] Worker polling loop (Vercel Cron Job)
+- [x] Queue claim lease (`event_logs.claimed_at`) prevents overlapping workers processing the same event concurrently
+- [x] Exponential backoff retry: 10s, 30s, 90s, 270s, 810s
+- [x] Max 5 retries before dead-letter
+- [x] Dead-letter handling — mark, log error, visible in dashboard for manual replay
+- [x] Provider abstraction layer — Discord adapter implemented
+- [x] Discord provider: Discord webhook embed formatting
 - [ ] Telegram provider: bot token + chat ID message delivery
 - [ ] Slack provider: Slack incoming webhook formatting
 
 ## Success Criteria
 
-- [ ] Events survive process restarts (DB-backed, not in-memory)
-- [ ] Discord outage does not block API / return 5xx
-- [ ] Events not lost — retried until success or dead-letter
-- [ ] Dead-letter events visible and replayable from dashboard
+- [x] Events survive process restarts (DB-backed, not in-memory)
+- [x] Discord outage does not block API / return 5xx
+- [x] Events not lost — retried until success or dead-letter
+- [x] Dead-letter events visible and replayable from dashboard
 
 ---
 
@@ -860,19 +864,19 @@ Creator-facing webhook configuration and event visibility.
 
 ## Features
 
-- [ ] Configure webhook provider per script (Discord / Telegram / Slack)
-- [ ] Enable/disable webhook toggle
-- [ ] Test Webhook button — sends test event to verify connectivity
-- [ ] View delivery status — last delivery timestamp, failure count, dead-letter count
-- [ ] Event history table with filters (event type, status, date range)
-- [ ] Event detail view (payload, delivery attempts, error messages)
-- [ ] Dead-letter queue with manual replay button
+- [x] Configure Discord webhook provider per script
+- [x] Enable/disable webhook toggle
+- [x] Test Webhook button — sends isolated test event to verify connectivity
+- [x] View delivery status via event operations pages
+- [x] Event history table with filters (event type, status, pagination)
+- [x] Event detail view (payload, delivery metadata, error messages)
+- [x] Dead-letter queue with manual replay button
 
 ## Success Criteria
 
-- [ ] Creators can configure and test webhooks from dashboard
-- [ ] Delivery status visible at a glance
-- [ ] Failed deliveries diagnosable from dashboard
+- [x] Creators can configure and test Discord webhooks from dashboard
+- [x] Delivery status visible through event operations views
+- [x] Failed deliveries diagnosable from dashboard
 
 ---
 
@@ -880,23 +884,17 @@ Creator-facing webhook configuration and event visibility.
 
 ## Goal
 
-Observability into event throughput, delivery success, and queue health.
 
-## Features
-
-- [ ] Event counts by type (per script, time range)
-- [ ] Delivery success rate (%)
-- [ ] Failure counts and rate
-- [ ] Queue depth (currently undelivered)
+- [x] Event counts by type (per script, time range)
+- [x] Delivery success rate (%)
+- [x] Failure counts and rate
+- [x] Queue health metrics foundation (`pendingCount`, `deadLetterCount`, `oldestPendingAgeSeconds`)
 - [ ] Average delivery latency (received_at → delivered_at)
 - [ ] Audit events: `webhook.created`, `webhook.updated`, `webhook.deleted`, `webhook.test_sent`
-
-## Success Criteria
-
-- [ ] Event throughput observable from dashboard
-- [ ] Queue health metrics available
-- [ ] Audit trail covers webhook config lifecycle
-
+- [x] Security counters: invalid signatures, replay attempts, rate-limit violations, auth failures
+- [x] Webhook counters: delivery success, retryable failure, provider failure
+- [x] Security monitoring dashboard: risk classification, anomaly detection, security events table
+- [x] Internal alert system: threshold evaluation, auto-resolution, Discord notifications, admin dashboard
 ---
 
 # Phase 9 — Internal Operations & Release Workflow

@@ -19,7 +19,7 @@ const UNAVAILABLE_MESSAGE = 'Delivery unavailable'
 const INVALID_SESSION_MESSAGE = 'Invalid delivery session'
 
 export type CreateDeliverySessionResult =
-  | { success: true; session_token: string; expires_in: number; session: DeliverySessionRow }
+  | { success: true; session_token: string; event_secret: string; expires_in: number; session: DeliverySessionRow }
   | { success: false; message: string; status: number }
 
 export type ValidateDeliverySessionResult =
@@ -33,12 +33,17 @@ export type ConsumeDeliverySessionResult =
       build_version: string
       version_id: string
       runtime_format_version: RuntimePayloadResponse['runtime_format_version']
+      event_secret: string
       session: DeliverySessionRow
       build: DeliveryBuildRow
     }
   | { success: false; message: string; status: number }
 
 function createRawSessionToken(): string {
+  return randomBytes(32).toString('base64url')
+}
+
+function createEventSecret(): string {
   return randomBytes(32).toString('base64url')
 }
 
@@ -88,16 +93,19 @@ export async function createDeliverySession(slug: unknown): Promise<CreateDelive
     }
 
     const sessionToken = createRawSessionToken()
+    const eventSecret = createEventSecret()
     const session = await createSession({
       scriptId: script.id,
       buildId: build.id,
       tokenHash: hashDeliverySessionToken(sessionToken),
       expiresAt: new Date(Date.now() + DELIVERY_SESSION_TTL_SECONDS * 1000).toISOString(),
+      eventSecret,
     })
 
     return {
       success: true,
       session_token: sessionToken,
+      event_secret: eventSecret,
       expires_in: DELIVERY_SESSION_TTL_SECONDS,
       session,
     }
@@ -147,9 +155,14 @@ export async function consumeDeliverySession(sessionToken: unknown): Promise<Con
     return { success: false, message: INVALID_SESSION_MESSAGE, status: 403 }
   }
 
+  if (!consumedSession.event_secret) {
+    return { success: false, message: INVALID_SESSION_MESSAGE, status: 403 }
+  }
+
   return {
     success: true,
     ...runtimePayload,
+    event_secret: consumedSession.event_secret,
     session: consumedSession,
     build: validation.build,
   }

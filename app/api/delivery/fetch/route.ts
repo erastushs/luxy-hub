@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
         build_version: result.build_version,
         version_id: result.version_id,
         runtime_format_version: result.runtime_format_version,
+        event_secret: result.event_secret,
       },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }
     )

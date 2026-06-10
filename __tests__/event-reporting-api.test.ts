@@ -35,6 +35,10 @@ vi.mock('@/app/lib/supabase', () => ({
   },
 }))
 
+vi.mock('@/app/lib/services/event-monitoring-service', () => ({
+  recordSecurityCounter: vi.fn(),
+}))
+
 import { supabaseAdmin } from '@/app/lib/supabase'
 import {
   createEventLog,
@@ -88,6 +92,7 @@ function mockEventCreated(eventType = 'execute', nonce = 'a'.repeat(32)): void {
     last_retry_at: null,
     delivered_at: null,
     error_message: null,
+    claimed_at: null,
     created_at: '2026-06-09T12:00:01.000Z',
   })
 }
@@ -291,6 +296,7 @@ describe('Event Reporting Service', () => {
       last_retry_at: null,
       delivered_at: null,
       error_message: null,
+      claimed_at: null,
       created_at: '2026-06-09T12:00:01.000Z',
     })
 
@@ -386,6 +392,7 @@ describe('Event Reporting Service', () => {
       last_retry_at: null,
       delivered_at: null,
       error_message: null,
+      claimed_at: null,
       created_at: '2026-06-09T12:00:01.000Z',
     })
 

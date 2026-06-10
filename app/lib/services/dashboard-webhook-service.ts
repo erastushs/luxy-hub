@@ -7,7 +7,7 @@ import {
 } from '@/app/lib/repositories/webhook-config-repository'
 import { createEventLog, type EventType } from '@/app/lib/repositories/event-repository'
 import { validateWebhookUrl, validateConfig } from '@/app/lib/providers/discord-provider'
-import { processEventQueue, type ProviderResolver } from '@/app/lib/services/event-queue-service'
+import { processSingleEvent, type ProviderResolver } from '@/app/lib/services/event-queue-service'
 import { discordProvider } from '@/app/lib/providers/discord-provider'
 
 // ---------------------------------------------------------------------------
@@ -211,7 +211,7 @@ export async function sendTestWebhookEvent(
   const timestamp = new Date().toISOString()
   const nonce = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
 
-  await createEventLog({
+  const event = await createEventLog({
     scriptId: script.id,
     sessionId: '00000000-0000-0000-0000-000000000000',
     eventType: 'heartbeat' as EventType,
@@ -220,13 +220,13 @@ export async function sendTestWebhookEvent(
     nonce,
   })
 
-  // Deliver through normal queue provider flow
+  // Deliver only the created test event through the normal queue/provider flow.
   const resolveProvider: ProviderResolver = (provider: string) => {
     if (provider === 'discord') return discordProvider
     return null
   }
 
-  const result = await processEventQueue(resolveProvider, 50)
+  const result = await processSingleEvent(event.id, resolveProvider)
 
   if (result.deadLettered > 0) {
     return { success: false, message: 'Test event delivery failed — webhook may be invalid or deleted', status: 400 }

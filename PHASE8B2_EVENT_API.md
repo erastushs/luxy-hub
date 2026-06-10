@@ -109,6 +109,17 @@ HMAC-SHA256(
 
 The `event_secret` is a per-session random value stored in plaintext in `delivery_sessions`. It is NOT the delivery session token. Constant-time comparison (`timingSafeEqual`) prevents timing oracle attacks.
 
+Runtime secret issuance: `POST /api/delivery/session` creates a cryptographically random per-session `event_secret`, persists it on the `delivery_sessions` row, and returns it alongside the raw `session_token`. `POST /api/delivery/fetch` also returns the same `event_secret` after consume-once delivery validation so the runtime can sign post-fetch event reports without exposing the session token hash or service credentials.
+
+Runtime signing flow:
+
+1. Request `/api/delivery/session` for a deliverable script slug.
+2. Store `session_token` and `event_secret` in runtime memory only.
+3. Fetch the runtime payload through `/api/delivery/fetch` with `session_token`.
+4. For each event, create `timestamp` as Unix seconds and a 32-character lowercase hex nonce.
+5. Compute `HMAC-SHA256(event + ":" + timestamp + ":" + nonce + ":" + JSON.stringify(payload), event_secret)`.
+6. Submit `sessionId`, `event`, `timestamp`, `nonce`, `signature`, and `payload` to `/api/events/report`.
+
 ### Defense in Depth
 
 Replay protection is multi-layered:

@@ -12,6 +12,10 @@ import {
   ALLOWED_EVENT_TYPES,
   createEventLog,
   findEventByNonce,
+  claimEventForProcessing,
+  deleteDeadLetterEventsBefore,
+  deleteDeliveredEventsBefore,
+  deletePendingEventsBefore,
   getPendingEvents,
   getEventsByScriptId,
   updateEventDeliveryStatus,
@@ -19,16 +23,19 @@ import {
 } from '@/app/lib/repositories/event-repository'
 
 type QueryChain = {
+  delete: Mock
   insert: Mock
   update: Mock
   select: Mock
   eq: Mock
+  lt: Mock
+  or: Mock
   order: Mock
   limit: Mock
   range: Mock
   maybeSingle: Mock
   single: Mock
-  then: (resolve: (value: { data?: unknown; error: unknown }) => void) => void
+  then: (resolve: (value: { data?: unknown; error: unknown; count?: number | null }) => void) => void
 }
 
 function mockEventRow(overrides: Partial<EventLogRow> = {}): EventLogRow {
@@ -46,6 +53,7 @@ function mockEventRow(overrides: Partial<EventLogRow> = {}): EventLogRow {
     last_retry_at: null,
     delivered_at: null,
     error_message: null,
+    claimed_at: null,
     created_at: '2026-06-09T12:00:01.000Z',
     ...overrides,
   }
@@ -56,9 +64,12 @@ function createQueryChain(
   error: unknown = null
 ): QueryChain {
   const chain = {} as QueryChain
+  chain.delete = vi.fn(() => chain)
   chain.insert = vi.fn(() => chain)
   chain.update = vi.fn(() => chain)
   chain.select = vi.fn(() => chain)
+  chain.lt = vi.fn(() => chain)
+  chain.or = vi.fn(() => chain)
   chain.eq = vi.fn(() => chain)
   chain.order = vi.fn(() => chain)
   chain.limit = vi.fn(() => chain)
@@ -72,7 +83,7 @@ function createQueryChain(
     error,
   }))
   chain.then = (resolve) => {
-    resolve({ data: Array.isArray(data) ? data : data, error })
+    resolve({ data: Array.isArray(data) ? data : data, error, count: Array.isArray(data) ? data.length : data ? 1 : 0 })
   }
   return chain
 }
@@ -152,7 +163,21 @@ describe('event repository', () => {
     expect(chain.eq).toHaveBeenCalledWith('delivery_status', 'pending')
     expect(chain.order).toHaveBeenCalledWith('received_at', { ascending: true })
     expect(chain.limit).toHaveBeenCalledWith(25)
+    expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('claimed_at.is.null'))
   })
+
+  it('claims a pending event with an expired or empty lease', async () => {
+    const chain = createQueryChain(mockEventRow({ claimed_at: '2026-06-09T12:00:02.000Z' }))
+    mockedFrom.mockReturnValue(chain)
+
+    const result = await claimEventForProcessing('event-uuid-1', new Date('2026-06-09T12:00:00.000Z'))
+
+    expect(result!.id).toBe('event-uuid-1')
+    expect(chain.update).toHaveBeenCalledWith({ claimed_at: expect.any(String) })
+    expect(chain.eq).toHaveBeenCalledWith('id', 'event-uuid-1')
+    expect(chain.eq).toHaveBeenCalledWith('delivery_status', 'pending')
+    expect(chain.or).toHaveBeenCalledWith('claimed_at.is.null,claimed_at.lt.2026-06-09T12:00:00.000Z')
+   })
 
   it('selects events by script, event type, and delivery status', async () => {
     const chain = createQueryChain([mockEventRow({ event_type: 'error' })])
@@ -189,9 +214,26 @@ describe('event repository', () => {
     expect(result!.delivery_status).toBe('delivered')
     expect(chain.update).toHaveBeenCalledWith({
       delivery_status: 'delivered',
+      claimed_at: null,
       delivered_at: '2026-06-09T12:00:02.000Z',
       error_message: null,
     })
+  })
+
+  it('deletes delivered, dead-letter, and stale pending events for retention', async () => {
+    const chain = createQueryChain([mockEventRow()])
+    mockedFrom.mockReturnValue(chain)
+    const cutoff = new Date('2026-06-01T00:00:00.000Z')
+
+    await expect(deleteDeliveredEventsBefore(cutoff)).resolves.toBe(1)
+    expect(chain.eq).toHaveBeenCalledWith('delivery_status', 'delivered')
+
+    await expect(deleteDeadLetterEventsBefore(cutoff)).resolves.toBe(1)
+    expect(chain.eq).toHaveBeenCalledWith('delivery_status', 'dead_letter')
+
+    await expect(deletePendingEventsBefore(cutoff)).resolves.toBe(1)
+    expect(chain.eq).toHaveBeenCalledWith('delivery_status', 'pending')
+    expect(chain.lt).toHaveBeenCalledWith('created_at', cutoff.toISOString())
   })
 
   describe('event allowlist enforcement', () => {

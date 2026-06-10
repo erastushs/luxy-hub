@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('@/app/lib/supabase', () => ({
+  supabaseAdmin: {},
+}))
+
 vi.mock('@/app/lib/services/event-queue-service', () => ({
   processEventQueue: vi.fn(),
 }))

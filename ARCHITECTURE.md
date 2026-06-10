@@ -1,7 +1,7 @@
 # LuxyHub Architecture
 
-Last updated: 2026-06-08
-Status: Current implementation after Creator Dashboard V1, secure delivery, and login hardening
+Last updated: 2026-06-09
+Status: Current implementation after Creator Dashboard V1, secure delivery, login hardening, and Phase 8 event platform hardening
 
 ## Overview
 
@@ -225,8 +225,8 @@ Security posture:
 - `delivery_sessions.session_token_hash` stores SHA-256 hashes, never raw delivery tokens.
 - `webhook_config` is owner-aware with service-role compatibility; one config per script.
 - `event_logs` is service-role-only; browser users never access it directly.
-- `delivery_sessions.event_secret` is nullable for event signing and is not exposed by the current delivery API.
-- Queue worker polls `event_logs` via `POST /api/internal/event-worker` (CRON_SECRET auth, 5-min cron).
+- `delivery_sessions.event_secret` is generated per delivery session, persisted server-side, and returned only to the runtime alongside the raw session token for HMAC event signing; session token hashes remain server-only.
+- Queue worker polls `event_logs` via `POST /api/internal/event-worker` (CRON_SECRET auth, 5-min cron) and uses `event_logs.claimed_at` leases to prevent overlapping workers from processing the same pending event concurrently.
 
 ## Script Delivery State
 
@@ -247,7 +247,7 @@ GET /api/loader/[slug]
 Lua bootstrap POSTs /api/delivery/session
   |
   v
-Temporary session_token, expires_in = 60
+Temporary session_token, event_secret, expires_in = 60
   |
   v
 Lua bootstrap POSTs /api/delivery/fetch
@@ -256,10 +256,10 @@ Lua bootstrap POSTs /api/delivery/fetch
 Server hashes token with SHA-256, validates ready build, consumes session once
   |
   v
-Runtime payload response with Cache-Control: no-store
+Runtime payload response with event_secret and Cache-Control: no-store
 ```
 
-Delivery sessions are only issued for public or unlisted scripts with a ready inline encrypted delivery build for the current version. `/api/delivery/fetch` consumes the session before returning the runtime payload; reused, expired, malformed, or missing sessions return `Invalid delivery session`.
+Delivery sessions are only issued for public or unlisted scripts with a ready inline encrypted delivery build for the current version. `/api/delivery/session` and `/api/delivery/fetch` return the per-session `event_secret` needed to sign `/api/events/report` payloads. `/api/delivery/fetch` consumes the session before returning the runtime payload; reused, expired, malformed, or missing sessions return `Invalid delivery session`.
 
 Delivery builds are created automatically after script creation, content version creation, and visibility publish actions. Build payloads use the current `delivery-build-v1` and `inline-json-v1` formats with AES-256-GCM payload packaging, gzip compression, and SHA-256 integrity fields. The current loader executes the server-produced runtime payload with `loadstring`; license management and marketplace entitlement checks are not implemented.
 
@@ -344,7 +344,7 @@ Current priorities:
 - Phase 5 — Secure Script Delivery: complete
 - Phase 6 — Loader Integration: complete
 - Phase 7 — License & Delivery Authorization: planning (5 sub-phases)
-- Phase 8 — Event Reporting & Webhook Platform: Phases 8B.1-8C.2 implemented (database, API, queue worker, Discord provider, dashboard webhook management, event operations); 1 remaining sub-phase (Slack/Telegram providers)
+- Phase 8 — Event Reporting & Webhook Platform: Phases 8B.1-8D monitoring foundation implemented (database, API, queue worker with claim leases, Discord provider, dashboard webhook management, event operations, retention cleanup, monitoring counters); Telegram/Slack providers remain deferred.
 - Phase 9 — Internal Operations & Release Workflow
 - Phase 10 — Scale & Infrastructure (Optional)
 

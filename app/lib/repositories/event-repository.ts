@@ -26,6 +26,7 @@ export type EventLogRow = {
   last_retry_at: string | null
   delivered_at: string | null
   error_message: string | null
+  claimed_at: string | null
   created_at: string
 }
 
@@ -58,6 +59,7 @@ const EVENT_LOG_SELECT = [
   'last_retry_at',
   'delivered_at',
   'error_message',
+  'claimed_at',
   'created_at',
 ].join(', ')
 
@@ -109,16 +111,31 @@ export async function findEventByNonce(sessionId: string, nonce: string): Promis
   return data as unknown as EventLogRow | null
 }
 
-export async function getPendingEvents(limit: number = 50): Promise<EventLogRow[]> {
+export async function getPendingEvents(limit: number = 50, leaseExpiredBefore: Date = new Date(Date.now() - 15 * 60 * 1000)): Promise<EventLogRow[]> {
   const { data, error } = await supabaseAdmin
     .from('event_logs')
     .select(EVENT_LOG_SELECT)
     .eq('delivery_status', 'pending')
+    .or(`claimed_at.is.null,claimed_at.lt.${leaseExpiredBefore.toISOString()}`)
     .order('received_at', { ascending: true })
     .limit(limit)
 
   if (error) throw error
   return (data as unknown as EventLogRow[]) ?? []
+}
+
+export async function claimEventForProcessing(eventId: string, leaseExpiredBefore: Date = new Date(Date.now() - 15 * 60 * 1000)): Promise<EventLogRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('event_logs')
+    .update({ claimed_at: new Date().toISOString() })
+    .eq('id', eventId)
+    .eq('delivery_status', 'pending')
+    .or(`claimed_at.is.null,claimed_at.lt.${leaseExpiredBefore.toISOString()}`)
+    .select(EVENT_LOG_SELECT)
+    .single()
+
+  if (error) return null
+  return data as unknown as EventLogRow
 }
 
 export async function getEventsByScriptId(
@@ -192,6 +209,7 @@ export async function updateEventDeliveryStatus(params: {
 }): Promise<EventLogRow | null> {
   const updates: Record<string, unknown> = {
     delivery_status: params.deliveryStatus,
+    claimed_at: null,
   }
 
   if (params.retryCount !== undefined) updates.retry_count = params.retryCount
@@ -208,4 +226,142 @@ export async function updateEventDeliveryStatus(params: {
 
   if (error) return null
   return data as unknown as EventLogRow
+}
+
+export async function deleteDeliveredEventsBefore(before: Date): Promise<number> {
+  const { count, error } = await supabaseAdmin
+    .from('event_logs')
+    .delete({ count: 'exact' })
+    .eq('delivery_status', 'delivered')
+    .lt('created_at', before.toISOString())
+
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function deleteDeadLetterEventsBefore(before: Date): Promise<number> {
+  const { count, error } = await supabaseAdmin
+    .from('event_logs')
+    .delete({ count: 'exact' })
+    .eq('delivery_status', 'dead_letter')
+    .lt('created_at', before.toISOString())
+
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function deletePendingEventsBefore(before: Date): Promise<number> {
+  const { count, error } = await supabaseAdmin
+    .from('event_logs')
+    .delete({ count: 'exact' })
+    .eq('delivery_status', 'pending')
+    .lt('created_at', before.toISOString())
+
+  if (error) throw error
+  return count ?? 0
+}
+
+// ---------------------------------------------------------------------------
+// Analytics: event type counts within a time range
+// ---------------------------------------------------------------------------
+
+export type EventTypeCount = {
+  event_type: EventType
+  delivery_status: EventDeliveryStatus
+  count: number
+}
+
+export async function getEventTypeCountsByScriptId(
+  scriptId: string,
+  since?: Date,
+): Promise<EventTypeCount[]> {
+  let query = supabaseAdmin
+    .from('event_logs')
+    .select('event_type, delivery_status')
+    .eq('script_id', scriptId)
+
+  if (since !== undefined) {
+    query = query.gte('received_at', since.toISOString())
+  }
+
+  const { data, error } = await query
+
+  if (error) throw error
+  if (!data) return []
+
+  const counts = new Map<string, number>()
+  for (const row of data as { event_type: string; delivery_status: string }[]) {
+    const key = `${row.event_type}:${row.delivery_status}`
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+
+  const result: EventTypeCount[] = []
+  for (const [key, count] of counts) {
+    const [event_type, delivery_status] = key.split(':') as [EventType, EventDeliveryStatus]
+    result.push({ event_type, delivery_status, count })
+  }
+
+  return result
+}
+
+// ---------------------------------------------------------------------------
+// Analytics: last delivery timestamp for a script
+// ---------------------------------------------------------------------------
+
+export async function getLastDeliveryTimestamp(scriptId: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from('event_logs')
+    .select('delivered_at')
+    .eq('script_id', scriptId)
+    .eq('delivery_status', 'delivered')
+    .order('delivered_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw error
+  return (data as { delivered_at: string | null } | null)?.delivered_at ?? null
+}
+
+// ---------------------------------------------------------------------------
+// Analytics: per-script queue health snapshot
+// ---------------------------------------------------------------------------
+
+export type ScriptQueueSnapshot = {
+  pendingCount: number
+  deadLetterCount: number
+  oldestPendingAgeSeconds: number | null
+}
+
+export async function getScriptQueueSnapshot(scriptId: string): Promise<ScriptQueueSnapshot> {
+  const [{ count: pendingCount }, { count: deadLetterCount }, { data: oldestPending }] = await Promise.all([
+    supabaseAdmin
+      .from('event_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('script_id', scriptId)
+      .eq('delivery_status', 'pending'),
+    supabaseAdmin
+      .from('event_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('script_id', scriptId)
+      .eq('delivery_status', 'dead_letter'),
+    supabaseAdmin
+      .from('event_logs')
+      .select('received_at')
+      .eq('script_id', scriptId)
+      .eq('delivery_status', 'pending')
+      .order('received_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ])
+
+  const receivedAt = (oldestPending as { received_at?: string } | null)?.received_at
+  const oldestPendingAgeSeconds = receivedAt
+    ? Math.max(0, Math.floor((Date.now() - new Date(receivedAt).getTime()) / 1000))
+    : null
+
+  return {
+    pendingCount: pendingCount ?? 0,
+    deadLetterCount: deadLetterCount ?? 0,
+    oldestPendingAgeSeconds,
+  }
 }
