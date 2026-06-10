@@ -1,8 +1,8 @@
 import fs from 'fs'
-import path from 'path'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { DOC_PATHS } from '@/app/lib/docs/document-paths'
 import type { Components } from 'react-markdown'
 
 const markdownComponents: Partial<Components> = {
@@ -73,7 +73,7 @@ const markdownComponents: Partial<Components> = {
 }
 
 export default function ApiDocsPage() {
-  const filePath = path.join(process.cwd(), 'API_INTEGRATION.md')
+  const filePath = DOC_PATHS.apiIntegration
   const content = fs.readFileSync(filePath, 'utf-8')
 
   return (
