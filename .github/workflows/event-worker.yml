@@ -12,6 +12,14 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      - name: Debug secrets
+        env:
+          EVENT_WORKER_URL: ${{ secrets.EVENT_WORKER_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          echo "URL length: ${#EVENT_WORKER_URL}"
+          echo "SECRET length: ${#CRON_SECRET}"
+
       - name: Invoke event worker
         env:
           EVENT_WORKER_URL: ${{ secrets.EVENT_WORKER_URL }}
@@ -31,6 +39,7 @@ jobs:
             --request POST "$EVENT_WORKER_URL" \
             --header "Authorization: Bearer $CRON_SECRET" \
             --header "Content-Type: application/json" \
+            --header "User-Agent: GitHub-Actions" \
             --max-time 540 \
             --connect-timeout 10)
 
