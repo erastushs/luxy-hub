@@ -213,7 +213,6 @@ export async function sendTestWebhookEvent(
 
   const event = await createEventLog({
     scriptId: script.id,
-    sessionId: '00000000-0000-0000-0000-000000000000',
     eventType: 'heartbeat' as EventType,
     payload: { test: true, note: 'Webhook test event from dashboard' },
     timestamp,

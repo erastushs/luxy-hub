@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Webhook, Send, Loader2, CheckCircle2, XCircle, AlertTriangle, Power, PowerOff } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
@@ -136,13 +137,21 @@ export default function WebhookSettings({
 
   const currentConfig = state.success && state.config ? state.config : config
 
+  const router = useRouter()
+
   const handleToggle = () => {
     if (!currentConfig) return
     setToggleError(null)
     startToggle(async () => {
-      const result = await toggleWebhookAction(slug, !currentConfig.enabled)
-      if (!result.success) {
-        setToggleError(result.message)
+      try {
+        const result = await toggleWebhookAction(slug, !currentConfig.enabled)
+        if (!result.success) {
+          setToggleError(result.message)
+        } else {
+          router.refresh()
+        }
+      } catch (err) {
+        setToggleError(err instanceof Error ? err.message : 'Toggle failed')
       }
     })
   }

@@ -65,22 +65,26 @@ const EVENT_LOG_SELECT = [
 
 export async function createEventLog(params: {
   scriptId: string
-  sessionId: string
+  sessionId?: string | null
   eventType: EventType
   payload: Record<string, unknown>
   timestamp: string
   nonce: string
 }): Promise<EventLogRow> {
+  const insertData: Record<string, unknown> = {
+    script_id: params.scriptId,
+    event_type: params.eventType,
+    payload: params.payload,
+    timestamp: params.timestamp,
+    nonce: params.nonce,
+  }
+  if (params.sessionId) {
+    insertData.session_id = params.sessionId
+  }
+
   const { data, error } = await supabaseAdmin
     .from('event_logs')
-    .insert({
-      script_id: params.scriptId,
-      session_id: params.sessionId,
-      event_type: params.eventType,
-      payload: params.payload,
-      timestamp: params.timestamp,
-      nonce: params.nonce,
-    })
+    .insert(insertData)
     .select(EVENT_LOG_SELECT)
     .single()
 
