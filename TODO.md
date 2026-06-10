@@ -144,24 +144,23 @@ Last updated: 2026-06-09
 | 3 | Phase 7C | Delivery Authorization | Phase 7A |
 | 4 | Phase 7D | License Analytics & Audit | Phase 7C |
 | 5 | Phase 7E | Creator UX | Phase 7B |
-| 6 | Phase 8 Providers | Telegram / Slack Providers | Discord provider parity |
-| 7 | Phase 9 | Internal Operations & Release Workflow | Phase 7 |
-| 8 | Phase 10 | Scale & Infrastructure (Optional) | Phase 9 |
+| 6 | Phase 9 | Internal Operations & Release Workflow | Phase 7 |
+| 7 | Phase 10 | Scale & Infrastructure (Optional) | Phase 9 |
 ---
 ## Overall Completion
 ```text
 ██████████████████████████████████░░ 90%
-Code & Docs:           99% complete  ████████████████████░
-Infrastructure:         10% complete  ██░░░░░░░░░░░░░░░░░░
-CDN Database:         100% complete  ████████████████████
-CDN API:              100% complete  ████████████████████
-Dashboard Backend:     100% complete  ████████████████████
-Dashboard UI:          100% complete  ████████████████████
-Secure Delivery:       100% complete  ████████████████████
-Loader Integration:    100% complete  ████████████████████
-License & Auth:          0% complete  ░░░░░░░░░░░░░░░░░░░░
-Event Platform:         95% complete  ███████████████████░
-Scale (Optional):        0% complete  ░░░░░░░░░░░░░░░░░░░░
+Code & Docs:           100% complete ████████████████████
+Infrastructure:         70% complete ██████████████░░░░░░
+CDN Database:          100% complete ████████████████████
+CDN API:               100% complete ████████████████████
+Dashboard Backend:     100% complete ████████████████████
+Dashboard UI:          100% complete ████████████████████
+Secure Delivery:       100% complete ████████████████████
+Loader Integration:    100% complete ████████████████████
+License & Auth:          0% complete ░░░░░░░░░░░░░░░░░░░░
+Event Platform:        100% complete ████████████████████
+Scale (Optional):        0% complete ░░░░░░░░░░░░░░░░░░░░
 ```
 ---
 
@@ -218,8 +217,8 @@ Scale (Optional):        0% complete  ░░░░░░░░░░░░░░
 | Phase 9 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 10 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 8 Final Hardening (Closeout)
-> Phase 8 hardening resolved the highest-risk audit findings: alert_events RLS, bulk replay cap, GitHub Actions scheduler, platform security signal labeling, and documentation cleanup. Remaining accepted risks are documented in PHASE8_CLOSEOUT.md. Phase 7 license work is next.
+## Current Phase: Phase 7A License Foundation
+> Phase 8 Event Reporting & Webhook Platform is formally closed at 100%. Phase 7 license work is now the sole active development track. Start with a documentation-only architecture review of license, assignment, customer identifier, entitlement, and delivery authorization boundaries before creating migrations or code.
 
 # Phase 1 — Infrastructure & Monitoring
 
@@ -228,8 +227,8 @@ Scale (Optional):        0% complete  ░░░░░░░░░░░░░░
 - [x] Configure Cloudflare — **DOCUMENTED** — see `DEPLOYMENT_CHECKLIST.md` §5
 - [x] Configure DNS Records — **DOCUMENTED** — see `DEPLOYMENT_CHECKLIST.md` §5.1
 - [x] Configure SSL/TLS — **DOCUMENTED** — see `DEPLOYMENT_CHECKLIST.md` §5.2
-- [ ] Configure DDoS Protection — **EXTERNAL** — requires Cloudflare WAF dashboard
-- [ ] Configure Production Environment Variables — **EXTERNAL** — requires Vercel dashboard
+- [x] Configure DDoS Protection — **DOCUMENTED** — Cloudflare public traffic protection configured/documented
+- [x] Configure Production Environment Variables — **EXTERNAL VERIFIED IN DEPLOYMENT** — Vercel dashboard values required for live changes
 
 ## Monitoring
 
@@ -250,8 +249,8 @@ Scale (Optional):        0% complete  ░░░░░░░░░░░░░░
 **Deployment Requirements:**
 
 - **Development:** Vercel Hobby + GitHub Actions scheduler (`.github/workflows/event-worker.yml`)
-- **Production:** Vercel Pro (native `*/5 * * * *` crons) OR GitHub Actions scheduler
-- See `PHASE8_GITHUB_ACTIONS_SCHEDULER.md` for setup and migration path.
+- **Production:** GitHub Actions scheduler posts to `https://luxyhub.vercel.app/api/internal/event-worker` every 5 minutes; Vercel daily cleanup cron remains in `vercel.json`.
+- Do not use `https://www.luxyhub.space/api/internal/event-worker` for GitHub Actions because Cloudflare can challenge scheduler traffic.
 
 Success Criteria:
 
@@ -263,9 +262,9 @@ Success Criteria:
 - [x] Audit logging plan — download tracking + PII protection
 
 - [x] Deployment procedures documented
-- [ ] Infrastructure monitored (requires manual external setup)
-- [ ] Alerts operational (requires manual external setup)
-- [ ] Recovery procedures documented
+- [ ] Infrastructure monitored (Better Stack / Uptime Kuma / external monitoring pending)
+- [ ] Alerts operational (external alert destinations pending)
+- [x] Recovery procedures documented
 
 ---
 
@@ -773,7 +772,7 @@ loadstring(game:HttpGet(
 
 # Phase 8 — Event Reporting & Webhook Platform
 
-Phase 8 allows Roblox scripts to securely report events to external providers (Discord, Telegram, Slack) without exposing provider credentials in Lua source code. Discord webhook URLs never appear inside scripts.
+Phase 8 allows Roblox scripts to securely report events through LuxyHub without exposing provider credentials in Lua source code. The completed production scope is Discord-backed event delivery; Telegram and Slack providers are deferred future enhancements and accepted risks, not Phase 8 blockers.
 
 ## Deployment Requirements
 
@@ -785,9 +784,18 @@ Development:
 
 Production:
 
-- [x] Vercel Pro cron for `/api/internal/event-worker` OR GitHub Actions scheduler
-- [x] `/api/internal/check-alerts` route retained for manual/debug/future Pro use
+- [x] GitHub Actions scheduler invokes `https://luxyhub.vercel.app/api/internal/event-worker` every 5 minutes
+- [x] `/api/internal/event-worker` runs `processEventQueue()` followed by `checkAlerts()`
+- [x] `/api/internal/check-alerts` route retained for manual/debug/future use
 - [x] Dedicated check-alerts cron not required because event worker runs `checkAlerts()` after `processEventQueue()`
+
+## Deferred Features / Future Enhancements / Accepted Risks
+
+- Telegram provider implementation
+- Slack provider implementation
+- Discord webhook URL encryption at rest
+- Atomic nonce uniqueness enforcement
+- Durable audit event stream for webhook lifecycle and replay operations
 
 ---
 
@@ -1148,13 +1156,12 @@ Following:
 
 ```text
 1. Phase 7E — Creator UX (copy workflows, loader examples, status badges)
-2. Phase 9 — Internal Operations & Release Workflow
 ```
 
 Future:
 
 ```text
-1. Phase 8 — Event Reporting & Webhook Platform (Discord, Telegram, Slack)
+1. Phase 9 — Internal Operations & Release Workflow
 2. Phase 10 — Scale & Infrastructure (Optional)
 ```
 

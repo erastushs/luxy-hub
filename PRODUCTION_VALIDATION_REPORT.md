@@ -1,10 +1,10 @@
 # Production Validation Report
 
-Last updated: 2026-06-08
+Last updated: 2026-06-10
 
 ## Summary
 
-The repository implementation is structurally sound in code and includes the current dashboard, script APIs, loader delivery, Turnstile login protection, login failed-attempt rate limiting, and security hardening controls.
+The repository implementation is structurally sound in code and includes the current dashboard, script APIs, loader delivery, Turnstile login protection, login failed-attempt rate limiting, security hardening controls, Phase 6 loader integration, and completed Phase 8 Event Platform.
 
 ## Passed Code-Level Checks
 
@@ -22,6 +22,8 @@ The repository implementation is structurally sound in code and includes the cur
 - Delivery session tokens are SHA-256 hashed, short-lived, and consume-once.
 - Analytics hashing stores hashed identifiers only.
 - Cleanup route is implemented with retention windows.
+- Phase 8 event reporting is implemented with HMAC validation, timestamp validation, replay protection, queue worker, dead-letter handling, Discord provider, dashboards, internal alerting, monitoring counters, and event retention cleanup.
+- GitHub Actions schedules `POST https://luxyhub.vercel.app/api/internal/event-worker` every 5 minutes; the route runs `processEventQueue()` followed by `checkAlerts()`.
 
 ## Checks Requiring Live Production Access
 
@@ -29,7 +31,7 @@ The repository implementation is structurally sound in code and includes the cur
 - Supabase RLS policy verification in the deployed database.
 - Vercel production environment variable verification.
 - Cloudflare Turnstile widget and hostname configuration.
-- Live API end-to-end execution with real sessions, scripts, delivery builds, and Work.ink tokens.
+- GitHub Actions repository secrets for `EVENT_WORKER_URL=https://luxyhub.vercel.app/api/internal/event-worker` and `CRON_SECRET`.
 - Real latency and error-rate measurements under production traffic.
 
 ## Risks
@@ -37,7 +39,7 @@ The repository implementation is structurally sound in code and includes the cur
 - CSP still uses inline allowances and should move to nonce-based policy later.
 - Stats calculations use live aggregate queries and may need query consolidation or caching at scale.
 - Cleanup endpoint logs per-step errors but still returns success when non-critical cleanup steps fail.
-- License, entitlement, marketplace, and paid-access controls are not implemented.
+- License, entitlement, assignment, customer identifier, and delivery authorization controls are not implemented; Phase 7A License Foundation is the active next track.
 - Production validation cannot fully confirm migration drift or RLS behavior without deployed database access.
 
 ## Recommendations
@@ -48,14 +50,17 @@ The repository implementation is structurally sound in code and includes the cur
 - Verify repeated failed logins produce the configured user-facing rate-limit error.
 - Record real latency samples for validation, dashboard, raw delivery, loader bootstrap, and delivery fetch endpoints.
 - Configure monitoring and alerting for auth failures, delivery errors, and rate-limit spikes.
+- Keep the event-worker scheduler on the Vercel hostname. Do not use `https://www.luxyhub.space/api/internal/event-worker` for GitHub Actions because Cloudflare Bot Fight Mode can challenge scheduler traffic.
 
 ## Readiness Score
 
-Code-level readiness: 90/100
+Code-level readiness: 100/100 for the implemented scope.
+
+Phase 8 Event Platform readiness: 100/100 for the accepted Discord-backed production scope.
 
 ## Final Decision
 
-CONDITIONAL GO
+GO for current implemented scope. Phase 7 License & Key System is not started.
 
 ## Basis
 

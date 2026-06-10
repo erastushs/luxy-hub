@@ -4,6 +4,8 @@ Date: 2026-06-09
 Status: Audit-only review
 Final recommendation: **NO GO**
 
+> Superseded on 2026-06-10 by `PHASE8_CLOSEOUT.md`. The NO GO findings in this audit were resolved or formally accepted during final hardening: event secret issuance, queue claim leases, event retention cleanup, monitoring counters, internal alerting, dashboard coverage, bulk replay cap, and `alert_events` RLS are complete. Remaining items — Telegram/Slack providers, webhook encryption at rest, nonce atomicity, and durable audit stream expansion — are deferred/accepted risks and are not Phase 8 blockers.
+
 ## Executive Summary
 
 The Phase 8 implementation has a sound high-level security boundary: events are server-validated, signed with HMAC-SHA256, scoped to delivery sessions, persisted through service-role repositories, and exposed to dashboard users only after ownership checks. Discord webhook delivery is constrained to Discord webhook URL formats and the dashboard DTOs do not expose raw webhook URLs, session IDs, nonces, or event secrets.

@@ -1,8 +1,8 @@
 # Phase 8 — Event Reporting & Webhook Platform Architecture
 
-Status: Planning (Future)
-Date: 2026-06-09
-Scope: Architecture and roadmap only. No implementation, migrations, API changes, delivery behavior changes, or loader modifications.
+Status: Implemented / Superseded by `PHASE8_CLOSEOUT.md`
+Date: 2026-06-10
+Scope: Historical architecture record plus current implementation notes. Phase 8 is complete/100% for the Discord-backed production scope.
 
 ## 1. Goals
 
@@ -12,6 +12,8 @@ Allow Roblox scripts delivered by LuxyHub to securely report events to external 
 - LuxyHub is the sole holder of provider credentials.
 - Events are validated, rate-limited, replay-protected, and queued before delivery.
 - Provider outages do not block event acceptance or cause data loss.
+
+Current implementation note: Discord is the completed provider. Telegram and Slack are deferred future enhancements and accepted risks, not blockers for Phase 8 completion. Production scheduling uses GitHub Actions to call `https://luxyhub.vercel.app/api/internal/event-worker` every 5 minutes; do not use the Cloudflare-fronted `www.luxyhub.space` worker URL for GitHub Actions.
 
 ## 2. Architecture Overview
 
@@ -392,8 +394,8 @@ RLS: owner-aware through join with scripts.
 
 Per-script webhook settings page in the dashboard:
 
-- **Provider selector**: Discord / Telegram / Slack
-- **Webhook URL input** (Discord/Slack) or **Bot Token + Chat ID** (Telegram)
+- **Provider support**: Discord complete; Telegram and Slack deferred.
+- **Webhook URL input** for Discord.
 - **Enable/Disable toggle**
 - **Test Webhook** button — sends a test event to verify connectivity
 - **Delivery Status**: last delivery timestamp, failure count, dead-letter count
@@ -479,23 +481,25 @@ Once Phase 7 license management is implemented, event types like `key_redeem` an
 
 ### 13.2 Provider Ecosystem
 
-Future providers:
-- **Email** — SMTP or SendGrid integration for alert emails
-- **Custom webhook** — creator-specified URL (with strict rate limiting, not open relay)
-- **Analytics sink** — push events to external analytics platforms
+Deferred providers:
+- **Telegram** — bot token + chat ID delivery provider.
+- **Slack** — Slack webhook delivery provider.
+- **Email** — SMTP or SendGrid integration for alert emails.
+- **Custom webhook** — creator-specified URL with strict rate limiting and non-open-relay controls.
+- **Analytics sink** — push events to external analytics platforms.
 
 ### 13.3 Event Fan-Out
 
-One script → multiple webhook configs (e.g., Discord + Telegram simultaneously). Not in V1.
+One script → multiple webhook configs (for example, Discord + Telegram simultaneously). Not in the completed Phase 8 scope.
 
 ## 14. Scaling Considerations
 
 | Concern | Approach |
 |---------|---------|
-| Queue depth under load | DB-backed queue scales with PostgreSQL; Vercel Cron polls every 5-10s |
+| Queue depth under load | DB-backed queue scales with PostgreSQL; GitHub Actions polls every 5 minutes in production |
 | Discord rate limits | Per-script rate limit prevents hitting Discord global limits |
-| Event storage growth | Periodic cleanup of delivered events >30 days old |
-| Worker throughput | 50 events per poll cycle; scale by shortening poll interval |
+| Event storage growth | Daily cleanup removes old delivered/dead-letter/stale event logs |
+| Worker throughput | Default batch processing through `processEventQueue()`; future scaling can increase cadence or move to a dedicated worker |
 | HMAC computation cost | SHA-256 is cheap server-side; no meaningful latency impact |
 | Session token lookup | Hashed lookup with index; same cost as delivery fetch validation |
 
@@ -523,7 +527,7 @@ One script → multiple webhook configs (e.g., Discord + Telegram simultaneously
 
 ### Risks
 
-- **Lua HMAC implementation**: Pure-Lua SHA-256 HMAC may have performance characteristics that need testing. Mitigation: benchmark in real executors early.
-- **Event secret lifecycle**: 60s session TTL limits long-running script event reporting. Mitigation: document as V1 limitation; session refresh in Phase 8+.
-- **Queue worker reliability**: Vercel Cron has cooldown between invocations; very high event volumes could cause queue backlog. Mitigation: monitor queue depth; consider dedicated worker in Phase 8+.
+- **Event secret lifecycle**: 60s session TTL limits long-running script event reporting. Mitigation: document as V1 limitation; session refresh in a future phase.
+- **Queue worker reliability**: GitHub Actions schedules are best-effort and may run a few minutes late. Mitigation: monitor queue depth and dead letters; consider dedicated worker infrastructure in Phase 10 if volume requires it.
+- **Deferred providers**: Telegram and Slack are not implemented. Mitigation: document them as future enhancements, not Phase 8 blockers.
 - **Creator misconfiguration**: Incorrect webhook URL causes delivery failures. Mitigation: "Test Webhook" button validates connectivity before enabling.

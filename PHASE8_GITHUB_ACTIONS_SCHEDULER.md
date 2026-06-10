@@ -54,10 +54,20 @@ Configure these in GitHub:
 
 | Secret | Example | Notes |
 |---|---|---|
-| `EVENT_WORKER_URL` | `https://www.luxyhub.space/api/internal/event-worker` | Full production or preview URL for the worker route. |
+| `EVENT_WORKER_URL` | `https://luxyhub.vercel.app/api/internal/event-worker` | Required production URL. Use the Vercel hostname so GitHub Actions traffic does not pass through Cloudflare Bot Fight Mode. |
 | `CRON_SECRET` | same value as Vercel `CRON_SECRET` | Must match the environment variable configured in Vercel. |
 
 No secrets are hardcoded in the workflow.
+
+## Cloudflare Operational Note
+
+GitHub Actions requests to `https://www.luxyhub.space/api/internal/event-worker` can be challenged by Cloudflare Bot Fight Mode or challenge-based WAF rules before they reach Vercel. The production scheduler therefore uses the Vercel hostname directly:
+
+```text
+https://luxyhub.vercel.app/api/internal/event-worker
+```
+
+No Cloudflare bypass rule is required for the scheduler because Actions traffic does not traverse Cloudflare.
 
 ## Setup Instructions
 
@@ -108,8 +118,7 @@ Development:
 
 Production:
 
-- Vercel Pro cron for `/api/internal/event-worker`
-- OR GitHub Actions scheduler for `/api/internal/event-worker`
+- GitHub Actions scheduler for `https://luxyhub.vercel.app/api/internal/event-worker`
 - Daily cleanup cron remains on Vercel
 
 ## Verification

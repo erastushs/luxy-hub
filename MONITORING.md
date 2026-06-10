@@ -1,7 +1,8 @@
 # LuxyHub — Monitoring Architecture
 
-Last updated: 2026-06-07
+Last updated: 2026-06-10
 
+Status: External monitoring plan. Better Stack, Uptime Kuma, status page, and external alert routing are pending infrastructure; Vercel deployment and the GitHub Actions event-worker scheduler are already implemented.
 ---
 
 ## 1. Architecture Overview
@@ -38,6 +39,8 @@ Last updated: 2026-06-07
 │  └──────────────────────────────────────────┘       │
 └─────────────────────────────────────────────────────┘
 ```
+
+Current implementation note: the production event scheduler is GitHub Actions → `POST https://luxyhub.vercel.app/api/internal/event-worker` → `processEventQueue()` → `checkAlerts()`. External monitors may check the public user-facing domain, but the scheduler must use the Vercel hostname to avoid Cloudflare Bot Fight Mode challenges. No Cloudflare bypass rule is required.
 
 ---
 
@@ -86,11 +89,11 @@ A `/api/health/deep` endpoint could be added in future phases for:
 
 ---
 
-## 3. Better Stack Configuration
+## 3. Better Stack Configuration (Pending)
 
 ### 3.1 Setup
 
-Better Stack (formerly Logtail) provides uptime monitoring, status pages, and incident management.
+Better Stack (formerly Logtail) is the recommended pending SaaS option for uptime monitoring, status pages, and incident management.
 
 **Account Setup:**
 1. Create account at `https://betterstack.com`
@@ -103,10 +106,10 @@ Better Stack (formerly Logtail) provides uptime monitoring, status pages, and in
 
 | # | Monitor Name | Type | URL | Method | Interval | Timeout | Regions |
 |---|-------------|------|-----|--------|----------|---------|---------|
-| 1 | Website Health | HTTP | `https://luxyhub.vercel.app` | GET | 60s | 10s | 3+ regions |
-| 2 | API Health | HTTP | `https://luxyhub.vercel.app/api/health` | GET | 60s | 10s | 3+ regions |
-| 3 | API Validate | HTTP | `https://luxyhub.vercel.app/api/validate` | POST | 5min | 30s | 3+ regions |
-| 4 | API Verify Work.ink | HTTP | `https://luxyhub.vercel.app/api/verify-workink` | POST | 15min | 30s | 2+ regions |
+| 1 | Website Health | HTTP | `https://www.luxyhub.space` | GET | 60s | 10s | 3+ regions |
+| 2 | API Health | HTTP | `https://www.luxyhub.space/api/health` | GET | 60s | 10s | 3+ regions |
+| 3 | API Validate | HTTP | `https://www.luxyhub.space/api/validate` | POST | 5min | 30s | 3+ regions |
+| 4 | Event Worker Scheduler | GitHub Actions | `https://luxyhub.vercel.app/api/internal/event-worker` | POST | 5min | 540s | GitHub Actions |
 
 **Monitor Configuration Details:**
 
@@ -238,9 +241,9 @@ docker run -d \
 
 | # | Monitor Name | Type | URL | Heartbeat | Retries |
 |---|-------------|------|-----|-----------|---------|
-| 1 | LuxyHub Website | HTTP(s) | `https://luxyhub.vercel.app` | 60s | 3 |
-| 2 | API Health | HTTP(s) | `https://luxyhub.vercel.app/api/health` | 60s | 3 |
-| 3 | Validate API | HTTP(s) (Keyword) | `https://luxyhub.vercel.app/api/validate` — POST with JSON body | 300s | 2 |
+| 1 | LuxyHub Website | HTTP(s) | `https://www.luxyhub.space` | 60s | 3 |
+| 2 | API Health | HTTP(s) | `https://www.luxyhub.space/api/health` | 60s | 3 |
+| 3 | Validate API | HTTP(s) (Keyword) | `https://www.luxyhub.space/api/validate` — POST with JSON body | 300s | 2 |
 | 4 | Supabase API | HTTP(s) | `https://<PROJECT_REF>.supabase.co/rest/v1/` | 300s | 3 |
 
 **Monitor 3 — Keyword Monitor (API Validate):**

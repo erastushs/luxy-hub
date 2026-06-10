@@ -1,7 +1,7 @@
 # LuxyHub Architecture
 
-Last updated: 2026-06-09
-Status: Current implementation after Creator Dashboard V1, secure delivery, login hardening, and Phase 8 event platform hardening
+Last updated: 2026-06-10
+Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, and Phase 8 event platform closeout
 
 ## Overview
 
@@ -233,7 +233,7 @@ Security posture:
 - Application services use Supabase admin access with explicit auth and ownership checks.
 - `delivery_sessions.session_token_hash` stores SHA-256 hashes, never raw delivery tokens.
 - `delivery_sessions.event_secret` is generated per delivery session, persisted server-side, and returned only to the runtime alongside the raw session token for HMAC event signing; session token hashes remain server-only.
-- Queue worker polls `event_logs` via `POST /api/internal/event-worker` (CRON_SECRET auth).  Scheduled every 5 minutes by GitHub Actions on Vercel Hobby, or by Vercel Cron on Pro deployments.  Uses `event_logs.claimed_at` leases to prevent overlapping workers from processing the same pending event concurrently.
+- Queue worker polls `event_logs` via `POST /api/internal/event-worker` (CRON_SECRET auth). Production scheduling uses GitHub Actions every 5 minutes against `https://luxyhub.vercel.app/api/internal/event-worker`; this avoids Cloudflare Bot Fight Mode challenges on the public custom domain. Uses `event_logs.claimed_at` leases to prevent overlapping workers from processing the same pending event concurrently.
 - Alert evaluation runs inline after queue processing — no dedicated alert cron.
 - Bulk dead-letter replay is capped at 100 events per operation; remaining events must be replayed in subsequent batches.
 ## Script Delivery State
@@ -317,18 +317,22 @@ Loader delivery rate limits:
 
 ## Deployment Requirements
 
-Development:
+Completed infrastructure:
 
-- Vercel Hobby deployment for the Next.js app.
-- GitHub Actions scheduler invokes `/api/internal/event-worker` every 5 minutes.
-- Required GitHub repository secrets: `EVENT_WORKER_URL` and `CRON_SECRET`.
+- Cloudflare public traffic protection, DNS, and SSL/TLS.
+- Vercel deployment for the single Next.js app.
+- GitHub Actions scheduler invokes `https://luxyhub.vercel.app/api/internal/event-worker` every 5 minutes.
+- Required GitHub repository secrets: `EVENT_WORKER_URL=https://luxyhub.vercel.app/api/internal/event-worker` and `CRON_SECRET`.
 - Vercel daily cron remains for `/api/cleanup`.
 
-Production:
+Pending infrastructure:
 
-- Vercel Pro cron for `/api/internal/event-worker` every 5 minutes, or the GitHub Actions scheduler.
-- The worker route must receive `Authorization: Bearer <CRON_SECRET>`.
-- A dedicated `/api/internal/check-alerts` cron is not required because the event worker runs `checkAlerts()` after `processEventQueue()`.
+- Better Stack, Uptime Kuma, or equivalent external monitoring stack.
+- External monitoring alert routing and status page maturity.
+
+Cloudflare operational note: do not use `https://www.luxyhub.space/api/internal/event-worker` for GitHub Actions. Cloudflare Bot Fight Mode or challenge rules can block Actions traffic before it reaches Vercel. No Cloudflare bypass rule is required because the scheduler uses the Vercel hostname directly.
+
+The worker route must receive `Authorization: Bearer <CRON_SECRET>`. A dedicated `/api/internal/check-alerts` cron is not required because the event worker runs `checkAlerts()` after `processEventQueue()`.
 
 ## Security Status
 
@@ -359,20 +363,28 @@ Future improvements:
 
 ## Roadmap Alignment
 
-Current priorities:
+Current phase:
+
+- Phase 7A — License Foundation: active, not started in code.
+
+Completed phases:
 
 - Phase 4.1 — UI Polish: complete
 - Phase 4.2 — Performance Review: complete
-- Phase 4.3 — Documentation Review: updated after recent security hardening
+- Phase 4.3 — Documentation Review: complete
 - Phase 4.4 — Production Hardening: complete
 - Phase 5 — Secure Script Delivery: complete
-- Phase 8 — Event Reporting & Webhook Platform: complete (database foundation, API, queue worker with claim leases, Discord provider, dashboard webhook management, event operations, analytics, security monitoring, internal alerts, RLS hardening). Bulk replay capped at 100 events. Queue scheduled via GitHub Actions on Vercel Hobby or Vercel Cron on Pro. Alert evaluation inlined. Security dashboard metrics labeled as platform-wide. Telegram/Slack providers remain deferred.
-- Phase 9 — Internal Operations & Release Workflow
-- Phase 10 — Scale & Infrastructure (Optional)
+- Phase 6 — Loader Integration: complete
+- Phase 8 — Event Reporting & Webhook Platform: complete / 100% (database foundation, HMAC reporting API, replay and timestamp validation, queue worker with claim leases, dead-letter handling, Discord provider, dashboard webhook management, event operations, analytics dashboard, security dashboard, internal alerts, GitHub Actions scheduler, event retention cleanup, monitoring counters, and RLS hardening). Telegram and Slack providers, webhook encryption at rest, nonce atomicity improvements, and durable audit event stream expansion are deferred future enhancements and accepted risks, not Phase 8 blockers.
+
+Future ordering:
+
+1. Phase 7 — License & Key System
+2. Phase 9 — Internal Operations & Release Workflow
+3. Phase 10 — Scale & Infrastructure (Optional)
 
 Deprecated roadmap assumptions removed from current architecture:
 
 - Separate `dashboard.luxyhub.space`, `api.luxyhub.space`, `cdn.luxyhub.space`, and `vault.luxyhub.space` services are not implemented.
 - Marketplace architecture is not part of the current roadmap.
-- License management has been planned — see `PHASE7_LICENSE_ARCHITECTURE.md`.
-- Event reporting platform has been designed — see `PHASE8_EVENT_PLATFORM_ARCHITECTURE.md`.
+- License management is planned but not implemented — see `PHASE7_LICENSE_ARCHITECTURE.md`.

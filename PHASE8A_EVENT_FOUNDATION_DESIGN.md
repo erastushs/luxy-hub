@@ -1,8 +1,8 @@
 # Phase 8A — Event Foundation Design
 
-Status: Architecture & Design Review
-Date: 2026-06-09
-Scope: Design only. No migrations, no tables, no API implementation, no code changes.
+Status: Historical design / Superseded by implementation closeout
+Date: 2026-06-10
+Scope: Design record only. Current Phase 8 implementation is complete/100% for Discord-backed production scope; see `PHASE8_CLOSEOUT.md`.
 Depends on: Phase 6H (Runtime Payload Delivery), Phase 5C (Secure Delivery API)
 Coordinates with: Phase 7 (License & Delivery Authorization — still planning)
 
@@ -27,11 +27,11 @@ Events originate from Roblox scripts that have already obtained a delivery sessi
 
 **Provider delivery targets:**
 
-| Provider | V1 | Use Case |
-|----------|-----|---------|
-| Discord | Yes | Creator receives execution, purchase, error notifications via webhook embed |
-| Telegram | Yes | Bot-delivered messages for mobile-first creators |
-| Slack | Yes | Team workspace notifications |
+| Provider | Phase 8 Status | Use Case |
+|----------|----------------|---------|
+| Discord | Complete | Creator receives execution, purchase, error notifications via webhook embed |
+| Telegram | Deferred | Future bot-delivered messages for mobile-first creators |
+| Slack | Deferred | Future team workspace notifications |
 
 ### 1.2 Explicitly Unsupported
 
@@ -1216,21 +1216,17 @@ Same table as event history, filtered to dead-letter events. Additional columns:
 2. No code changes. No migrations.
 3. Coordinate with Phase 7 planning — ensure `delivery_sessions` extension and session response changes are compatible.
 
-### Phase 8B Deliverable (next)
+### Implemented Phase 8B/8C Outcome
 
-1. Run migrations (webhook_config, event_logs, event_secret column).
-2. Implement `POST /api/events/report` route handler with:
-   - Session validation (new `validateEventSession` function)
-   - Signature validation (HMAC-SHA256)
-   - Nonce replay protection
-   - Timestamp validation
-   - Rate limiting
-   - Event storage
-3. Implement queue worker endpoint (`/api/events/worker`).
-4. Implement provider adapters (Discord, Telegram, Slack).
-5. Extend session creation to include `event_secret` when webhook config exists.
-6. Add Vercel Cron entry for worker.
-7. Add Lua HMAC-SHA256 to loader runtime (Phase 8B implementation detail).
+The final implementation supersedes the original next-step list:
+
+1. Migrations created `webhook_config`, `event_logs`, and `delivery_sessions.event_secret`.
+2. `POST /api/events/report` implements session validation, HMAC-SHA256 signature validation, nonce replay protection, timestamp validation, rate limiting, and event storage.
+3. Queue worker route is `POST /api/internal/event-worker`.
+4. Discord provider is implemented; Telegram and Slack providers are deferred future enhancements.
+5. Session creation returns `event_secret` for runtime event signing.
+6. Production scheduling uses GitHub Actions calling `https://luxyhub.vercel.app/api/internal/event-worker` every 5 minutes; no Vercel 5-minute cron or Cloudflare bypass rule is required.
+7. Loader runtime event reporting uses the server-issued event secret.
 
 ### Phase 8C Deliverable (after 8B)
 

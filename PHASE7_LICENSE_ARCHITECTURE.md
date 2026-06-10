@@ -1,8 +1,8 @@
 # Phase 7 — License & Delivery Authorization Architecture
 
-Status: Planning
-Date: 2026-06-09
-Scope: Architecture and roadmap only. No implementation, migrations, API changes, delivery behavior changes, or loader modifications.
+Status: Planning / Architecture Review Required Before Implementation
+Date: 2026-06-10
+Scope: Architecture and roadmap only. Phase 7 has not started in code. Do not create migrations, APIs, delivery changes, or loader modifications until the review findings in this document are resolved.
 
 ## 1. Goals
 
@@ -45,7 +45,7 @@ Phase 5-6 (unchanged) ┌──────────────────�
 | `creator_id` | uuid | FK to `auth.users.id` |
 | `key_prefix` | text | Key format prefix (e.g. `LUXY`) |
 | `key_suffix` | text | Unique key suffix (e.g. encrypted random) |
-| `access_mode` | text | `free` or `license_required` |
+| `key_hash` | text | SHA-256 hash of generated license key; never store raw key after issuance |
 | `max_assignments` | int | Max customers per license (null = unlimited) |
 | `status` | text | `active`, `revoked`, `expired` |
 | `created_at` | timestamptz | |
@@ -53,6 +53,7 @@ Phase 5-6 (unchanged) ┌──────────────────�
 | `revoked_at` | timestamptz | Nullable |
 | `last_activation_at` | timestamptz | Nullable — last delivery session created |
 | `last_delivery_at` | timestamptz | Nullable — last fetch completed |
+| `metadata` | jsonb | Optional creator-facing notes/tier labels; not used for authorization decisions |
 
 **`license_assignments`** — customer-to-license bindings:
 
@@ -81,11 +82,11 @@ Scripts have an access mode that controls whether a license key is required for 
 
 ### Default Mode
 
-All existing scripts default to `free`. Creators explicitly opt scripts into `license_required`. No migration backfill needed — existing scripts continue working with zero change.
+All existing scripts default to `free`. Creators explicitly opt scripts into `license_required`. Phase 7A implementation should add `scripts.access_mode text not null default 'free' check (access_mode in ('free', 'license_required'))`; this is an additive existing-table migration with no data backfill.
 
-### Mode Inheritance
+### Mode Ownership
 
-Access mode lives on the script, not on the license. A `license_required` script can have multiple licenses (e.g., different tiers). The license record itself holds the key material; the script's mode determines whether validation runs.
+Access mode lives on the script, not on the license. A `license_required` script can have multiple licenses (for example, per-customer keys or future tiers). License records hold key material, assignment limits, and lifecycle state; the script's mode determines whether validation runs. Do not duplicate `access_mode` on `licenses`.
 
 ## 4. Delivery Authorization Model
 
@@ -271,11 +272,11 @@ Stored inline on `licenses.revoked_at`. Full history of revoke/reissue cycles av
 
 ### Zero-Downtime Rollout
 
-1. Deploy migration: `licenses` and `license_assignments` tables.
-2. Deploy code: license service, repository, validators — all behind `access_mode` check.
-3. Existing scripts: no `access_mode` column yet → treated as `free` (or column defaults to `free`).
-4. Creators opt scripts into `license_required` explicitly.
-5. No backfill, no downtime, no behavior change for existing traffic.
+1. Review and finalize the License / Assignment / Customer Identifier / Entitlement / Delivery Authorization model below.
+2. Deploy migration: add `scripts.access_mode`, `licenses`, and `license_assignments`.
+3. Deploy code: license service, repository, validators — all behind `scripts.access_mode` check.
+4. Existing scripts default to `free`; no backfill or behavior change for current traffic.
+5. Creators opt scripts into `license_required` explicitly.
 
 ### Backward Compatibility
 
@@ -342,12 +343,24 @@ These are accepted tradeoffs consistent with the Phase 6H threat model: the prac
 
 ## 12. Conflicts & Risks
 
-### No Conflicts Found
+### Architecture Review Findings Before Phase 7A
 
-- Phase 7 sits above Phase 5-6 delivery infrastructure without modifying it.
-- Existing `keys` table (Work.ink legacy) is unrelated and untouched.
+Phase 7 should not start implementation until these model boundaries are settled:
+
+| Area | Finding | Recommendation |
+|------|---------|----------------|
+| License | The earlier plan mixed access mode into both script and license concepts. | Keep access mode only on `scripts`; keep license records focused on key hash, lifecycle, assignment limit, and script ownership. |
+| Assignment | Assignment currently binds a license to a free-form customer label, but the lifecycle semantics are thin. | Define whether an assignment is a seat, customer binding, or activation record before building dashboard UX. Store assignment status and timestamps; keep historical changes in audit logs. |
+| Customer Identifier | `customer_identifier` is creator-defined and can contain Discord IDs, email-like strings, or manual labels. | Treat it as creator-scoped opaque text, normalize for lookup only if needed, avoid global uniqueness, and do not use it as an authentication secret. |
+| Entitlement | Phase 7 is license-gated delivery authorization, not marketplace/payment entitlement. | Model entitlement as "active license for this script, within assignment rules". Do not introduce paid marketplace, creator earnings, or purchase tables in Phase 7. |
+| Delivery Authorization | The clean boundary is delivery session creation. | Validate license before creating `delivery_sessions`; do not add license logic to `/api/delivery/fetch`, payload decryption, build generation, or the loader runtime except passing optional `script_key` into session creation. |
+
+### Current Compatibility
+
+- Phase 7 sits above Phase 5-6 delivery infrastructure.
+- Existing `keys` table (Work.ink legacy) is unrelated and should remain untouched unless a later migration explicitly deprecates it.
 - No API route collisions — license validation is inside existing session handler.
-- No database conflicts — new tables, no schema changes to existing tables.
+- There is an intentional additive schema change to `scripts.access_mode`; previous "new tables only" assumptions are obsolete.
 
 ### Risks
 

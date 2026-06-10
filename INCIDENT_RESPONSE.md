@@ -266,33 +266,40 @@ ORDER BY count DESC;
 - Patch any identified abuse vector before re-enabling
 - Post-incident review required
 
-### 3.7 P2 — Cleanup Cron Job Failure
+### 3.7 P2 — Scheduled Job Failure
 
-**Symptom:** Database tables growing without bound. Rate limit table > 100k rows.
+**Symptom:** Event queue backlog grows, alerts stop updating, or database cleanup tables grow without bound.
 
 **Response Steps:**
 ```bash
-# Step 1: Verify cron configuration
-# Vercel Dashboard → Settings → Cron Jobs
+# Event worker scheduler:
+# 1. Verify GitHub Actions → Event Worker Scheduler runs every 5 minutes.
+# 2. Confirm repository secrets:
+#    EVENT_WORKER_URL=https://luxyhub.vercel.app/api/internal/event-worker
+#    CRON_SECRET=<same value as Vercel CRON_SECRET>
+# 3. Confirm the workflow response is HTTP 200 and includes worker stats.
 
-# Step 2: Test cron endpoint manually
+# Cleanup cron:
+# 4. Verify Vercel daily /api/cleanup cron remains configured from vercel.json.
+
+# Manual cleanup test:
 curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
   -H "Authorization: Bearer $CRON_SECRET"
 
-# Step 3: Check CRON_SECRET is configured
-# Vercel Dashboard → Settings → Environment Variables
-
-# Step 4: If cron not configured, set up immediately
-# See DEPLOYMENT_CHECKLIST.md Section 6.4
+# Manual event worker test:
+curl -s -X POST https://luxyhub.vercel.app/api/internal/event-worker \
+  -H "Authorization: Bearer $CRON_SECRET"
 ```
 
 **Containment:**
-- Run manual cleanup
-- Set up cron if missing
+- Run the event worker manually if queue backlog is growing.
+- Run manual cleanup if retention tables are growing.
+- Re-copy `CRON_SECRET` into both Vercel and GitHub Actions secrets if authentication fails.
 
 **Resolution:**
-- Configure Vercel cron job
-- Set up monitoring alert when rate_limits table exceeds threshold
+- Restore the GitHub Actions event-worker workflow for queue processing.
+- Restore the Vercel daily cleanup cron for retention cleanup.
+- Do not use `https://www.luxyhub.space/api/internal/event-worker` for GitHub Actions; use the Vercel hostname to avoid Cloudflare challenges.
 
 ---
 
@@ -450,17 +457,25 @@ openssl rand -hex 32
 # 2. Update Vercel env var:
 # Vercel Dashboard → Settings → Environment Variables → CRON_SECRET
 
-# 3. Update cron job config:
-# Vercel Dashboard → Settings → Cron Jobs
+# 3. Update GitHub Actions repository secret:
+# Settings → Secrets and variables → Actions → CRON_SECRET
 
-# 4. Redeploy
+# 4. Confirm EVENT_WORKER_URL remains:
+# https://luxyhub.vercel.app/api/internal/event-worker
 
-# 5. Verify old secret rejected:
-curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
+# 5. Redeploy Vercel so server routes receive the new CRON_SECRET
+
+# 6. Verify old secret rejected:
+curl -s -X POST https://luxyhub.vercel.app/api/internal/event-worker \
   -H "Authorization: Bearer <old-secret>"
 # Expected: HTTP 401
 
-# 6. Verify new secret accepted:
+# 7. Verify new secret accepted:
+curl -s -X POST https://luxyhub.vercel.app/api/internal/event-worker \
+  -H "Authorization: Bearer <new-secret>"
+# Expected: HTTP 200
+
+# 8. Verify cleanup also accepts the new secret:
 curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
   -H "Authorization: Bearer <new-secret>"
 # Expected: HTTP 200

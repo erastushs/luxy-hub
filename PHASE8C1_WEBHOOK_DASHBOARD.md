@@ -142,12 +142,12 @@ The test event goes through the same queue/provider delivery logic as production
 
 ## Architecture Integration
 
-The queue worker and provider architecture is **unchanged**:
+The queue worker and provider architecture is unchanged by the dashboard layer:
 
-- Queue service: `processEventQueue(resolveProvider, batchSize)` for cron batches and `processSingleEvent(eventId, resolveProvider)` for isolated dashboard tests
+- Queue service: `processEventQueue(resolveProvider, batchSize)` for scheduled batches and `processSingleEvent(eventId, resolveProvider)` for isolated dashboard tests
 - Discord provider: same `discordProvider.deliver(event, webhookUrl)` implementation
 - Worker route: same `POST /api/internal/event-worker` with CRON_SECRET auth
-- Vercel Cron: same 5-minute schedule
+- Production scheduler: GitHub Actions calls `https://luxyhub.vercel.app/api/internal/event-worker` every 5 minutes
 
 The dashboard layer adds service-level ownership checks and safe DTOs **above** the existing queue/provider layer.
 

@@ -189,36 +189,35 @@ See ARCHITECTURE.md for the current route topology.
 9. **Organizations not implemented** — single-owner model only
 10. **API tokens not implemented** — deferred to Phase 6
 
-## Deferred Features
+## Deferred / Completed Roadmap After V1
 
-Phase 4 Polish & Production Readiness:
-- Phase 4.1 UI Polish — complete
-- Phase 4.2 Performance Review — complete
-- Phase 4.3 Documentation Review — in progress
-- Phase 4.4 Production Hardening — pending
+Completed after Release V1:
 
-Phase 5 — Secure Script Delivery:
-- Loader architecture design
-- Secure delivery API design
-- Temporary delivery tokens
-- Obfuscation pipeline
-- Script encryption strategy
+- Phase 4 — UI Polish, Documentation Review, and Production Hardening: complete
+- Phase 5 — Secure Script Delivery: complete
+- Phase 6 — Loader Integration: complete
+- Phase 8 — Event Reporting & Webhook Platform: complete / 100% for Discord-backed production scope
 
-Phase 6 — Loader Integration:
-- Loader validation flow
-- Delivery authorization flow
-- Executor compatibility testing
+Current active track:
 
-Phase 7 — License & Key Management:
-- Key lookup, search, revoke, reset
-- Customer lookup
-- License analytics
-- Begins only after loader integration requirements are finalized.
+- Phase 7A — License Foundation: not started in code. Review license, assignment, customer identifier, entitlement, and delivery authorization architecture before implementation.
 
-Phase 8 — Internal Operations & Release Workflow:
-- Draft releases, published releases, release notes
-- Internal moderation tools
+Future ordering:
 
-Phase 9 — Scale & Infrastructure (Optional):
-- Monitoring stack, Redis caching
-- Infrastructure scaling
+1. Phase 7 — License & Key System
+2. Phase 9 — Internal Operations & Release Workflow
+3. Phase 10 — Scale & Infrastructure (Optional)
+
+Deferred Event Platform enhancements:
+
+- Telegram provider
+- Slack provider
+- Webhook encryption at rest
+- Atomic nonce uniqueness enforcement
+- Durable audit event stream expansion
+
+Deferred infrastructure:
+
+- Better Stack
+- Uptime Kuma
+- External monitoring stack

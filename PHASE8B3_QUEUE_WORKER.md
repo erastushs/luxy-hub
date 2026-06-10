@@ -1,8 +1,8 @@
 # Phase 8B.3 — Event Queue Worker
 
-Status: Implemented
-Date: 2026-06-09
-Scope: Queue processing infrastructure only (no provider integrations)
+Status: Implemented / Scheduler superseded by Phase 8 closeout
+Date: 2026-06-10
+Scope: Queue processing infrastructure. Current production scheduler is GitHub Actions; see `PHASE8_GITHUB_ACTIONS_SCHEDULER.md`.
 
 ## Scope Boundary
 
@@ -10,8 +10,8 @@ Implemented:
 
 - `app/lib/services/event-queue-service.ts` — queue processor with backoff, retry, dead-letter
 - `app/lib/providers/mock-provider.ts` — stub provider (always succeeds)
-- `app/api/internal/event-worker/route.ts` — cron-invoked worker endpoint
-- `vercel.json` — 5-minute cron schedule
+- `app/api/internal/event-worker/route.ts` — authenticated worker endpoint
+- `.github/workflows/event-worker.yml` — 5-minute GitHub Actions scheduler
 - Queue tests (29 tests across 2 files)
 - Dead-letter replay helper
 
@@ -123,11 +123,11 @@ Same pattern as `/api/cleanup` — `CRON_SECRET` env var, Bearer token. Returns 
 - `deadLettered` — moved to dead-letter
 - `skipped` — not yet due for retry (backoff not elapsed)
 
-## Cron Strategy
+## Scheduler Strategy
 
-Vercel Cron every 5 minutes (`*/5 * * * *`). Each invocation processes up to 50 events. If queue depth exceeds 50, subsequent cron invocations catch the remainder.
+Production uses GitHub Actions every 5 minutes against `https://luxyhub.vercel.app/api/internal/event-worker`. Each invocation processes pending events and then runs `checkAlerts()` inline.
 
-Vercel Cron has a 900-second timeout — more than ample for 50 delivery attempts even once real providers are wired in.
+`vercel.json` no longer schedules the event worker; it retains only the daily `/api/cleanup` cron. Do not use `https://www.luxyhub.space/api/internal/event-worker` for GitHub Actions because Cloudflare can challenge non-browser scheduler traffic.
 
 ## Mock Provider
 
@@ -171,8 +171,9 @@ No changes to the queue service or worker route are needed — the provider inte
 |------|---------|
 | `app/lib/services/event-queue-service.ts` | Queue processor, backoff, dead-letter replay |
 | `app/lib/providers/mock-provider.ts` | Stub provider for lifecycle validation |
-| `app/api/internal/event-worker/route.ts` | Cron-invoked worker endpoint |
+| `app/api/internal/event-worker/route.ts` | Authenticated worker endpoint |
+| `.github/workflows/event-worker.yml` | GitHub Actions 5-minute scheduler |
 | `__tests__/event-queue-service.test.ts` | 22 tests: lifecycle, retry, batching, skips, mixed batches |
 | `__tests__/event-worker-route.test.ts` | 5 tests: auth, success, error |
-| `vercel.json` | Added `*/5 * * * *` cron entry |
+| `vercel.json` | Daily cleanup cron only; event worker cron removed in closeout |
 | `ARCHITECTURE.md` | Added route + Phase 8 status |

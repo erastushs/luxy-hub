@@ -96,13 +96,13 @@ Status: ✅ COMPLIANT
 
 ---
 
-## 7. Future Marketplace Compatibility
+## 7. Future License Compatibility
 
 | Phase 7 Requirement | CDN MVP Readiness | Action Needed |
 |--------------------|-------------------|---------------|
-| Paid script visibility | ✅ New visibility enum: `'paid'` | Phase 7: Add `'paid'` to CHECK constraint |
-| License management | ✅ `script_downloads` tracks access | Phase 7: Add `script_purchases` table |
-| Creator earnings | ✅ `creator_id` and `total_downloads` analytics | Phase 7: Revenue calculation from download counts |
+| Script access mode | ⚠️ Planned | Phase 7A: add `scripts.access_mode` with default `free` |
+| License management | ⚠️ Planned | Phase 7A: add `licenses` and `license_assignments` tables after architecture review |
+| Delivery authorization | ⚠️ Planned | Phase 7C: gate delivery session creation, not delivery fetch or build generation |
 
 ---
 
@@ -136,7 +136,7 @@ Status: ✅ COMPLIANT
 | **Testing** | Build (16 routes) | 100 | 100 | `npm run build` EXIT 0 |
 | **Compat** | Existing APIs untouched | 100 | 100 | 7 existing routes unchanged |
 | **Compat** | Dashboard readiness | 90 | 100 | `creator_id` column ready, auth migration documented |
-| **Compat** | Marketplace readiness | 80 | 100 | Architecture in place, paid visibility not yet implemented |
+| **Compat** | License foundation readiness | 80 | 100 | Delivery session boundary exists; license schema not implemented |
 
 ### Final Score
 
@@ -156,7 +156,7 @@ Compat:      85%  █████████████████░░░
 
 **GO — Production Ready (code and documentation).**
 
-Phase 3 (Creator Dashboard) and Phase 7 (Marketplace) compatibility is pre-built. No breaking changes expected when those phases are implemented. The CDN MVP is ready for database migration execution and endpoint testing (Phase 2C).
+Phase 3 (Creator Dashboard) compatibility is implemented. Phase 7 License & Key System is planned but not started; marketplace, paid scripts, and creator economy are not part of the current roadmap. The CDN MVP is ready for database migration execution and endpoint testing (Phase 2C).
 
 ### Remaining Work (Phase 2C)
 

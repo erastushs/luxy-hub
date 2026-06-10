@@ -1,36 +1,33 @@
 # Phase 8 Cron Strategy — Vercel Hobby Compatibility
 
 Date: 2026-06-10
-Status: Architecture review (no code changes)
+Status: Implemented scheduler decision
 
-## Current Cron Inventory
+## Current Scheduler Inventory
 
-| Path | Schedule | Purpose | Hobby Compat |
+| Path | Schedule | Purpose | Current Scheduler |
 |---|---|---|---|
-| `/api/cleanup` | `0 0 * * *` (daily midnight) | Event retention cleanup | **Yes** |
-| `/api/internal/event-worker` | `*/5 * * * *` (every 5 min) | Queue processing + inline alert check | **No** |
-| `/api/internal/check-alerts` | `*/5 * * * *` (every 5 min) | Standalone alert threshold evaluation | **No** |
+| `/api/cleanup` | `0 0 * * *` (daily midnight) | Event retention cleanup | Vercel Cron |
+| `/api/internal/event-worker` | `*/5 * * * *` (every 5 min) | Queue processing + inline alert check | GitHub Actions |
+| `/api/internal/check-alerts` | Unscheduled | Manual/debug standalone alert threshold evaluation | None |
 
-## Vercel Hobby Limitation
+Production event scheduling is implemented with GitHub Actions calling `https://luxyhub.vercel.app/api/internal/event-worker`. This keeps LuxyHub on Vercel Hobby while preserving a 5-minute worker cadence.
 
-Vercel Hobby allows only **daily** cron jobs. `*/5 * * * *` and other sub-daily schedules require Vercel Pro.
-
-Two of three current crons are Hobby-incompatible. The event worker itself can not run every 5 minutes on Hobby.
+Do not use `https://www.luxyhub.space/api/internal/event-worker` for the scheduler. Cloudflare Bot Fight Mode or challenge rules can block GitHub Actions traffic before it reaches Vercel. No Cloudflare bypass rule is required because the scheduler uses the Vercel hostname directly.
 
 ## Alert Processing Architecture
 
-### Current flow (two paths to `checkAlerts()`)
+### Current flow
 
 ```
-Path A (primary):
-  Vercel Cron → /api/internal/event-worker
-    → processEventQueue()         // process up to 50 pending events
-    → checkAlerts()               // inline, fire-and-forget
-    → respond with { queue stats + alert results }
+GitHub Actions → POST https://luxyhub.vercel.app/api/internal/event-worker
+  → processEventQueue()         // process pending events
+  → checkAlerts()               // inline, fire-and-forget
+  → respond with { queue stats + alert results }
 
-Path B (redundant):
-  Vercel Cron → /api/internal/check-alerts
-    → checkAlerts()               // standalone
+Manual/debug only:
+  POST /api/internal/check-alerts
+    → checkAlerts()
     → respond with { triggered, resolved }
 ```
 
@@ -81,82 +78,47 @@ The only meaningful benefit of Path B is the narrow window between queue process
 
 ...this window is not operationally significant.
 
-## Recommendation
+## Implemented Decision
 
-### Simplest architecture: remove the independent alert cron
+### Production scheduler: GitHub Actions
 
 **Keep:**
 ```
-/api/cleanup         0 0 * * *    (daily — Hobby compatible)
-/api/internal/event-worker   */5 * * * *    (sub-daily — Pro required)
+/api/cleanup                         0 0 * * *      (Vercel daily cron)
+/api/internal/event-worker           */5 * * * *    (GitHub Actions)
 ```
 
-**Remove:**
+**Do not schedule:**
 ```
-/api/internal/check-alerts   */5 * * * *    (redundant — remove)
+/api/internal/check-alerts           (manual/debug only)
 ```
 
 **Preserve:**
-- `/api/internal/check-alerts` route itself — keep it for manual invocation and future use
-- `checkAlerts()` inline call inside the event worker — this is and remains the primary path
+- `/api/internal/check-alerts` route itself — keep it for manual invocation and future use.
+- `checkAlerts()` inline call inside the event worker — this is the canonical alert evaluation path.
 
 ### Rationale
 
-1. **Alert evaluation is already coupled to queue processing by design.** The counters that `checkAlerts()` reads are populated by event ingestion and queue operations. Running it independently adds no fresh data.
+1. **Vercel Hobby compatibility.** Vercel Hobby supports the daily cleanup cron but not a 5-minute event-worker cron.
+2. **Alert evaluation is already coupled to queue processing by design.** The counters that `checkAlerts()` reads are populated by event ingestion and queue operations. Running it independently adds no fresh data.
+3. **The worker already calls `checkAlerts()` after every batch.** Queue processing just finished, counters are current, alert evaluation follows.
+4. **Cloudflare challenge avoidance.** GitHub Actions uses `https://luxyhub.vercel.app/api/internal/event-worker` directly, avoiding Cloudflare Bot Fight Mode challenges on `www.luxyhub.space`.
+5. **Simpler mental model.** Alert cadence = worker cadence. Operations knows alerts are evaluated whenever the queue processes.
 
-2. **The worker already calls `checkAlerts()` after every batch.** This is the natural trigger: queue processing just finished, counters are current, alert evaluation follows.
+## Implemented Files
 
-3. **Redundancy cost > benefit.** An extra cron means extra cold starts, extra `verification_logs` queries, and extra alert operations for no additional detection capability.
-
-4. **Simpler mental model.** Alert cadence = worker cadence. Operations team knows alerts are evaluated whenever the queue processes.
-
-### Hobby Plan: daily cadence
-
-On Vercel Hobby, even the event worker can only run daily. In that scenario:
-
-```
-/api/cleanup                0 0 * * *   (daily)
-/api/internal/event-worker  0 0 * * *   (daily — only option)
-```
-
-Tradeoffs:
-- Queue processing latency: up to 24 hours for event delivery
-- Alert evaluation latency: up to 24 hours
-- Acceptable for low-volume dev/staging environments
-- Not suitable for production event delivery
-
-### Pro Plan (recommended for production)
-
-```
-/api/cleanup                0 0 * * *       (daily)
-/api/internal/event-worker  */5 * * * *     (every 5 min)
-```
-
-Alert evaluation runs inline inside the worker, so it inherits the 5-minute cadence. No separate alert cron needed.
-
-### Upgrade Path: Hobby → Pro
-
-When upgrading from Hobby to Pro:
-1. Change event worker schedule from daily to `*/5 * * * *`
-2. Alert evaluation automatically runs at the new cadence (inlined in worker)
-3. No additional `check-alerts` cron needed
-4. If future alert types require faster evaluation (e.g., 1-minute attack detection), add a standalone cron then — but the architecture doesn't need it today
-
-## Required Changes
-
-| Change | File | Priority |
-|---|---|---|
-| Remove `/api/internal/check-alerts` cron | `vercel.json` | High |
-| Update event worker route comment — remove "independently scheduled" language | `app/api/internal/event-worker/route.ts` | Medium |
-| Update check-alerts route comment — note it's for manual/adhoc use, not scheduled | `app/api/internal/check-alerts/route.ts` | Medium |
-| Update ARCHITECTURE.md — remove independent alert cron from security posture | `ARCHITECTURE.md` | Low |
-| Update PHASE8_CLOSEOUT.md — note cron strategy decision | `PHASE8_CLOSEOUT.md` | Low |
-
+| File | Current State |
+|---|---|
+| `.github/workflows/event-worker.yml` | Runs every 5 minutes and posts to `$EVENT_WORKER_URL` with `CRON_SECRET`. |
+| `vercel.json` | Keeps only daily `/api/cleanup`. |
+| `app/api/internal/event-worker/route.ts` | Runs `processEventQueue()` then `checkAlerts()`. |
+| `app/api/internal/check-alerts/route.ts` | Retained for manual/debug use; not scheduled. |
+| `PHASE8_GITHUB_ACTIONS_SCHEDULER.md` | Documents the production scheduler and Cloudflare operational note. |
 ## What Stays
 
 - `/api/internal/check-alerts` route: preserved for ad-hoc manual invocation (`curl -X POST -H "Authorization: Bearer $CRON_SECRET" /api/internal/check-alerts`). Useful for operations debugging and post-incident checks.
-- `checkAlerts()` inline call in event worker: unchanged — this is the canonical alert evaluation path.
-- All alert thresholds, dedup logic, resolution, Discord notifications: unchanged.
+- `checkAlerts()` inline call in event worker: canonical alert evaluation path.
+- All alert thresholds, dedup logic, resolution, and Discord notifications.
 
 ## Operational Tradeoffs
 
@@ -170,4 +132,4 @@ When upgrading from Hobby to Pro:
 
 The dedicated alert cron was introduced during Phase 8E.3 hardening as a precaution against the worker failing after queue processing but before `checkAlerts()`. This window is too narrow to justify the operational complexity and extra cron invocation.
 
-**Remove the independent `check-alerts` cron. Alert evaluation remains inlined in the event worker.** This is simpler, cheaper (one less cold start every 5 minutes), and operationally equivalent.
+The independent `check-alerts` cron has been removed. Alert evaluation remains inlined in the event worker. The production scheduler is GitHub Actions against the Vercel hostname, which preserves the 5-minute cadence on Vercel Hobby without requiring Cloudflare bypass rules.

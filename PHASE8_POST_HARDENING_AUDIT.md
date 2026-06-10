@@ -4,6 +4,8 @@ Date: 2026-06-09
 Status: Post-hardening audit-only review
 Final decision: **GO WITH CONDITIONS**
 
+> Superseded on 2026-06-10 by `PHASE8_CLOSEOUT.md`. The remaining conditions in this post-hardening audit were resolved or formally accepted during final closeout: alert delivery and dashboards exist, bulk replay is capped, stale Phase 8 docs were reconciled, and Phase 8 is complete/100% for the Discord-backed production scope. Telegram/Slack providers, webhook encryption at rest, nonce atomicity, and durable audit stream expansion are deferred accepted risks, not Phase 8 blockers.
+
 ## Executive Summary
 
 The Phase 8 hardening sprint resolved the major NO GO blockers from `PHASE8_EVENT_PLATFORM_AUDIT.md`:

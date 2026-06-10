@@ -346,10 +346,12 @@ Setting: Cache Level → Bypass
 
 | Setting | Recommendation |
 |---------|---------------|
-| Bot Fight Mode | **On** (blocks basic bots) |
+| Bot Fight Mode | **On** for public user traffic |
 | Security Level | **Medium** |
 | Browser Integrity Check | **On** |
 | Hotlink Protection | Off (API needs cross-origin access) |
+
+Operational note: GitHub Actions scheduler traffic must not use the Cloudflare-fronted custom domain. Cloudflare Bot Fight Mode and challenge-based WAF/rate-limit rules can challenge non-browser GitHub Actions requests before they reach Vercel. The event worker scheduler uses `https://luxyhub.vercel.app/api/internal/event-worker` directly, so no Cloudflare bypass rule is required.
 
 ### 5.5 Turnstile
 
@@ -364,11 +366,11 @@ Create a Cloudflare Turnstile widget for the production login domain.
 
 ### 5.6 Cloudflare Rate Limiting (Optional)
 
-Cloudflare rate limiting complements the application-level rate limiter:
+Cloudflare rate limiting complements the application-level rate limiter for public browser/API traffic. Do not point GitHub Actions scheduler traffic at Cloudflare-fronted URLs.
 
 | Rule | Path | Threshold | Period | Action |
 |------|------|-----------|--------|--------|
-| API Protection | `/api/*` | 100 requests | 10 seconds | Challenge (JS/CAPTCHA) |
+| API Protection | `/api/*` | 100 requests | 10 seconds | Challenge |
 | Validation Protection | `/api/validate` | 200 requests | 1 minute | Challenge |
 
 ---
@@ -398,12 +400,31 @@ Mark as production secrets: `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_API_KEY`, `CRON_
 2. Add custom domain: `luxyhub.vercel.app` (auto-assigned) + any custom domains
 3. Verify DNS resolves to Vercel after Cloudflare configuration
 
-### 6.4 Cron Job
+### 6.4 Scheduled Jobs
 
-Vercel does not natively support cron triggers. Use one of these approaches:
+Production scheduler architecture:
 
-**Option A: Vercel Cron Jobs (recommended)**
-Create `vercel.json`:
+```text
+GitHub Actions
+  ↓
+POST https://luxyhub.vercel.app/api/internal/event-worker
+  ↓
+processEventQueue()
+  ↓
+checkAlerts()
+```
+
+Required GitHub Actions secrets:
+
+| Secret | Value |
+|--------|-------|
+| `EVENT_WORKER_URL` | `https://luxyhub.vercel.app/api/internal/event-worker` |
+| `CRON_SECRET` | Same value as Vercel `CRON_SECRET` |
+
+The event worker route requires `Authorization: Bearer <CRON_SECRET>`. Use the Vercel hostname for the scheduler; do not use `https://www.luxyhub.space/api/internal/event-worker` because Cloudflare can challenge GitHub Actions traffic. No Cloudflare bypass rule is required.
+
+`vercel.json` retains only the daily cleanup cron:
+
 ```json
 {
   "crons": [
@@ -413,25 +434,6 @@ Create `vercel.json`:
     }
   ]
 }
-```
-Configure in Vercel Dashboard → Project → Settings → Cron Jobs. Add header:
-```
-Authorization: Bearer <CRON_SECRET>
-```
-
-**Option B: GitHub Actions (alternative)**
-```yaml
-name: Database Cleanup
-on:
-  schedule:
-    - cron: '0 0 * * *'
-jobs:
-  cleanup:
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 ```
 
 ### 6.5 Build Verification
@@ -751,11 +753,11 @@ Store production env vars in a secure password manager (1Password, LastPass, Bit
 | | CRON_SECRET validated | ✅ PASS | Missing secret returns 500; wrong bearer returns 401 |
 | | ADMIN_API_KEY separated | ✅ PASS | Cron secrets are not accepted for admin raw reads |
 | | Input validation | ✅ PASS | Token length + key format regex |
-| **Infrastructure** | Vercel configured | ⚠️ PENDING | Env vars must be set |
-| | Supabase configured | ⚠️ PENDING | Schema + RLS must be run |
-| | Cron job scheduled | ⚠️ PENDING | Cleanup needs scheduling |
-| | Custom domain | ⚠️ PENDING | Cloudflare DNS |
-| | Uptime monitoring | ⚠️ PENDING | Not yet configured |
+| **Infrastructure** | Cloudflare configured | ✅ PASS | DNS, SSL/TLS, Turnstile, and public traffic protection documented |
+| | Vercel deployment | ✅ PASS | Next.js app deployed on Vercel |
+| | GitHub Actions event scheduler | ✅ PASS | 5-minute worker cadence via `EVENT_WORKER_URL` |
+| | Vercel cleanup cron | ✅ PASS | Daily `/api/cleanup` cron retained in `vercel.json` |
+| | Uptime monitoring | ⚠️ PENDING | Better Stack / Uptime Kuma / external monitoring stack not yet configured |
 | | Backups enabled | ⚠️ PENDING | Supabase PITR |
 | **Documentation** | API reference | ✅ PASS | API_SPEC.md synced |
 | | Integration guide | ✅ PASS | API_INTEGRATION.md synced |
@@ -772,26 +774,28 @@ Store production env vars in a secure password manager (1Password, LastPass, Bit
 |--------|-------|
 | Code readiness | 100% |
 | Security readiness | 95% |
-| Infrastructure readiness | 40% |
-| Operational readiness | 20% |
+| Infrastructure readiness | 80% |
+| Operational readiness | 70% |
 | Documentation readiness | 100% |
-| **Overall** | **71%** |
+| **Overall** | **89%** |
 
-### Required Before Go-Live
+### Remaining Infrastructure Work
 
-1. [ ] Set all environment variables in Vercel (Section 2)
-2. [ ] Run `schema.sql` and migrations `001` through `007` in Supabase (Section 3)
-3. [ ] Configure custom domain in Cloudflare + Vercel (Sections 5-6)
-4. [ ] Schedule cleanup cron job (Section 6.4)
-5. [ ] Enable Supabase PITR backups (Section 3.6)
-6. [ ] Set up uptime monitoring (Section 7)
-7. [ ] Generate `CRON_SECRET` and `ADMIN_API_KEY` as distinct secrets and set in Vercel
-8. [ ] Configure Cloudflare Turnstile and set site/secret keys
-9. [ ] Run complete operational verification (Section 8)
-10. [ ] Run post-deployment verification (Section 10)
+Completed infrastructure:
+
+- [x] Cloudflare
+- [x] DNS
+- [x] SSL/TLS
+- [x] Vercel deployment
+- [x] GitHub Actions scheduler for the event worker
+
+Pending infrastructure:
+
+1. [ ] Set up Better Stack, Uptime Kuma, or equivalent external monitoring stack.
+2. [ ] Enable Supabase PITR backups if the production plan requires point-in-time restore.
+3. [ ] Run complete operational verification (Section 8) after any production environment change.
+4. [ ] Run post-deployment verification (Section 10) after each deployment.
 
 ### Go / No-Go
 
-**RECOMMENDATION: Conditional Go — deploy after completing the items above.**
-
-The codebase is production-ready. All security findings (Critical + High) have been fixed. The remaining work is infrastructure configuration (Vercel, Supabase, Cloudflare, monitoring), not code changes.
+**RECOMMENDATION: Go for current implemented scope.** Phase 8 Event Platform is complete and scheduled by GitHub Actions. Remaining work is external monitoring and backup maturity, not Phase 8 feature completion.

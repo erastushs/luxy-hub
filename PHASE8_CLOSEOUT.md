@@ -1,12 +1,12 @@
 # Phase 8 Closeout — Final Hardening
 
 Date: 2026-06-10
-Status: Complete
+Status: Complete / Formally Closed
 Build: clean | Lint: 0 errors / 4 pre-existing warnings | Tests: 433/433 pass
 
 ## Summary
 
-This hardening pass closes the production-readiness conditions identified in `PHASE8_FINAL_AUDIT.md`. All five items from the scope were addressed.
+Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope. The implementation includes event reporting, HMAC validation, replay and timestamp validation, queue processing, dead-letter handling, Discord delivery, analytics/security dashboards, internal alerting, event retention cleanup, monitoring counters, GitHub Actions scheduling, and event platform hardening.
 
 ## Changes Delivered
 
@@ -40,12 +40,15 @@ This hardening pass closes the production-readiness conditions identified in `PH
 
 **Fix:**
 - Removed dedicated `check-alerts` cron from `vercel.json` — alert evaluation runs inline after `processEventQueue()` in the event worker.
-- Removed event-worker Vercel cron from `vercel.json`; GitHub Actions is the 5-minute scheduler on Vercel Hobby.
-- Created `.github/workflows/event-worker.yml` — GitHub Actions workflow that hits `/api/internal/event-worker` every 5 minutes on Vercel Hobby.
+- Removed event-worker Vercel cron from `vercel.json`; GitHub Actions is the production 5-minute scheduler.
+- Created `.github/workflows/event-worker.yml` — GitHub Actions workflow that posts to `https://luxyhub.vercel.app/api/internal/event-worker` every 5 minutes.
 - Route comments updated to reflect single-scheduler model.
-- `PHASE8_GITHUB_ACTIONS_SCHEDULER.md` documents setup, secrets, troubleshooting, and migration path to Vercel Pro.
+- `PHASE8_GITHUB_ACTIONS_SCHEDULER.md` documents setup, secrets, troubleshooting, and the Cloudflare operational note.
 
 **Operations impact:** Platform fully operational on Vercel Hobby.  5-minute queue processing via GitHub Actions.  Vercel cron remains only for daily cleanup.  Zero business logic changes.
+
+**Cloudflare note:** GitHub Actions must use the Vercel hostname, not `https://www.luxyhub.space/api/internal/event-worker`, because Cloudflare Bot Fight Mode or challenge rules can challenge non-browser Actions traffic. No Cloudflare bypass rule is required.
+
 ### 4. Security Metric Labeling (MEDIUM-5)
 
 Creator-facing analytics and security dashboards showed global `verification_logs` counters without indicating they are platform-wide rather than per-script.
@@ -60,9 +63,8 @@ Creator-facing analytics and security dashboards showed global `verification_log
 
 `ARCHITECTURE.md` and `TODO.md` had stale route lists and ambiguous Phase 8 status.
 
-**Fix:**
-- `ARCHITECTURE.md`: route topology updated with `/dashboard/scripts/[slug]/analytics/events`, `/dashboard/scripts/[slug]/security`, `/dashboard/admin/alerts`, `/api/internal/check-alerts`, `/api/cleanup`. Dashboard sections, API groups, database tables, and security posture updated. Phase 8 marked complete. Bulk replay cap and GitHub Actions scheduler documented.
-- `TODO.md`: removed stale "In Progress" section. Added Phase 8 complete tasks to completed list. Updated "Current Phase" to "Phase 8 Final Hardening (Closeout)". Event Platform completion updated to 95%.
+- `ARCHITECTURE.md`: route topology updated with `/dashboard/scripts/[slug]/analytics/events`, `/dashboard/scripts/[slug]/security`, `/dashboard/admin/alerts`, `/api/internal/check-alerts`, `/api/cleanup`. Dashboard sections, API groups, database tables, and security posture updated. Phase 8 marked complete/100%. Bulk replay cap and GitHub Actions scheduler documented.
+- `TODO.md`: current phase updated to Phase 7A License Foundation, Event Platform completion updated to 100%, Telegram/Slack moved to deferred accepted risks, future ordering set to Phase 7 → Phase 9 → Phase 10.
 
 ## Remaining Accepted Risks
 
@@ -76,23 +78,25 @@ Creator-facing analytics and security dashboards showed global `verification_log
 | **LOW-3** | Event analytics aggregation in app code | Accepted — acceptable for V1 volume. SQL grouping deferred. |
 | **LOW-5** | Telegram/Slack providers deferred | Accepted — production scope is Discord-only. |
 
-## Deferred Risks (Phase 9+)
+## Deferred Features / Future Enhancements / Accepted Risks
 
-- Webhook lifecycle audit events (`webhook.created`, `webhook.updated`, `webhook.deleted`, `webhook.test_sent`)
-- Event replay audit events
+- Telegram provider implementation
+- Slack provider implementation
 - Discord webhook URL encryption at rest
 - Nonce uniqueness constraint for atomic replay protection
+- Durable audit events for webhook lifecycle and replay operations
 - CSP nonce migration
-- Telegram/Slack provider implementations
 - Event analytics SQL-side aggregation
-| Category | Before | After |
-|---|---|---|
-| Architecture | 86/100 | 90/100 |
-| Security | 76/100 | 82/100 |
-| Reliability | 82/100 | 84/100 |
-| Operations | 80/100 | 86/100 |
-| Monitoring | 84/100 | 86/100 |
-| **Overall** | **82/100** | **86/100** |
+
+## Final Phase 8 Scorecard
+
+| Category | Final State |
+|---|---|
+| Event Platform completion | 100% |
+| Production scheduler | GitHub Actions → `https://luxyhub.vercel.app/api/internal/event-worker` → `processEventQueue()` → `checkAlerts()` |
+| Provider scope | Discord complete; Telegram/Slack deferred |
+| Infrastructure | Cloudflare, DNS, SSL/TLS, Vercel deployment, GitHub Actions scheduler complete |
+| Pending infrastructure | Better Stack, Uptime Kuma, external monitoring stack |
 
 The secure delivery and event platform layers are now materially self-consistent:
 - All 15 database tables have RLS with explicit deny-all policies.
@@ -111,13 +115,13 @@ The secure delivery and event platform layers are now materially self-consistent
 | `schema.sql` | RLS comment added |
 | `__tests__/alert-events-rls.test.ts` | Created |
 | `vercel.json` | check-alerts and event-worker crons removed; daily cleanup cron retained |
-| `ARCHITECTURE.md` | Route topology, dashboard sections, DB tables, security posture, Phase 8 status, GitHub Actions scheduler |
-| `TODO.md` | In-progress removed, current phase updated, event platform 95%, deployment requirements added |
-| `PHASE8_CLOSEOUT.md` | Created + updated (this file) |
-| `PHASE8_CRON_STRATEGY.md` | Created — architecture review of Vercel Hobby cron limits |
-| `PHASE8_GITHUB_ACTIONS_SCHEDULER.md` | Created — setup guide, secrets, troubleshooting, migration path |
-| `.github/workflows/event-worker.yml` | Created — GitHub Actions 5-min scheduler |
+| `ARCHITECTURE.md` | Route topology, dashboard sections, DB tables, security posture, Phase 8 status, GitHub Actions scheduler, Cloudflare scheduler note |
+| `TODO.md` | Current phase set to Phase 7A, event platform 100%, Phase 8 providers deferred, future order corrected |
+| `PHASE8_CLOSEOUT.md` | Final closeout updated (this file) |
+| `PHASE8_CRON_STRATEGY.md` | Implemented scheduler decision and Vercel hostname requirement |
+| `PHASE8_GITHUB_ACTIONS_SCHEDULER.md` | Setup guide, secrets, troubleshooting, Cloudflare operational note |
+| `.github/workflows/event-worker.yml` | GitHub Actions 5-min scheduler |
 
 ## Next Phase
 
-Phase 7 — License & Delivery Authorization
+Phase 7A — License Foundation. Phase 7 License & Key System has not started in code; review license, assignment, customer identifier, entitlement, and delivery authorization architecture before implementation.
