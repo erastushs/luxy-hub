@@ -13,8 +13,8 @@ Last updated: 2026-06-07
 | **Environment Variables** | 1Password / encrypted vault | Manual rotation | Manual | < 1 hour |
 | **Supabase Schema** | `schema.sql` + migration files in repo | Forever | As-committed | < 30 min |
 | **Supabase RLS** | `migrations/001_enable_rls.sql` in repo | Forever | As-committed | < 5 min |
-| **Cloudflare Config** | `DEPLOYMENT_CHECKLIST.md` Section 5 (documented) | Forever | As-documented | < 30 min |
-| **Vercel Config** | `DEPLOYMENT_CHECKLIST.md` Sections 2+6 (documented) | Forever | As-documented | < 15 min |
+| **Cloudflare Config** | `../../deployment/DEPLOYMENT_CHECKLIST.md` Section 5 (documented) | Forever | As-documented | < 30 min |
+| **Vercel Config** | `../../deployment/DEPLOYMENT_CHECKLIST.md` Sections 2+6 (documented) | Forever | As-documented | < 15 min |
 
 ---
 
@@ -148,8 +148,8 @@ These MUST be stored in a secure password manager:
 Every quarter, verify:
 - [ ] All 4 variables present in password manager
 - [ ] Values match what's set in Vercel (test `/api/health` returns 200)
-- [ ] Rotate `CRON_SECRET` (see `INCIDENT_RESPONSE.md` Section 7.3)
-- [ ] Rotate `SUPABASE_SERVICE_ROLE_KEY` (see `INCIDENT_RESPONSE.md` Section 7.4)
+- [ ] Rotate `CRON_SECRET` (see `../../operations/INCIDENT_RESPONSE.md` Section 7.3)
+- [ ] Rotate `SUPABASE_SERVICE_ROLE_KEY` (see `../../operations/INCIDENT_RESPONSE.md` Section 7.4)
 
 ---
 
@@ -361,8 +361,8 @@ curl -X POST https://luxyhub.vercel.app/api/validate \
 | Environment variables | 1Password/Bitwarden | End-to-end | Yes |
 | Schema SQL | `schema.sql` in repo | N/A | Yes (GitHub + clones) |
 | RLS migration | `migrations/001_enable_rls.sql` | N/A | Yes (GitHub + clones) |
-| Cloudflare config | Documented in `DEPLOYMENT_CHECKLIST.md` | N/A | Yes (GitHub + clones) |
-| Vercel config | Documented in `DEPLOYMENT_CHECKLIST.md` | N/A | Yes (GitHub + clones) |
+| Cloudflare config | Documented in `../../deployment/DEPLOYMENT_CHECKLIST.md` | N/A | Yes (GitHub + clones) |
+| Vercel config | Documented in `../../deployment/DEPLOYMENT_CHECKLIST.md` | N/A | Yes (GitHub + clones) |
 
 ---
 

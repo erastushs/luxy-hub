@@ -75,12 +75,12 @@ Status: ✅ COMPLIANT
 
 | Document | Status | Coverage |
 |----------|--------|----------|
-| `API_SPEC.md` | ✅ | All 8 CDN endpoints, request/response bodies, status codes, rate limits, auth requirements |
-| `API_INTEGRATION.md` | ✅ | curl, JavaScript, Luau examples for upload, update, publish, raw, stats, list, delete |
-| `CDN_ARCHITECTURE.md` | ✅ | Full architecture review (v2), storage strategy, visibility model, auth migration path |
-| `CDN_DATABASE.md` | ✅ | ER diagram, table descriptions, index strategy, RLS strategy, future integration, migration consistency check |
-| `CDN_MIGRATION_GUIDE.md` | ✅ | Migration strategy, rollback, testing, deployment sequence, troubleshooting |
-| `TODO.md` | ✅ | Updated with Phase 2 completion, Phase 2C in progress |
+| `../archive/integration/API_SPEC.md` | ✅ | All 8 CDN endpoints, request/response bodies, status codes, rate limits, auth requirements |
+| `../archive/integration/API_INTEGRATION.md` | ✅ | curl, JavaScript, Luau examples for upload, update, publish, raw, stats, list, delete |
+| `../archive/architecture/CDN_ARCHITECTURE.md` | ✅ | Full architecture review (v2), storage strategy, visibility model, auth migration path |
+| `../architecture/CDN_DATABASE.md` | ✅ | ER diagram, table descriptions, index strategy, RLS strategy, future integration, migration consistency check |
+| `../archive/integration/CDN_MIGRATION_GUIDE.md` | ✅ | Migration strategy, rollback, testing, deployment sequence, troubleshooting |
+| `../roadmap/TODO.md` | ✅ | Updated with Phase 2 completion, Phase 2C in progress |
 
 ---
 
@@ -126,11 +126,11 @@ Status: ✅ COMPLIANT
 | **Code** | Repository pattern | 100 | 100 | Matches key-repository.ts exactly |
 | **Code** | Service pattern | 100 | 100 | Matches key-service.ts exactly |
 | **Code** | Route pattern | 100 | 100 | Matches validate/cleanup routes exactly |
-| **Docs** | API reference | 100 | 100 | `API_SPEC.md` updated with all CDN endpoints |
-| **Docs** | Integration guide | 100 | 100 | `API_INTEGRATION.md` with curl/JS/Luau examples |
-| **Docs** | Architecture review | 100 | 100 | `CDN_ARCHITECTURE.md` |
-| **Docs** | Database reference | 100 | 100 | `CDN_DATABASE.md` |
-| **Docs** | Migration guide | 100 | 100 | `CDN_MIGRATION_GUIDE.md` |
+| **Docs** | API reference | 100 | 100 | `../archive/integration/API_SPEC.md` updated with all CDN endpoints |
+| **Docs** | Integration guide | 100 | 100 | `../archive/integration/API_INTEGRATION.md` with curl/JS/Luau examples |
+| **Docs** | Architecture review | 100 | 100 | `../archive/architecture/CDN_ARCHITECTURE.md` |
+| **Docs** | Database reference | 100 | 100 | `../architecture/CDN_DATABASE.md` |
+| **Docs** | Migration guide | 100 | 100 | `../archive/integration/CDN_MIGRATION_GUIDE.md` |
 | **Testing** | Lint (0/0) | 100 | 100 | ESLint clean |
 | **Testing** | TypeScript (0 errors) | 100 | 100 | `tsc --noEmit` clean |
 | **Testing** | Build (16 routes) | 100 | 100 | `npm run build` EXIT 0 |

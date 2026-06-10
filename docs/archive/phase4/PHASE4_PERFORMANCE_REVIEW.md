@@ -338,9 +338,9 @@ Phase 4.3 is Documentation Review. Recommended handoff items:
 
 - Update roadmap status so Phase 4.1 and Phase 4.2 are marked complete.
 - Review Phase 3 UI docs for accuracy after Phase 4.1/4.2 changes.
-- Update `API_SPEC.md` with all Phase 3 dashboard endpoints if not already reflected.
+- Update `../API_SPEC.md` with all Phase 3 dashboard endpoints if not already reflected.
 - Add or update dashboard user guide documentation.
-- Review `AGENTS.md` for Phase 4 conventions and Next.js 16 guidance.
+- Review `../../../AGENTS.md` for Phase 4 conventions and Next.js 16 guidance.
 - Carry forward the analytics query recommendations as documented performance follow-up, not as speculative schema work.
 
 ## Final Assessment

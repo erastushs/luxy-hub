@@ -2,7 +2,7 @@
 
 Status: Historical design / Superseded by implementation closeout
 Date: 2026-06-10
-Scope: Design record only. Current Phase 8 implementation is complete/100% for Discord-backed production scope; see `PHASE8_CLOSEOUT.md`.
+Scope: Design record only. Current Phase 8 implementation is complete/100% for Discord-backed production scope; see `../active/PHASE8_CLOSEOUT.md`.
 Depends on: Phase 6H (Runtime Payload Delivery), Phase 5C (Secure Delivery API)
 Coordinates with: Phase 7 (License & Delivery Authorization — still planning)
 

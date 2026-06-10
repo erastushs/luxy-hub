@@ -122,11 +122,12 @@ npm run build
 
 ## Documentation
 
-- `ARCHITECTURE.md` — current system architecture
-- `API_SPEC.md` — API reference and response shapes
-- `DEPLOYMENT_CHECKLIST.md` — deployment and production validation
-- `SECURE_DELIVERY_ARCHITECTURE.md` — secure delivery design and implementation notes
-- `DASHBOARD_USER_GUIDE.md` — creator dashboard usage
+- `docs/README.md` — documentation index and source-of-truth map
+- `docs/architecture/ARCHITECTURE.md` — current system architecture
+- `docs/archive/integration/API_SPEC.md` — API reference and response shapes
+- `docs/deployment/DEPLOYMENT_CHECKLIST.md` — deployment and production validation
+- `docs/archive/architecture/SECURE_DELIVERY_ARCHITECTURE.md` — secure delivery design and implementation notes
+- `docs/archive/integration/DASHBOARD_USER_GUIDE.md` — creator dashboard usage
 
 ## License
 

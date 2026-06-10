@@ -14,7 +14,7 @@ Run these in the project root before deploying.
 | 1.2 | Lint passes | `npm run lint` | 0 errors; existing warnings reviewed |
 | 1.3 | TypeScript passes | `npx tsc --noEmit` | No errors |
 | 1.4 | Security audit reviewed | Review audit report | All Critical/High fixed |
-| 1.5 | API docs match implementation | `diff API_SPEC.md` vs routes | No "wrapped in `data`", no HTTP 404 for validate |
+| 1.5 | API docs match implementation | compare `../archive/integration/API_SPEC.md` vs routes | No "wrapped in `data`", no HTTP 404 for validate |
 | 1.6 | `schema.sql` and migrations applied to Supabase | Check in Supabase Dashboard | Current tables exist |
 | 1.7 | RLS migrations applied | Run verification query in section 3.4 | Owner policies and deny-all policies enabled |
 | 1.8 | No `.env` files tracked by git | `git ls-files .env*` | No output |

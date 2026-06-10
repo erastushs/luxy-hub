@@ -22,19 +22,19 @@ Last updated: 2026-06-09
 | 10 | **Security** | Security Headers (CSP, HSTS, etc.) | `middleware.ts` |
 | 11 | **Security** | Rate Limiting (fail-closed) | `app/lib/rate-limiter.ts` |
 | 12 | **Security** | RLS Protection (5 tables) | `migrations/001_enable_rls.sql` |
-| 13 | **Docs** | API Documentation | `API_SPEC.md` |
-| 14 | **Docs** | Integration Documentation | `API_INTEGRATION.md` |
-| 15 | **Docs** | Architecture Documentation | `ARCHITECTURE.md` |
-| 16 | **Docs** | Deployment Checklist | `DEPLOYMENT_CHECKLIST.md` |
-| 17 | **Docs** | Incident Response Plan | `INCIDENT_RESPONSE.md` |
-| 18 | **Docs** | Backup Strategy | `BACKUP_STRATEGY.md` |
-| 19 | **Docs** | Monitoring Architecture | `MONITORING.md` |
+| 13 | **Docs** | API Documentation | `../archive/integration/API_SPEC.md` |
+| 14 | **Docs** | Integration Documentation | `../archive/integration/API_INTEGRATION.md` |
+| 15 | **Docs** | Architecture Documentation | `../architecture/ARCHITECTURE.md` |
+| 16 | **Docs** | Deployment Checklist | `../deployment/DEPLOYMENT_CHECKLIST.md` |
+| 17 | **Docs** | Incident Response Plan | `../operations/INCIDENT_RESPONSE.md` |
+| 18 | **Docs** | Backup Strategy | `../archive/deployment/BACKUP_STRATEGY.md` |
+| 19 | **Docs** | Monitoring Architecture | `../operations/MONITORING.md` |
 | 20 | **Infra** | Vercel Cron Job Config | `vercel.json` |
 | 21 | **Security** | Unified error codes (no oracle) | Key validation returns identical 403 for missing/expired keys |
 | 22 | **Security** | CORS headers for API routes | `middleware.ts` |
 | 23 | **Security** | Anti-replay (Work.ink tokens) | `used_workink_tokens` table |
-| 24 | **Design** | CDN Architecture Review | `CDN_ARCHITECTURE.md` |
-| 25 | **Design** | CDN Database Reference | `CDN_DATABASE.md` |
+| 24 | **Design** | CDN Architecture Review | `../archive/architecture/CDN_ARCHITECTURE.md` |
+| 25 | **Design** | CDN Database Reference | `../architecture/CDN_DATABASE.md` |
 | 26 | **Database** | CDN Table Migration (UP) | `migrations/002_cdn_tables.sql` |
 | 27 | **Database** | CDN Table Migration (DOWN) | `migrations/002_cdn_tables_rollback.sql` |
 | 28 | **Database** | Schema updated (8 tables) | `schema.sql` |
@@ -52,26 +52,26 @@ Last updated: 2026-06-09
 | 40 | **API** | GET /api/scripts/[slug]/stats (analytics) | `app/api/scripts/[slug]/stats/route.ts` |
 | 41 | **API** | POST /api/scripts/[slug]/publish (visibility) | `app/api/scripts/[slug]/publish/route.ts` |
 | 42 | **Infra** | Cleanup cron extended (downloads) | `app/api/cleanup/route.ts` |
-| 43 | **Docs** | CDN Migration Guide | `CDN_MIGRATION_GUIDE.md` |
-| 44 | **Docs** | API Spec updated (CDN endpoints) | `API_SPEC.md` |
-| 45 | **Docs** | Integration Guide updated (CDN) | `API_INTEGRATION.md` |
+| 43 | **Docs** | CDN Migration Guide | `../archive/integration/CDN_MIGRATION_GUIDE.md` |
+| 44 | **Docs** | API Spec updated (CDN endpoints) | `../archive/integration/API_SPEC.md` |
+| 45 | **Docs** | Integration Guide updated (CDN) | `../archive/integration/API_INTEGRATION.md` |
 | 46 | **Database** | Profiles Migration (UP) | `migrations/003_profiles.sql` |
 | 47 | **Database** | Profiles Migration (DOWN) | `migrations/003_profiles_rollback.sql` |
 | 48 | **Code** | Session Auth Utilities | `app/lib/auth/session-auth.ts` |
 | 49 | **Code** | Profile Repository | `app/lib/repositories/profile-repository.ts` |
 | 50 | **Code** | Profile Service | `app/lib/services/profile-service.ts` |
-| 51 | **Docs** | Phase 3A Identity Foundation | `PHASE3A_IDENTITY.md` |
+| 51 | **Docs** | Phase 3A Identity Foundation | `../archive/phase3/PHASE3A_IDENTITY.md` |
 | 52 | **Database** | Script Ownership Migration (UP) | `migrations/004_script_ownership.sql` |
 | 53 | **Database** | Script Ownership Migration (DOWN) | `migrations/004_script_ownership_rollback.sql` |
 | 54 | **Code** | Ownership Helpers | `app/lib/auth/ownership.ts` |
-| 55 | **Docs** | Ownership Migration Strategy | `OWNERSHIP_MIGRATION.md` |
-| 56 | **Docs** | Phase 3B Ownership Enforcement | `PHASE3B_OWNERSHIP.md` |
+| 55 | **Docs** | Ownership Migration Strategy | `../archive/integration/OWNERSHIP_MIGRATION.md` |
+| 56 | **Docs** | Phase 3B Ownership Enforcement | `../archive/phase3/PHASE3B_OWNERSHIP.md` |
 | 57 | **API** | Phase 3C Creator API Layer | 5 dashboard endpoints, ownership enforcement, tests |
 | 58 | **API** | Phase 3C.2 Analytics APIs | 3 analytics endpoints, aggregation, tests |
 | 59 | **API** | Phase 3C.3 Version History APIs | 2 version endpoints, cross-script isolation, tests |
 | 60 | **API** | Phase 3C.4 Audit Logging System | audit_logs table, sanitized logging, tests |
 | 61 | **Security** | Phase 3D Security Validation | RLS audit, ownership audit, isolation testing, rate limit audit, security review |
-| 62 | **Docs** | Phase 3D Security Validation Report | `PHASE3D_SECURITY_VALIDATION.md` |
+| 62 | **Docs** | Phase 3D Security Validation Report | `../archive/phase3/PHASE3D_SECURITY_VALIDATION.md` |
 | 63 | **Fix** | Rate limit on DELETE /api/scripts/[slug] | `app/api/scripts/[slug]/route.ts` + rate-limit-repository.ts |
 | 64 | **UI** | Phase 3E.1 Auth + Dashboard Shell | Login page, proxy auth, sidebar, dashboard home |
 | 65 | **UI** | Phase 3E.2 Scripts Management UI | Script list, create, edit, delete, pagination, search, filter |
@@ -80,58 +80,58 @@ Last updated: 2026-06-09
 | 68 | **UI** | Phase 3E.5 Versions UI | Script selector, version history, version detail, pagination |
 | 69 | **Docs** | Phase 3E Documentation | PHASE3E_AUTH_UI.md, SCRIPTS_UI.md, PROFILE_UI.md, ANALYTICS_UI.md, VERSIONS_UI.md |
 | 70 | **Docs** | Phase 3 Closure | RELEASE_V1.md, PHASE3_COMPLETION_REPORT.md, TODO.md updated |
-| 71 | **Design** | Phase 5A Secure Delivery Architecture | `SECURE_DELIVERY_ARCHITECTURE.md` |
+| 71 | **Design** | Phase 5A Secure Delivery Architecture | `../archive/architecture/SECURE_DELIVERY_ARCHITECTURE.md` |
 | 72 | **Database** | Phase 5B delivery_builds Migration | `migrations/006_delivery_builds.sql` |
 | 73 | **Code** | Phase 5B Build Pipeline Foundation | `app/lib/services/delivery-build-service.ts` |
-| 74 | **Docs** | Phase 5B Build Pipeline Documentation | `PHASE5B_BUILD_PIPELINE.md` |
+| 74 | **Docs** | Phase 5B Build Pipeline Documentation | `../archive/phase5/PHASE5B_BUILD_PIPELINE.md` |
 | 75 | **Database** | Phase 5C delivery_sessions Migration | `migrations/007_delivery_sessions.sql` |
 | 76 | **API** | Phase 5C Secure Delivery Session API | `app/api/delivery/session/route.ts`, `app/api/delivery/fetch/route.ts` |
 | 77 | **Code** | Phase 5C Delivery Session Services | `app/lib/services/delivery-session-service.ts` |
-| 78 | **Docs** | Phase 5C Secure Delivery API Documentation | `PHASE5C_SECURE_DELIVERY_API.md` |
+| 78 | **Docs** | Phase 5C Secure Delivery API Documentation | `../archive/phase5/PHASE5C_SECURE_DELIVERY_API.md` |
 | 79 | **Code** | Phase 5D Payload Consumer Utilities | `app/lib/delivery/payload-consumer.ts` |
 | 80 | **Code** | Phase 5D Reference Loader POC | `examples/reference-loader.ts` |
 | 81 | **Tests** | Phase 5D Payload Consumption Tests | `__tests__/delivery-payload-consumer.test.ts` |
-| 82 | **Docs** | Phase 5D Loader Integration Documentation | `PHASE5D_LOADER_INTEGRATION.md` |
+| 82 | **Docs** | Phase 5D Loader Integration Documentation | `../archive/phase5/PHASE5D_LOADER_INTEGRATION.md` |
 | 83 | **UI** | Phase 6A Lua Upload Workflow | `/dashboard/scripts/new`, `/dashboard/scripts/[slug]/edit` |
 | 84 | **UI** | Phase 6A Build Status Visibility | `BuildStatusBadge`, `BuildInfoPanel`, scripts table |
 | 85 | **Code** | Phase 6A Dashboard Build Visibility Service | `app/lib/services/dashboard-build-service.ts` |
 | 86 | **Tests** | Phase 6A Upload and Build Visibility Tests | `__tests__/source-file-validation.test.ts`, `__tests__/dashboard-build-service.test.ts` |
-| 87 | **Docs** | Phase 6A Dashboard V2 Documentation | `PHASE6A_DASHBOARD_V2.md` |
+| 87 | **Docs** | Phase 6A Dashboard V2 Documentation | `../archive/phase6/PHASE6A_DASHBOARD_V2.md` |
 | 88 | **UI** | Phase 6B Build History Dashboard | `/dashboard/scripts/[slug]/builds` |
 | 89 | **UI** | Phase 6B Build Detail Dashboard | `/dashboard/scripts/[slug]/builds/[buildId]` |
 | 90 | **Code** | Phase 6B Build Operations Service | `app/lib/services/build-operations-service.ts` |
 | 91 | **Code** | Phase 6B Creator Rebuild Action | `app/actions/builds.ts` |
 | 92 | **Tests** | Phase 6B Build Operations Tests | `__tests__/build-operations-service.test.ts` |
-| 93 | **Docs** | Phase 6B Build Operations Documentation | `PHASE6B_BUILD_OPERATIONS.md` |
+| 93 | **Docs** | Phase 6B Build Operations Documentation | `../archive/phase6/PHASE6B_BUILD_OPERATIONS.md` |
 | 94 | **Code** | Phase 6C Build Automation Service | `app/lib/services/build-automation-service.ts` |
 | 95 | **Code** | Phase 6C Automatic Build Triggers | `createScript`, `updateScript`, `changeVisibility` |
 | 96 | **Code** | Phase 6C Build Lifecycle Consistency | `pending → building → ready/failed` |
 | 97 | **Tests** | Phase 6C Build Automation Tests | `__tests__/build-automation-service.test.ts` |
-| 98 | **Docs** | Phase 6C Build Automation Documentation | `PHASE6C_BUILD_AUTOMATION.md` |
+| 98 | **Docs** | Phase 6C Build Automation Documentation | `../archive/phase6/PHASE6C_BUILD_AUTOMATION.md` |
 | 99 | **API** | Phase 6D Loader Bootstrap Endpoint | `app/api/loader/[slug]/route.ts` |
 | 100 | **Code** | Phase 6D Loader Runtime V1 | `app/lib/loader/loader-runtime-v1.ts` |
 | 101 | **Code** | Phase 6D Delivery Fetch Context | `POST /api/delivery/fetch` context response |
 | 102 | **Tests** | Phase 6D Loader Tests | `__tests__/loader-api.test.ts`, `__tests__/loader-runtime-v1.test.ts` |
-| 103 | **Docs** | Phase 6D Production Loader Documentation | `PHASE6D_PRODUCTION_LOADER.md` |
+| 103 | **Docs** | Phase 6D Production Loader Documentation | `../archive/phase6/PHASE6D_PRODUCTION_LOADER.md` |
 | 104 | **UI** | Phase 6E Dashboard Action Tooltips | `Tooltip`, dashboard icon actions |
 | 105 | **UI** | Phase 6E Loader Copy Workflow | `CopyLoaderButton`, `LoaderSnippetCard`, script metadata summary |
 | 106 | **Tests** | Phase 6E Dashboard UX Polish Tests | `__tests__/dashboard-ux-polish.test.tsx` |
-| 107 | **Docs** | Phase 6E UX Polish Documentation | `PHASE6E_UX_POLISH.md` |
-| 108 | **Docs** | Phase 6F Runtime Adapter Audit | `LOADER_RUNTIME_ADAPTER_AUDIT.md` |
-| 109 | **Docs** | Phase 6F Runtime Validation Plan | `PHASE6F_RUNTIME_VALIDATION.md` |
-| 110 | **Docs** | Phase 6G Delivery Architecture Review | `PHASE6G_DELIVERY_ARCHITECTURE_REVIEW.md` |
+| 107 | **Docs** | Phase 6E UX Polish Documentation | `../archive/phase6/PHASE6E_UX_POLISH.md` |
+| 108 | **Docs** | Phase 6F Runtime Adapter Audit | `../archive/reports/LOADER_RUNTIME_ADAPTER_AUDIT.md` |
+| 109 | **Docs** | Phase 6F Runtime Validation Plan | `../archive/phase6/PHASE6F_RUNTIME_VALIDATION.md` |
+| 110 | **Docs** | Phase 6G Delivery Architecture Review | `../archive/phase6/PHASE6G_DELIVERY_ARCHITECTURE_REVIEW.md` |
 | 111 | **Code** | Phase 6H Runtime Payload Delivery | `app/lib/delivery/runtime-payload.ts`, `POST /api/delivery/fetch` |
 | 112 | **Code** | Phase 6H Simplified Loader Runtime | `app/lib/loader/loader-bootstrap.ts`, `app/lib/loader/loader-runtime-v1.ts` |
 | 113 | **Tests** | Phase 6H Runtime Payload Tests | `__tests__/runtime-payload-delivery.test.ts` |
-| 114 | **Docs** | Phase 6H Runtime Payload Delivery Documentation | `PHASE6H_RUNTIME_PAYLOAD_DELIVERY.md` |
-| 115 | **Design** | Phase 8A Event Foundation Design | `PHASE8A_EVENT_FOUNDATION_DESIGN.md` |
+| 114 | **Docs** | Phase 6H Runtime Payload Delivery Documentation | `../archive/phase6/PHASE6H_RUNTIME_PAYLOAD_DELIVERY.md` |
+| 115 | **Design** | Phase 8A Event Foundation Design | `../phases/phase8/historical/PHASE8A_EVENT_FOUNDATION_DESIGN.md` |
 | 116 | **Database** | Phase 8B.1 Event Platform Foundation | `migrations/008_event_platform.sql` |
 | 117 | **API** | Phase 8B.2 Secure Event Reporting API | `app/api/events/report/route.ts` |
 | 118 | **Code** | Phase 8B.3 Queue Worker | `app/lib/services/event-queue-service.ts`, `app/api/internal/event-worker/route.ts` |
 | 119 | **Code** | Phase 8B.4 Discord Provider | `app/lib/providers/discord-provider.ts` |
 | 120 | **UI** | Phase 8C Webhook and Event Operations Dashboard | `/dashboard/scripts/[slug]/webhooks`, `/dashboard/scripts/[slug]/events` |
 | 121 | **Security** | Phase 8 Hardening Sprint | event secrets, queue claims, test isolation, retention cleanup, monitoring foundation |
-| 122 | **Docs** | Phase 8 Monitoring Foundation | `PHASE8D_MONITORING_FOUNDATION.md` |
+| 122 | **Docs** | Phase 8 Monitoring Foundation | `../phases/phase8/historical/PHASE8D_MONITORING_FOUNDATION.md` |
 ---
 
 
@@ -224,26 +224,26 @@ Scale (Optional):        0% complete ░░░░░░░░░░░░░░�
 
 ## Infrastructure
 
-- [x] Configure Cloudflare — **DOCUMENTED** — see `DEPLOYMENT_CHECKLIST.md` §5
-- [x] Configure DNS Records — **DOCUMENTED** — see `DEPLOYMENT_CHECKLIST.md` §5.1
-- [x] Configure SSL/TLS — **DOCUMENTED** — see `DEPLOYMENT_CHECKLIST.md` §5.2
+- [x] Configure Cloudflare — **DOCUMENTED** — see `../deployment/DEPLOYMENT_CHECKLIST.md` §5
+- [x] Configure DNS Records — **DOCUMENTED** — see `../deployment/DEPLOYMENT_CHECKLIST.md` §5.1
+- [x] Configure SSL/TLS — **DOCUMENTED** — see `../deployment/DEPLOYMENT_CHECKLIST.md` §5.2
 - [x] Configure DDoS Protection — **DOCUMENTED** — Cloudflare public traffic protection configured/documented
 - [x] Configure Production Environment Variables — **EXTERNAL VERIFIED IN DEPLOYMENT** — Vercel dashboard values required for live changes
 
 ## Monitoring
 
-- [ ] Uptime Kuma — **EXTERNAL** — see `MONITORING.md` §4 for Docker deployment
-- [ ] Better Stack — **EXTERNAL** — see `MONITORING.md` §3 for account setup
+- [ ] Uptime Kuma — **EXTERNAL** — see `../operations/MONITORING.md` §4 for Docker deployment
+- [ ] Better Stack — **EXTERNAL** — see `../operations/MONITORING.md` §3 for account setup
 - [ ] API Monitoring — **EXTERNAL** — dependent on Better Stack / Uptime Kuma
 - [ ] Error Tracking — **EXTERNAL** — dependent on Better Stack Logtail
 - [ ] Uptime Alerts — **EXTERNAL** — dependent on alert destinations
 
 ## Operational Documentation
 
-- [x] Create DEPLOYMENT_CHECKLIST.md — `DEPLOYMENT_CHECKLIST.md` (691 lines)
-- [x] Create INCIDENT_RESPONSE.md — `INCIDENT_RESPONSE.md` (560 lines)
-- [x] Create BACKUP_STRATEGY.md — `BACKUP_STRATEGY.md` (470 lines)
-- [x] Create MONITORING.md — `MONITORING.md` (420 lines)
+- [x] Create DEPLOYMENT_CHECKLIST.md — `../deployment/DEPLOYMENT_CHECKLIST.md` (691 lines)
+- [x] Create INCIDENT_RESPONSE.md — `../operations/INCIDENT_RESPONSE.md` (560 lines)
+- [x] Create BACKUP_STRATEGY.md — `../archive/deployment/BACKUP_STRATEGY.md` (470 lines)
+- [x] Create MONITORING.md — `../operations/MONITORING.md` (420 lines)
 - [x] Create vercel.json (cron config) — `vercel.json` (daily cleanup only; 5-minute worker scheduled by GitHub Actions)
 
 **Deployment Requirements:**
@@ -466,7 +466,7 @@ All tests passing.
 - [ ] Review all PHASE3*_UI.md files for accuracy
 - [ ] Update API_SPEC.md with all Phase 3 endpoints
 - [ ] Add dashboard user guide
-- [ ] Review AGENTS.md for Phase 4 conventions
+- [ ] Review `../../AGENTS.md` for Phase 4 conventions
 
 ### Phase 4.4 — Production Hardening
 - [ ] Production two-account isolation test (from Phase 3D)
@@ -486,19 +486,19 @@ Create a protected script delivery architecture that is significantly harder to 
 
 ## Features
 
-- [x] Secure delivery architecture design — `SECURE_DELIVERY_ARCHITECTURE.md`
-- [x] Pre-built payload build pipeline — `PHASE5B_BUILD_PIPELINE.md`
+- [x] Secure delivery architecture design — `../archive/architecture/SECURE_DELIVERY_ARCHITECTURE.md`
+- [x] Pre-built payload build pipeline — `../archive/phase5/PHASE5B_BUILD_PIPELINE.md`
 - [x] `delivery_builds` artifact storage — `migrations/006_delivery_builds.sql`
 - [x] Inline encrypted payload storage — `delivery_builds.payload_ciphertext`
 - [x] Build payload hashing — `source_sha256`, `payload_sha256`
-- [x] Secure delivery API design — `PHASE5C_SECURE_DELIVERY_API.md`
+- [x] Secure delivery API design — `../archive/phase5/PHASE5C_SECURE_DELIVERY_API.md`
 - [x] Temporary one-time delivery tokens — `delivery_sessions`
 - [x] Delivery session validation — `app/lib/services/delivery-session-service.ts`
 - [x] Delivery fetch endpoint — `POST /api/delivery/fetch`
 - [x] Session creation endpoint — `POST /api/delivery/session`
 - [x] Payload consumer utilities — `app/lib/delivery/payload-consumer.ts`
 - [x] Reference loader POC — `examples/reference-loader.ts`
-- [x] Loader architecture documentation — `PHASE5D_LOADER_INTEGRATION.md`
+- [x] Loader architecture documentation — `../archive/phase5/PHASE5D_LOADER_INTEGRATION.md`
 - [x] Script encryption strategy — AES-256-GCM envelope in Phase 5B
 - [x] Payload delivery architecture — build artifact + session API + consumer POC
 - [x] Production loader implementation — Phase 6D

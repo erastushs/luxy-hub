@@ -2,7 +2,7 @@
 
 Status: Implemented / Scheduler superseded by Phase 8 closeout
 Date: 2026-06-10
-Scope: Queue processing infrastructure. Current production scheduler is GitHub Actions; see `PHASE8_GITHUB_ACTIONS_SCHEDULER.md`.
+Scope: Queue processing infrastructure. Current production scheduler is GitHub Actions; see `../active/PHASE8_GITHUB_ACTIONS_SCHEDULER.md`.
 
 ## Scope Boundary
 
@@ -176,4 +176,4 @@ No changes to the queue service or worker route are needed — the provider inte
 | `__tests__/event-queue-service.test.ts` | 22 tests: lifecycle, retry, batching, skips, mixed batches |
 | `__tests__/event-worker-route.test.ts` | 5 tests: auth, success, error |
 | `vercel.json` | Daily cleanup cron only; event worker cron removed in closeout |
-| `ARCHITECTURE.md` | Added route + Phase 8 status |
+| `../../../architecture/ARCHITECTURE.md` | Added route + Phase 8 status |

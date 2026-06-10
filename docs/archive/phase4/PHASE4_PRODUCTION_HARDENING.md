@@ -40,7 +40,7 @@ Final production readiness review before Phase 5 (Secure Script Delivery). Audit
 
 ### 1.4 Production Variable Gap
 
-All required variables exist in `.env.local` but have not been verified as set in Vercel's production environment. The `DEPLOYMENT_CHECKLIST.md` §2 documents the procedure.
+All required variables exist in `.env.local` but have not been verified as set in Vercel's production environment. The `../../deployment/DEPLOYMENT_CHECKLIST.md` §2 documents the procedure.
 
 **Recommendation:** When deploying to Vercel, ensure all variables from §2.1 are configured in the Vercel dashboard.
 
@@ -428,7 +428,7 @@ Previous Phase 3D score: **97/100** (10 dimensions, 100 possible). The drop from
 | Production env vars set | CONDITIONAL — requires Vercel config |
 | Monitoring configured | CONDITIONAL — requires external setup |
 
-**Decision: GO — Codebase is production-ready.** The three conditional items are infrastructure configuration, not code changes. All can be completed in a single deployment session following `DEPLOYMENT_CHECKLIST.md`.
+**Decision: GO — Codebase is production-ready.** The three conditional items are infrastructure configuration, not code changes. All can be completed in a single deployment session following `../../deployment/DEPLOYMENT_CHECKLIST.md`.
 
 ## 8. Recommended Pre-Phase 5 Actions
 
@@ -461,6 +461,6 @@ Phase 4 delivered:
 - Full documentation sync (8 files updated, 2 created)
 - Dashboard API docs added to API_SPEC.md
 - Dashboard user guide created
-- AGENTS.md updated with Next.js 16 conventions
+- ../../../AGENTS.md updated with Next.js 16 conventions
 - Production readiness score: 93/100
 - Recommendation: GO for Phase 5 — Secure Script Delivery

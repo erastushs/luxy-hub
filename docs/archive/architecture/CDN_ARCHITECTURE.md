@@ -1,12 +1,12 @@
 # LuxyHub CDN — Architecture Review
 
 Date: 2026-06-07
-Status: Phase 2 historical planning document — superseded by `ARCHITECTURE.md` and `API_SPEC.md`
+Status: Phase 2 historical planning document — superseded by `../../architecture/ARCHITECTURE.md` and `../integration/API_SPEC.md`
 Phase: 1.5 (Complete) → 2A (IN PROGRESS)
 
 ---
 
-> Current implementation note (2026-06-08): this document preserves the Phase 2 CDN plan. The live system now uses Supabase session authentication for creator write APIs, owner-scoped service checks, Cloudflare Turnstile login protection, failed-login rate limiting, secure delivery builds, and one-time delivery sessions. Use `ARCHITECTURE.md`, `API_SPEC.md`, and `DEPLOYMENT_CHECKLIST.md` for current deployment and security behavior.
+> Current implementation note (2026-06-08): this document preserves the Phase 2 CDN plan. The live system now uses Supabase session authentication for creator write APIs, owner-scoped service checks, Cloudflare Turnstile login protection, failed-login rate limiting, secure delivery builds, and one-time delivery sessions. Use `../../architecture/ARCHITECTURE.md`, `../integration/API_SPEC.md`, and `../../deployment/DEPLOYMENT_CHECKLIST.md` for current deployment and security behavior.
 
 ## 1. Executive Summary
 
@@ -483,7 +483,7 @@ When `ANALYTICS_PEPPER` is rotated:
 - New hashes use the new pepper
 - Unique visitor metrics reset on rotation day
 - Rotation frequency: quarterly or on security incident
-- Documented in `INCIDENT_RESPONSE.md` Section 7.3 for CRON_SECRET rotation (same process)
+- Documented in `../../operations/INCIDENT_RESPONSE.md` Section 7.3 for CRON_SECRET rotation (same process)
 
 ---
 
@@ -536,7 +536,7 @@ schema.sql                                [MODIFY — append CDN tables]
 |------|---------|
 | `migrations/002_cdn_tables.sql` | Create 3 tables, 8 indexes, RLS, FK constraint |
 | `migrations/002_cdn_tables_rollback.sql` | Drop FK, RLS policies, indexes, tables |
-| `CDN_DATABASE.md` | ER diagram, table docs, index strategy, RLS strategy |
+| `../../architecture/CDN_DATABASE.md` | ER diagram, table docs, index strategy, RLS strategy |
 
 ### Files Created (Phase 2B — Future)
 | File | Purpose |
@@ -598,8 +598,8 @@ loadstring(game:HttpGet('https://cdn.luxyhub.space/raw/bloxatlas'))()
 - [ ] `migrations/002_cdn_tables.sql` — UP migration
 - [ ] `migrations/002_cdn_tables_rollback.sql` — DOWN migration
 - [ ] Update `schema.sql`
-- [ ] `CDN_DATABASE.md` — database documentation
-- [ ] Update `TODO.md`
+- [ ] `../../architecture/CDN_DATABASE.md` — database documentation
+- [ ] Update `../../roadmap/TODO.md`
 
 ### Phase 2B — CDN API Implementation
 - [ ] Add validators: `isValidSlug()`, `isValidVisibility()`, `isValidScriptContent()`
@@ -613,4 +613,4 @@ loadstring(game:HttpGet('https://cdn.luxyhub.space/raw/bloxatlas'))()
 - [ ] Lint, TypeScript, build verification
 - [ ] Schema verification (tables exist, RLS enabled, indexes present)
 - [ ] Functional testing (upload → raw → stats → cleanup)
-- [ ] Update `API_SPEC.md` with CDN endpoints
+- [ ] Update `../integration/API_SPEC.md` with CDN endpoints

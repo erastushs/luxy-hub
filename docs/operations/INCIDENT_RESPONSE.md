@@ -504,10 +504,10 @@ curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
 | Resource | Location |
 |----------|----------|
 | Source Code | `github.com/erastushs/luxy-hub` |
-| Deployment Checklist | `DEPLOYMENT_CHECKLIST.md` |
-| Backup Strategy | `BACKUP_STRATEGY.md` |
-| API Documentation | `API_SPEC.md` |
-| Integration Docs | `API_INTEGRATION.md` |
+| Deployment Checklist | `../deployment/DEPLOYMENT_CHECKLIST.md` |
+| Backup Strategy | `../archive/deployment/BACKUP_STRATEGY.md` |
+| API Documentation | `../archive/integration/API_SPEC.md` |
+| Integration Docs | `../archive/integration/API_INTEGRATION.md` |
 | Database Schema | `schema.sql` |
 | RLS Migration | `migrations/001_enable_rls.sql` |
 

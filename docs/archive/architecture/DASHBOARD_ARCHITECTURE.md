@@ -4,7 +4,7 @@ Status: Phase 3 Historical Planning Document — Superseded by ARCHITECTURE.md
 Last updated: 2026-06-08
 
 > This document was the pre-implementation architecture plan for the Creator Dashboard.
-> The current architecture after implementation is maintained in `ARCHITECTURE.md`.
+> The current architecture after implementation is maintained in `../../architecture/ARCHITECTURE.md`.
 > The entire document describes the planned design that preceded actual development.
 > Domain topology, subdomain model, and marketplace compatibility sections reflect Phase 3 planning intent, not current state.
 

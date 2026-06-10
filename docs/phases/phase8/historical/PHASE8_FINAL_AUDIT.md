@@ -4,7 +4,7 @@ Date: 2026-06-10
 Status: Final audit-only review
 Final recommendation: GO WITH CONDITIONS
 
-> Superseded on 2026-06-10 by `PHASE8_CLOSEOUT.md`. Final hardening resolved the remaining production conditions or accepted them as deferred risks. Phase 8 is now formally complete/100%; the active project phase is Phase 7A License Foundation.
+> Superseded on 2026-06-10 by `../active/PHASE8_CLOSEOUT.md`. Final hardening resolved the remaining production conditions or accepted them as deferred risks. Phase 8 is now formally complete/100%; the active project phase is Phase 7A License Foundation.
 
 ## Executive Summary
 
@@ -24,8 +24,8 @@ Documents:
 - `PHASE8E1_ANALYTICS_DASHBOARD.md`
 - `PHASE8E2_SECURITY_MONITORING.md`
 - `PHASE8E3_INTERNAL_ALERTS.md`
-- `ARCHITECTURE.md`
-- `TODO.md`
+- `../../../architecture/ARCHITECTURE.md`
+- `../../../roadmap/TODO.md`
 
 Implementation:
 
@@ -239,7 +239,7 @@ Description:
 - `migrations/010_internal_alerts.sql` creates `alert_events` and indexes but does not enable RLS.
 - `schema.sql` mirrors the table without RLS.
 - Existing operational tables such as `event_logs`, `verification_logs`, `rate_limits`, `delivery_sessions`, `audit_logs`, and `delivery_builds` enable RLS with deny-all or owner-aware policies.
-- `ARCHITECTURE.md` states that RLS is enabled across the schema, which is not true for `alert_events`.
+- `../../../architecture/ARCHITECTURE.md` states that RLS is enabled across the schema, which is not true for `alert_events`.
 
 Impact:
 
@@ -435,8 +435,8 @@ Recommendation:
 
 Description:
 
-- `ARCHITECTURE.md` route topology does not list the newer analytics, security, admin alert, or check-alert routes.
-- `TODO.md` still marks Phase 8E as in progress and lists Phase 8E analytics expansion as pending while also showing Phase 8E complete.
+- `../../../architecture/ARCHITECTURE.md` route topology does not list the newer analytics, security, admin alert, or check-alert routes.
+- `../../../roadmap/TODO.md` still marks Phase 8E as in progress and lists Phase 8E analytics expansion as pending while also showing Phase 8E complete.
 - Older Phase 8 docs still contain superseded phase-boundary notes.
 
 Impact:
@@ -506,7 +506,7 @@ Focus:
 - Close the production conditions above.
 - Verify Supabase grants/RLS for every operational table.
 - Add a short event-platform runbook for alerts, queue backlog, dead letters, webhook rotation, and replay procedures.
-- Update `ARCHITECTURE.md` and `TODO.md` to reflect the final Phase 8 route and status.
+- Update `../../../architecture/ARCHITECTURE.md` and `../../../roadmap/TODO.md` to reflect the final Phase 8 route and status.
 - Decide whether Telegram/Slack providers are still roadmap items or explicitly outside the production Phase 8 definition.
 
 Phase 7 license work should remain separate from this final Phase 8 hardening pass.

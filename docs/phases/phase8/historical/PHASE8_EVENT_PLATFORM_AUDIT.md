@@ -4,7 +4,7 @@ Date: 2026-06-09
 Status: Audit-only review
 Final recommendation: **NO GO**
 
-> Superseded on 2026-06-10 by `PHASE8_CLOSEOUT.md`. The NO GO findings in this audit were resolved or formally accepted during final hardening: event secret issuance, queue claim leases, event retention cleanup, monitoring counters, internal alerting, dashboard coverage, bulk replay cap, and `alert_events` RLS are complete. Remaining items — Telegram/Slack providers, webhook encryption at rest, nonce atomicity, and durable audit stream expansion — are deferred/accepted risks and are not Phase 8 blockers.
+> Superseded on 2026-06-10 by `../active/PHASE8_CLOSEOUT.md`. The NO GO findings in this audit were resolved or formally accepted during final hardening: event secret issuance, queue claim leases, event retention cleanup, monitoring counters, internal alerting, dashboard coverage, bulk replay cap, and `alert_events` RLS are complete. Remaining items — Telegram/Slack providers, webhook encryption at rest, nonce atomicity, and durable audit stream expansion — are deferred/accepted risks and are not Phase 8 blockers.
 
 ## Executive Summary
 
@@ -25,8 +25,8 @@ Design and planning artifacts:
 - `PHASE8B4_DISCORD_PROVIDER.md`
 - `PHASE8C1_WEBHOOK_DASHBOARD.md`
 - `PHASE8C2_EVENT_OPERATIONS.md`
-- `ARCHITECTURE.md`
-- `TODO.md`
+- `../../../architecture/ARCHITECTURE.md`
+- `../../../roadmap/TODO.md`
 
 Implementation artifacts:
 

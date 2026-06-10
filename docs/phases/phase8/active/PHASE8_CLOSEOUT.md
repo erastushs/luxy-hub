@@ -61,10 +61,10 @@ Creator-facing analytics and security dashboards showed global `verification_log
 
 ### 5. Documentation Cleanup (LOW-4)
 
-`ARCHITECTURE.md` and `TODO.md` had stale route lists and ambiguous Phase 8 status.
+`../../../architecture/ARCHITECTURE.md` and `../../../roadmap/TODO.md` had stale route lists and ambiguous Phase 8 status.
 
-- `ARCHITECTURE.md`: route topology updated with `/dashboard/scripts/[slug]/analytics/events`, `/dashboard/scripts/[slug]/security`, `/dashboard/admin/alerts`, `/api/internal/check-alerts`, `/api/cleanup`. Dashboard sections, API groups, database tables, and security posture updated. Phase 8 marked complete/100%. Bulk replay cap and GitHub Actions scheduler documented.
-- `TODO.md`: current phase updated to Phase 7A License Foundation, Event Platform completion updated to 100%, Telegram/Slack moved to deferred accepted risks, future ordering set to Phase 7 → Phase 9 → Phase 10.
+- `../../../architecture/ARCHITECTURE.md`: route topology updated with `/dashboard/scripts/[slug]/analytics/events`, `/dashboard/scripts/[slug]/security`, `/dashboard/admin/alerts`, `/api/internal/check-alerts`, `/api/cleanup`. Dashboard sections, API groups, database tables, and security posture updated. Phase 8 marked complete/100%. Bulk replay cap and GitHub Actions scheduler documented.
+- `../../../roadmap/TODO.md`: current phase updated to Phase 7A License Foundation, Event Platform completion updated to 100%, Telegram/Slack moved to deferred accepted risks, future ordering set to Phase 7 → Phase 9 → Phase 10.
 
 ## Remaining Accepted Risks
 
@@ -115,8 +115,8 @@ The secure delivery and event platform layers are now materially self-consistent
 | `schema.sql` | RLS comment added |
 | `__tests__/alert-events-rls.test.ts` | Created |
 | `vercel.json` | check-alerts and event-worker crons removed; daily cleanup cron retained |
-| `ARCHITECTURE.md` | Route topology, dashboard sections, DB tables, security posture, Phase 8 status, GitHub Actions scheduler, Cloudflare scheduler note |
-| `TODO.md` | Current phase set to Phase 7A, event platform 100%, Phase 8 providers deferred, future order corrected |
+| `../../../architecture/ARCHITECTURE.md` | Route topology, dashboard sections, DB tables, security posture, Phase 8 status, GitHub Actions scheduler, Cloudflare scheduler note |
+| `../../../roadmap/TODO.md` | Current phase set to Phase 7A, event platform 100%, Phase 8 providers deferred, future order corrected |
 | `PHASE8_CLOSEOUT.md` | Final closeout updated (this file) |
 | `PHASE8_CRON_STRATEGY.md` | Implemented scheduler decision and Vercel hostname requirement |
 | `PHASE8_GITHUB_ACTIONS_SCHEDULER.md` | Setup guide, secrets, troubleshooting, Cloudflare operational note |
