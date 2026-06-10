@@ -18,6 +18,12 @@ function hmacJSON(event: string, timestamp: number, nonce: string, data: unknown
   return createHmac('sha256', TEST_EVENT_SECRET).update(input).digest('hex')
 }
 
+function hmacJSONBase64(event: string, timestamp: number, nonce: string, data: unknown): string {
+  const serialized = JSON.stringify(data)
+  const input = `${event}:${timestamp}:${nonce}:${serialized}`
+  return createHmac('sha256', TEST_EVENT_SECRET).update(input).digest('base64')
+}
+
 vi.mock('@/app/lib/repositories/delivery-session-repository', () => ({
   getSessionByTokenHash: vi.fn(),
 }))
@@ -340,6 +346,25 @@ describe('Event Reporting Service', () => {
     if (!result.success) {
       expect(result.status).toBe(400)
     }
+  })
+
+  it('accepts a valid base64 HMAC signature', async () => {
+    mockValidSession()
+    stubRateLimit(true)
+    mockEventCreated('execute', 'd'.repeat(32))
+
+    const timestamp = Math.floor(Date.now() / 1000)
+    const nonce = 'd'.repeat(32)
+
+    const result = await reportEvent(forEvent({
+      timestamp,
+      nonce,
+      payload: {},
+      signature: hmacJSONBase64('execute', timestamp, nonce, {}),
+    }))
+
+    expect(result.success).toBe(true)
+    expect(mockedCreateEventLog).toHaveBeenCalledTimes(1)
   })
 
   it('rejects an invalid HMAC signature uniformly', async () => {

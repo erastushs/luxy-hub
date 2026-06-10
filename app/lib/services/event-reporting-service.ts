@@ -48,8 +48,16 @@ function isValidNonce(value: unknown): value is string {
   return typeof value === 'string' && /^[a-f0-9]{32}$/.test(value)
 }
 
+function isHexSignature(value: string): boolean {
+  return /^[a-f0-9]{64}$/.test(value)
+}
+
+function isBase64Signature(value: string): boolean {
+  return /^[A-Za-z0-9+/]{43}=$/.test(value)
+}
+
 function isValidSignature(value: unknown): value is string {
-  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value)
+  return typeof value === 'string' && (isHexSignature(value) || isBase64Signature(value))
 }
 
 function isValidSessionId(value: unknown): value is string {
@@ -71,6 +79,15 @@ function jsonByteSize(value: unknown): number {
 function computeEventSignature(eventSecret: string, event: string, timestamp: number, nonce: string, data: unknown): string {
   const payload = `${event}:${timestamp}:${nonce}:${safeJSON(data)}`
   return createHmac('sha256', eventSecret).update(payload).digest('hex')
+}
+
+function signaturesMatch(expectedHex: string, provided: string): boolean {
+  const expected = isHexSignature(provided)
+    ? expectedHex
+    : Buffer.from(expectedHex, 'hex').toString('base64')
+  const expectedBuf = Buffer.from(expected)
+  const providedBuf = Buffer.from(provided)
+  return expectedBuf.length === providedBuf.length && timingSafeEqual(expectedBuf, providedBuf)
 }
 
 export async function checkEventRateLimit(sessionId: string): Promise<{ allowed: boolean; retryAfter?: number }> {
@@ -164,10 +181,7 @@ export async function reportEvent(input: EventReportInput): Promise<EventReportR
     input.nonce,
     input.payload,
   )
-
-  const expectedBuf = Buffer.from(expectedSignature, 'hex')
-  const providedBuf = Buffer.from(input.signature, 'hex')
-  if (expectedBuf.length !== providedBuf.length || !timingSafeEqual(expectedBuf, providedBuf)) {
+  if (!signaturesMatch(expectedSignature, input.signature)) {
     recordSecurityCounter('event.invalid_signature', `session:${sessionId}`)
     return { success: false, message: INVALID_SESSION_MESSAGE, status: 401 }
   }
