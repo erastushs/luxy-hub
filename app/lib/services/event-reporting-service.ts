@@ -53,7 +53,7 @@ function isValidSignature(value: unknown): value is string {
 }
 
 function isValidSessionId(value: unknown): value is string {
-  return typeof value === 'string' && value.length >= 44 && value.length <= 256
+  return typeof value === 'string' && value.length >= 43 && value.length <= 256
 }
 
 function isValidTimestamp(value: unknown): value is number {

@@ -47,6 +47,7 @@ import {
 } from '@/app/lib/repositories/event-repository'
 import { getSessionByTokenHash } from '@/app/lib/repositories/delivery-session-repository'
 import { reportEvent } from '@/app/lib/services/event-reporting-service'
+import { hashDeliverySessionToken } from '@/app/lib/services/delivery-session-service'
 
 const mockedGetSessionByTokenHash = vi.mocked(getSessionByTokenHash)
 const mockedCreateEventLog = vi.mocked(createEventLog)
@@ -116,13 +117,14 @@ function stubRateLimit(allowed: boolean): void {
   ;(supabaseAdmin.from as ReturnType<typeof vi.fn>).mockReturnValue(rateLimitChain(allowed))
 }
 
-function forEvent(opts?: { event?: string; timestamp?: number; nonce?: string; signature?: string; payload?: unknown }) {
+function forEvent(opts?: { sessionId?: string; event?: string; timestamp?: number; nonce?: string; signature?: string; payload?: unknown }) {
+  const sessionId = opts?.sessionId ?? TEST_SESSION_ID
   const ts = opts?.timestamp ?? Math.floor(Date.now() / 1000)
   const event = opts?.event ?? 'execute'
   const nonce = opts?.nonce ?? 'a'.repeat(32)
   const payload = opts?.payload ?? {}
   const sig = opts?.signature ?? hmacJSON(event, ts, nonce, payload)
-  return { sessionId: TEST_SESSION_ID, event, timestamp: ts, nonce, signature: sig, payload }
+  return { sessionId, event, timestamp: ts, nonce, signature: sig, payload }
 }
 
 describe('Event Reporting Service', () => {
@@ -210,6 +212,26 @@ describe('Event Reporting Service', () => {
     if (!result.success) {
       expect(result.status).toBe(401)
     }
+  })
+
+  it('accepts a 43-character delivery session token through hash lookup', async () => {
+    const sessionId = 'a'.repeat(43)
+    const timestamp = Math.floor(Date.now() / 1000)
+    mockValidSession()
+    stubRateLimit(true)
+    mockEventCreated('execute', 'c'.repeat(32))
+
+    const result = await reportEvent(forEvent({
+      sessionId,
+      timestamp,
+      nonce: 'c'.repeat(32),
+      payload: {},
+      signature: hmacJSON('execute', timestamp, 'c'.repeat(32), {}),
+    }))
+
+    expect(result.success).toBe(true)
+    expect(mockedGetSessionByTokenHash).toHaveBeenCalledWith(hashDeliverySessionToken(sessionId))
+    expect(mockedCreateEventLog).toHaveBeenCalledTimes(1)
   })
 
   // ---------------------------------------------------------------------------
