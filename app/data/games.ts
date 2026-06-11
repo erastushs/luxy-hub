@@ -6,7 +6,7 @@ export const games = [
     status: 'Working',
     features: 18,
 
-    lastUpdate: '31 May 2026',
+    lastUpdate: '6 Juni 2026',
     description: 'Complete automation suite for farming, training, rebirths, weather events, and brainrot management.',
 
     featureList: [
@@ -24,13 +24,45 @@ export const games = [
   },
 
   {
+    slug: '+1-Speed-Keyboard-Escape.',
+    title: '+1 Speed Keyboard Escape.',
+    image: '/+1SKE.webp',
+    status: 'Working',
+    features: 18,
+
+    lastUpdate: '9 Juni 2026',
+    description: 'automation game win',
+
+    featureList: [
+      'Auto Run',
+      'Select Win Target World 1',
+      'Select Win Target World 2',
+      'Auto Farm Wins',
+      'Custom Tween Speed',
+      'Auto Rebirth',
+      'Freeze Position',
+      'Unlock Infinity Trail Gamepass',
+      'Select Target Treadmill Type',
+      'Unlock Treadmill Access',
+      'Select Aura',
+      'Buy Aura',
+      'Equip Aura',
+      'Auto Equip Best Item',
+      'Select Target Item',
+      'Auto Buy Item',
+      'Auto Restock Item (Robux)',
+      'Anti AFK',
+    ],
+  },
+
+  {
     slug: 'build-a-ring-farm',
     title: 'Build A Ring Farm',
     image: '/BARF.webp',
     status: 'Working',
     features: 28,
 
-    lastUpdate: '1 Juni 2026',
+    lastUpdate: '9 Juni 2026',
     description: 'Advanced automation for seeds, farming, upgrades, events, and economy management.',
 
     featureList: [
@@ -55,14 +87,14 @@ export const games = [
     slug: 'slime-rng',
     title: 'Slime RNG',
     image: '/SlimeRNG.webp',
-    status: 'Updating',
-    features: 30,
+    status: 'Broken',
+    //features: 30,
 
     lastUpdate: '29 May 2026',
-    description:
-      'Comprehensive RNG automation with farming, upgrades, crafting, inventory management, and combat assistance.',
-    // featureList: ['Awaiting Fix'],
-    featureList: [
+    // description: 'Comprehensive RNG automation with farming, upgrades, crafting, inventory management, and combat assistance.',
+    description: 'Currently unavailable due to recent game updates.',
+    featureList: [],
+    /* featureList: [
       'Auto Roll & Auto Equip',
       'Target Slime Selection',
       'Auto Farm Zones',
@@ -78,7 +110,7 @@ export const games = [
       'Run Speed & Noclip',
       'ESP Loot & Orbs',
       'FPS Boost',
-    ],
+    ],*/
   },
 
   {
@@ -91,7 +123,7 @@ export const games = [
     lastUpdate: '31 May 2026',
     description: 'Currently unavailable due to recent game updates.',
 
-    featureList: ['Awaiting Fix'],
+    featureList: [],
   },
 
   {
@@ -104,6 +136,6 @@ export const games = [
     lastUpdate: '31 May 2026',
     description: 'Currently unavailable due to recent game updates.',
 
-    featureList: ['Awaiting Fix'],
+    featureList: [],
   },
 ]

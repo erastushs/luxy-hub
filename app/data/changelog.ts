@@ -8,6 +8,29 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: 'v4.4',
+    date: '9 Jun 2026',
+    game: '+1 Speed Keyboard Escape',
+    summary: 'Added New Script Support',
+    changes: ['Now support for +1 Speed Keyboard Escape yet'],
+  },
+  {
+    version: 'v4.3',
+    date: '6 Jun 2026',
+    game: 'Kick a Lucky Block',
+    summary: 'Advanced Tracker Filters, Webhook Enhancements & Performance Fixes',
+    changes: [
+      'Fixed Discord Webhook Delivery',
+      'Fixed Memory Leak Causing Long Session Lag',
+      'Fixed Auto Summon Weather Automation',
+      'Fixed Auto Prediction HUD Updates',
+      'Added Brainrot Tracker Filter Dropdown',
+      'Added Rarity Tracker Filter Dropdown',
+      'Added Auto Send Interval Slider',
+      'Added Auto Send Inventory Check Toggle',
+    ],
+  },
+  {
     version: 'v4.2',
     date: '3 Jun 2026',
     game: 'Multi Game Update',
