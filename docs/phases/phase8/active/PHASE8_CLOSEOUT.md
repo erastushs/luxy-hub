@@ -124,4 +124,4 @@ The secure delivery and event platform layers are now materially self-consistent
 
 ## Next Phase
 
-Phase 7A.1 — Schema Foundation. Phase 7 Access Modes, Keys, and License Authorization has not started in code; review access mode, Work.ink compatibility, license, assignment, customer identifier, and delivery authorization architecture before implementation.
+Historical closeout note: at the time of Phase 8 closeout, Phase 7A.1 was the next track. Current project status supersedes this note: Phase 7A is complete/production ready, and Phase 7B Runtime License Enforcement is planned and not started.

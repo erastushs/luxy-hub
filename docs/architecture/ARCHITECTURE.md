@@ -1,7 +1,7 @@
 # LuxyHub Architecture
 
 Last updated: 2026-06-11
-Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, and Phase 8 Event Platform production verification. Phase 7 is the active development phase.
+Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, and Phase 7A license foundation closeout. Phase 7B Runtime License Enforcement is the active planning track.
 
 ## Overview
 
@@ -12,6 +12,7 @@ LuxyHub is a Next.js 16 application that currently provides:
 - Script CDN metadata, upload, raw delivery, and analytics APIs
 - Creator Dashboard V1 for script management, analytics, versions, and profile management
 - Secure loader delivery with delivery builds and one-time delivery sessions
+- Phase 7A license foundation, license management dashboard, and license analytics dashboard
 - Supabase-backed authentication, ownership enforcement, RLS, Turnstile login protection, rate limiting, and audit logging
 
 The current production architecture is a single Next.js application. Dedicated `dashboard`, `api`, `cdn`, or `vault` subdomains are not implemented.
@@ -36,6 +37,8 @@ www.luxyhub.space
 ├── /dashboard/scripts/[slug]/analytics/events
 ├── /dashboard/scripts/[slug]/security
 ├── /dashboard/admin/alerts
+├── /dashboard/licenses
+├── /dashboard/licenses/analytics
 ├── /dashboard/analytics
 ├── /dashboard/versions
 ├── /dashboard/versions/[slug]
@@ -105,6 +108,8 @@ Implemented dashboard sections:
 - `/dashboard/scripts/[slug]/analytics/events` — event analytics: overview, trends, provider health, queue health, platform security signals
 - `/dashboard/scripts/[slug]/security` — security dashboard: platform-wide signal monitoring, risk assessment, anomaly detection
 - `/dashboard/admin/alerts` — admin-only internal alert dashboard with active/resolved views and severity filters
+- `/dashboard/licenses` — license management: create, enable, disable, revoke, assignments, filters, search, sorting, selection UI
+- `/dashboard/licenses/analytics` — license analytics: status cards, distribution, recent licenses, recent assignments
 - `/dashboard/analytics` — portfolio analytics cards, 7-day/30-day SVG charts, top scripts table
 - `/dashboard/versions` — script selector for version history
 - `/dashboard/versions/[slug]` — paginated version history for one script
@@ -204,6 +209,7 @@ Implemented API groups:
 - Public/session-aware script APIs: `/api/scripts`, `/api/scripts/[slug]`, `/api/scripts/[slug]/raw`, `/api/scripts/[slug]/stats`, `/api/scripts/[slug]/publish`
 - Dashboard APIs: `/api/dashboard/scripts`, `/api/dashboard/scripts/[slug]`, `/api/dashboard/analytics/overview`, `/api/dashboard/analytics/downloads`, `/api/dashboard/scripts/[slug]/stats`, `/api/dashboard/scripts/[slug]/versions`, `/api/dashboard/scripts/[slug]/versions/[versionId]`
 - Loader and delivery APIs: `/api/loader/[slug]`, `/api/delivery/session`, `/api/delivery/fetch`
+- License APIs: `/api/licenses`, `/api/licenses/[id]/enable`, `/api/licenses/[id]/disable`, `/api/licenses/[id]/revoke`, `/api/licenses/[id]/assignments`, `/api/licenses/[id]/assignments/[assignmentId]`
 
 Dashboard UI primarily uses Server Components and Server Actions. The dashboard API routes exist for programmatic access and are still protected by session auth, rate limits, service-layer validation, and ownership checks.
 Current tables:
@@ -223,6 +229,8 @@ Current tables:
 - `webhook_config`
 - `event_logs`
 - `alert_events`
+- `licenses`
+- `license_assignments`
 
 Security posture:
 
@@ -272,7 +280,7 @@ Delivery sessions are only issued for public or unlisted scripts with a ready in
 
 Delivery builds are created automatically after script creation, content version creation, and visibility publish actions. Build payloads use the current `delivery-build-v1` and `inline-json-v1` formats with AES-256-GCM payload packaging, gzip compression, and SHA-256 integrity fields. The current loader executes the server-produced runtime payload with `loadstring`.
 
-Phase 7 will add `scripts.access_mode` as a separate concern from `scripts.visibility`:
+Phase 7A added `scripts.access_mode` as a separate concern from `scripts.visibility`:
 
 | Concern | Values | Purpose |
 |---|---|---|
@@ -286,6 +294,8 @@ Approved Phase 7 authorization boundary:
 - `public` creates a delivery session immediately when the script/build is deliverable.
 - `key_required` reuses the existing Work.ink key ecosystem.
 - `license_required` uses premium creator-generated licenses and assignment/device limits.
+
+Phase 7A implemented the license foundation, creator license lifecycle management, assignment create/remove workflows, and dashboard analytics. Phase 7B will harden runtime license enforcement, assignment capacity, customer identifier handling, loader credential forwarding, license counters, and runtime audit trail behavior.
 
 ## Analytics Architecture
 
@@ -381,7 +391,7 @@ Future improvements:
 
 Current phase:
 
-- Phase 7A.1 — Schema Foundation: active, not started in code.
+- Phase 7B — Runtime License Enforcement: planning / not started in code.
 
 Completed phases:
 
@@ -391,11 +401,12 @@ Completed phases:
 - Phase 4.4 — Production Hardening: complete
 - Phase 5 — Secure Script Delivery: complete
 - Phase 6 — Loader Integration: complete
+- Phase 7A — License Foundation and Dashboard: complete / production ready
 - Phase 8 — Event Reporting & Webhook Platform: complete / 100%, production verified, and Roblox verified (database foundation, HMAC reporting API, replay and timestamp validation, queue worker with claim leases, dead-letter handling, Discord provider, dashboard webhook management, event operations, analytics dashboard, security dashboard, internal alerts, GitHub Actions scheduler, event retention cleanup, monitoring counters, and RLS hardening). Telegram and Slack providers, webhook encryption at rest, nonce atomicity improvements, and durable audit event stream expansion are deferred future enhancements and accepted risks, not Phase 8 blockers.
 
 Future ordering:
 
-1. Phase 7 — Access Modes, Keys, and License Authorization
+1. Phase 7B — Runtime License Enforcement
 2. Phase 9 — Internal Operations & Release Workflow
 3. Phase 10 — Scale & Infrastructure (Optional)
 
@@ -403,4 +414,4 @@ Deprecated roadmap assumptions removed from current architecture:
 
 - Separate `dashboard.luxyhub.space`, `api.luxyhub.space`, `cdn.luxyhub.space`, and `vault.luxyhub.space` services are not implemented.
 - Marketplace architecture is not part of the current roadmap.
-- Phase 7 access modes and premium license management are planned but not implemented — see `PHASE7_LICENSE_ARCHITECTURE.md`.
+- Phase 7A access modes and premium license management foundation are implemented; Phase 7B runtime enforcement hardening is planned — see `PHASE7_LICENSE_ARCHITECTURE.md` and `../phases/phase7/PHASE_7B_DESIGN.md`.

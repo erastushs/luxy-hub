@@ -1,7 +1,7 @@
 # LuxyHub Creator Dashboard — Release V1
 
 Release date: 2026-06-08
-Status: Phase 3 Complete — Phase 4.1/4.2 complete, Phase 4.3 in progress
+Status: Phase 3 Complete snapshot — current project has completed Phase 4, Phase 5, Phase 6, Analytics V1, Phase 8 Event Platform, and Phase 7A
 Note: This is a Phase 3 release snapshot. Current architecture docs have been updated in ARCHITECTURE.md.
 
 ## Overview
@@ -196,15 +196,17 @@ Completed after Release V1:
 - Phase 4 — UI Polish, Documentation Review, and Production Hardening: complete
 - Phase 5 — Secure Script Delivery: complete
 - Phase 6 — Loader Integration: complete
+- Analytics V1 — complete
+- Phase 7A — Access Modes, Keys, and License Foundation: complete / production ready
 - Phase 8 — Event Reporting & Webhook Platform: complete / 100% for Discord-backed production scope
 
 Current active track:
 
-- Phase 7A.1 — Schema Foundation: not started in code. Approved Phase 7 direction supports `public`, `key_required`, and `license_required` access modes; review schema, assignment, customer identifier, Work.ink compatibility, and delivery authorization boundaries before implementation.
+- Phase 7B — Runtime License Enforcement: planned / not started. Design and threat model are documented in `../phases/phase7/PHASE_7B_DESIGN.md` and `../phases/phase7/PHASE_7B_THREAT_MODEL.md`.
 
 Future ordering:
 
-1. Phase 7 — Access Modes, Keys, and License Authorization
+1. Phase 7B — Runtime License Enforcement
 2. Phase 9 — Internal Operations & Release Workflow
 3. Phase 10 — Scale & Infrastructure (Optional)
 

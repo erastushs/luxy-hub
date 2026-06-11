@@ -2,7 +2,7 @@
 
 Date: 2026-06-07
 Phase: 2 Finalization
-Status: ✅ COMPLIANT
+Status: ✅ COMPLIANT — historical Phase 2/3 compliance record. Phase 7A status is superseded by `../architecture/PHASE7_LICENSE_ARCHITECTURE.md` and `../PROJECT_STATUS.md`.
 
 ---
 
@@ -98,6 +98,8 @@ Status: ✅ COMPLIANT
 
 ## 7. Future License Compatibility
 
+> Historical note: this section predates Phase 7A implementation. Phase 7A is now complete/production ready for the implemented license foundation and dashboard scope. Phase 7B runtime enforcement remains planned.
+
 | Phase 7 Requirement | CDN MVP Readiness | Action Needed |
 |--------------------|-------------------|---------------|
 | Script access mode | ⚠️ Planned | Phase 7A.1: add `scripts.access_mode` with default `public`; supported values are `public`, `key_required`, `license_required` |
@@ -157,7 +159,7 @@ Compat:      85%  █████████████████░░░
 
 **GO — Production Ready (code and documentation).**
 
-Phase 3 (Creator Dashboard) compatibility is implemented. Phase 7 Access Modes, Keys, and License Authorization is planned but not started in code; marketplace, paid scripts, and creator economy are not part of the current roadmap. The CDN MVP is ready for database migration execution and endpoint testing (Phase 2C).
+Phase 3 (Creator Dashboard) compatibility is implemented. Historical Phase 7 planning notes in this report are superseded: Phase 7A is complete/production ready for the implemented license foundation and dashboard scope, while Phase 7B Runtime License Enforcement is planned and not started. Marketplace, paid scripts, and creator economy are not part of the current roadmap. The CDN MVP is ready for database migration execution and endpoint testing (Phase 2C).
 
 ### Remaining Work (Phase 2C)
 

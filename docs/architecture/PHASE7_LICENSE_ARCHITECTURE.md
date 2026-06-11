@@ -1,8 +1,8 @@
 # Phase 7 — Access Modes, Keys, and License Authorization Architecture
 
-Status: Active Development Phase / Documentation Approved Before Implementation
+Status: Phase 7A Complete / Production Ready; Phase 7B Planned
 Date: 2026-06-11
-Scope: Architecture and roadmap only. Do not create migrations, APIs, runtime behavior changes, or loader changes until Phase 7A.1 implementation begins.
+Scope: Current Phase 7A license foundation documentation plus Phase 7B runtime enforcement planning. Phase 7B design work is documented only; implementation has not started.
 
 ## 1. Approved Direction
 
@@ -29,9 +29,43 @@ Secure Delivery remains unchanged. Phase 7 only decides whether a delivery sessi
 | Phase 5 Secure Delivery | Complete |
 | Phase 6 Loader Integration / Analytics V1 | Complete |
 | Phase 8 Event Platform | Complete, production verified, Roblox verified |
-| Phase 7 | Active development phase |
+| Phase 7A | Complete, production ready |
+| Phase 7B | Planned / not started |
 
 Analytics V1 is complete and uses `script_executions` as the canonical execution event table for secure delivery sessions. Phase 7 should integrate license and key activity into analytics without changing the existing execution-count contract.
+
+## 2.1 Current Implementation Summary
+
+### Implemented
+
+- `scripts.access_mode` schema foundation with supported values `public`, `key_required`, and `license_required`.
+- License schema for hashed license keys, lifecycle status, nullable expiry, activity counters, and assignment limits.
+- License assignment schema with hashed customer identifiers, display names, lifecycle status, and timestamps.
+- Delivery authorization abstraction integrated at the delivery session boundary.
+- Existing Work.ink key validation integration for key-required access behavior.
+- License lifecycle management for create, enable, disable, and revoke operations.
+- Assignment management for create and remove operations.
+- Runtime license validation foundation using existing license data and assignment records.
+- License Management dashboard at `/dashboard/licenses`.
+- License Analytics dashboard at `/dashboard/licenses/analytics`.
+- License dashboard UX polish: search, filters, sorting, selection UI, confirmation dialogs, loading states, empty states, responsive remediation, and breadcrumb integration.
+
+### Planned
+
+- Phase 7B Runtime License Enforcement.
+- Atomic assignment capacity enforcement.
+- Strict `customer_identifier` handling for license-required delivery.
+- `license_key` request contract alignment.
+- Loader credential forwarding for key/license modes.
+- License counter updates during runtime authorization.
+- Runtime audit trail for license authorization decisions.
+
+### Future Work
+
+- Analytics V2 license reporting.
+- Production hardening.
+- Final security audit.
+- Optional assignment lifecycle expansion beyond create/remove.
 
 ## 3. Relationship to Existing System
 
@@ -342,52 +376,83 @@ Audit logging should follow the existing fire-and-forget pattern. Audit failures
 
 ## 11. Roadmap
 
-### Phase 7A.1 — Schema Foundation
+### Phase 7A.1 — Schema Foundation — Complete
 
 - `scripts.access_mode`
 - `licenses`
 - `license_assignments`
 - Constraints, indexes, ownership model, and RLS design
 
-### Phase 7A.2 — Authorization Abstraction
+### Phase 7A.2 — Authorization Abstraction — Complete
 
 - `authorizeDeliveryAccess()`
 - Delivery session request contract for `key`, `license_key`, and `customer_identifier`
 - Tests for all access-mode branches before behavior rollout
 
-### Phase 7A.3 — Key Required Mode
+### Phase 7A.3 — Key Required Mode — Complete
 
 - Integrate existing Work.ink key validation into delivery session creation
 - Map `access_mode = key_required` to the existing key ecosystem
 - Preserve `/get-key`, `/api/generate-key`, `/api/validate`, and `/api/verify-workink`
 
-### Phase 7A.4 — License Services
+### Phase 7A.4 — License Services — Complete
 
 - Generate license
 - Revoke/disable license
 - Assignment management
 - Hash license keys before storage
 
-### Phase 7A.5 — License Delivery Authorization
+### Phase 7A.4.5 — Assignment System — Complete
+
+- Assignment create/list/remove workflow.
+- Creator-facing display names.
+- Hashed customer identifier storage.
+
+### Phase 7A.5 — License Delivery Authorization — Complete
 
 - Enforce `access_mode = license_required`
 - Validate license status and `expires_at`
 - Check/create assignments under `max_assignments`
 - Update license activity counters
 
-### Phase 7A.6 — Dashboard & Loader UX
+### Phase 7A.6 — License Dashboard UI — Complete
 
-- Access mode selector
 - License management UI
-- Assignment/device management UI
-- Loader support for key and license modes
+- Assignment management UI
 
-### Phase 7A.7 — Hardening & Audit
+### Phase 7A.7 — License Analytics UI — Complete
 
-- Audit logs
-- Authorization monitoring
-- Analytics integration
-- Rate-limit and abuse monitoring for key/license attempts
+- Total/active/disabled/revoked license cards
+- Status distribution
+- Recent license activity table
+- Recent assignments table
+
+### Phase 7A.8 — License UX Polish — Complete
+
+- Advanced search
+- Status and assignment filters
+- Sorting controls
+- Bulk selection UI
+- Confirmation dialogs
+- Loading, empty, and responsive states
+
+### Phase 7A.9 — UI Remediation — Complete
+
+- License breadcrumbs
+- Race protection for dashboard fetches
+- Accurate bulk action reporting
+- Assignment metadata loading/error states
+- Analytics initial loading and stale refresh protection
+
+### Phase 7B — Runtime License Enforcement — Planned
+
+- Runtime capacity enforcement
+- Atomic assignment checks
+- Customer identifier validation
+- License key contract alignment
+- Loader credential forwarding
+- License counters
+- Runtime audit trail
 
 ## 12. Migration Strategy
 

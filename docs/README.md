@@ -2,16 +2,19 @@
 
 ## Current Status
 
-- Current Phase: Phase 7A.1 Schema Foundation
+- Current Phase: Phase 7B Runtime License Enforcement planning
 - Phase 8: Complete (100%), production verified, Roblox verified
 - Analytics V1: Complete
+- Phase 7A: Complete / production ready
 
-LuxyHub is ready for Phase 7A.1 Schema Foundation implementation planning. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope. Phase 7 is now the active development phase for `public`, `key_required`, and `license_required` access modes.
+LuxyHub has closed Phase 7A with the license foundation, license management dashboard, and license analytics dashboard production ready for the implemented UI/backend scope. Phase 7B is the next planning track for runtime license enforcement hardening, assignment capacity enforcement, loader credential forwarding, and runtime audit trail design. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
 
 ## Source of Truth Documents
 
 - `architecture/ARCHITECTURE.md` — current implementation architecture.
 - `architecture/PHASE7_LICENSE_ARCHITECTURE.md` — Phase 7 access mode, Work.ink key, and premium license architecture.
+- `phases/phase7/PHASE_7B_DESIGN.md` — Phase 7B runtime license enforcement design scope.
+- `phases/phase7/PHASE_7B_THREAT_MODEL.md` — Phase 7B license runtime threat model.
 - `roadmap/TODO.md` — roadmap, active phase, completed phases, and pending work.
 
 ## Production Scheduler
@@ -56,7 +59,9 @@ Scheduler notes:
 ### `phases/`
 
 - `phases/phase4/PHASE4_DOCUMENTATION_REVIEW.md` — Phase 4 documentation review.
-- `phases/phase7/README.md` — Phase 7 pointer to the source-of-truth license architecture.
+- `phases/phase7/README.md` — Phase 7 status and source-of-truth pointers.
+- `phases/phase7/PHASE_7B_DESIGN.md` — planned Phase 7B runtime enforcement design.
+- `phases/phase7/PHASE_7B_THREAT_MODEL.md` — planned Phase 7B runtime enforcement threat model.
 - `phases/phase7/historical/` — Phase 7 supporting historical records.
 - `phases/phase8/active/` — Phase 8 closeout and operational decisions retained after production verification.
 - `phases/phase8/historical/` — Phase 8 historical implementation records.
@@ -86,4 +91,29 @@ Scheduler notes:
 - Phase 4 — complete.
 - Phase 5 — complete.
 - Phase 6 — complete.
+- Analytics V1 — complete.
+- Phase 7A — complete / production ready.
 - Phase 8 — complete / formally closed at 100%, production verified, Roblox verified.
+
+## Project Status
+
+### Completed Systems
+
+- Authentication
+- Dashboard
+- Scripts
+- Secure Delivery
+- Analytics V1
+- Event Platform
+- License Foundation
+- License Dashboard
+
+### In Progress
+
+- Phase 7B Runtime License Enforcement
+
+### Not Started
+
+- Analytics V2
+- Production Hardening
+- Final Security Audit
