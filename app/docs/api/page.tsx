@@ -4,7 +4,7 @@ import { DOC_PATHS } from '@/app/lib/docs/document-paths'
 import { DocsMarkdownContent } from '@/app/lib/docs/docs-markdown-content'
 
 export default function ApiDocsPage() {
-  const content = fs.readFileSync(DOC_PATHS.apiIntegration, 'utf-8')
+  const content = fs.readFileSync(DOC_PATHS.apiReference, 'utf-8')
 
   return (
     <div className="min-h-screen bg-[#0d0d0d]">

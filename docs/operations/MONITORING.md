@@ -1,6 +1,6 @@
 # LuxyHub — Monitoring Architecture
 
-Last updated: 2026-06-10
+Last updated: 2026-06-11
 
 Status: External monitoring plan. Better Stack, Uptime Kuma, status page, and external alert routing are pending infrastructure; Vercel deployment and the GitHub Actions event-worker scheduler are already implemented.
 ---
@@ -409,6 +409,145 @@ WHERE created_at > NOW() - INTERVAL '24 hours';
 | Rate limit table > 100k rows | Manual / Cron | **P2** | Cleanup cron not running — run manually |
 | Active keys > 10,000 | Manual SQL | **P3** | Key generation abuse — review verification_logs |
 | Database > 80% capacity | Supabase Dashboard | **P3** | Plan for optimization or upgrade |
+
+### 7.1.1 Internal Alerts
+
+Internal application alerts are persisted in `alert_events` and evaluated by `checkAlerts()` after each `/api/internal/event-worker` run. High and critical internal alerts are routed to `INTERNAL_ALERT_DISCORD_WEBHOOK` when configured.
+
+| Alert Type | Source | Low | Medium | High | Critical | Primary Response |
+|------------|--------|-----|--------|------|----------|------------------|
+| `queue_backlog_spike` | Pending `event_logs` count | 100 | 500 | 1000 | 5000 | Run event worker, inspect provider failures, drain backlog |
+| `dead_letter_spike` | Dead-letter `event_logs` count | 10 | 50 | 100 | 500 | Group dead letters by script/error, fix config/provider, replay carefully |
+| `invalid_signature_spike` | `verification_logs.event = 'event.invalid_signature'` | 20 | 50 | 100 | 500 | Investigate runtime signing, possible abuse, recent loader changes |
+| `replay_attack_spike` | `verification_logs.event = 'event.replay_attempt'` | 5 | 10 | 50 | 100 | Treat as security signal, inspect sessions/nonces, escalate if widespread |
+| `webhook_failure_burst` | `verification_logs.event = 'webhook.provider_failure'` | 10 | 30 | 100 | 500 | Check Discord/provider status and creator webhook configs |
+| `auth_failure_spike` | `verification_logs.event = 'event.auth_failure'` | 30 | 100 | 500 | 1000 | Check expired sessions, bad clients, bot traffic, possible attack |
+
+Alert lifecycle:
+
+- One active alert per alert type is deduplicated.
+- Alerts resolve automatically when the current value falls below the threshold stored on the active alert.
+- Alert records are internal operational data and are service-role-only through RLS.
+
+### 7.1.2 Alert Routing
+
+| Severity | Route | Response Target | Notes |
+|----------|-------|-----------------|-------|
+| Critical | Discord internal alert webhook, on-call/incident lead | Immediate | Open incident, assess P0/P1 impact |
+| High | Discord internal alert webhook, on-call | 30 minutes | Triage and begin mitigation |
+| Medium | Operations dashboard/review, optional Discord summary | Same business day | Watch trend and fix root cause |
+| Low | Operations dashboard/review | Next review window | Track for tuning or cleanup |
+
+Routing rules:
+
+- External uptime monitors remain the primary detector for website/API outages.
+- Internal alerts are the primary detector for event queue, webhook, and event security degradation.
+- If internal alert routing fails but `alert_events` rows are created, monitoring is degraded but alert persistence still works.
+- If both external and internal alerts fire, classify by user impact and data/security risk, not by number of alerts.
+
+### 7.1.3 Event Backlog Response
+
+Use `docs/operations/EVENT_QUEUE_RUNBOOK.md` for the full runbook.
+
+Immediate checks:
+
+```sql
+SELECT delivery_status, COUNT(*)
+FROM event_logs
+GROUP BY delivery_status;
+```
+
+```sql
+SELECT id, script_id, event_type, retry_count, received_at, claimed_at, error_message
+FROM event_logs
+WHERE delivery_status = 'pending'
+ORDER BY received_at ASC
+LIMIT 20;
+```
+
+Response summary:
+
+- Confirm GitHub Actions/Vercel Cron is calling `POST /api/internal/event-worker` every 5 minutes.
+- Manually run the worker with `CRON_SECRET`.
+- If events are retrying, inspect provider failures and `webhook_config`.
+- If claims are stale, wait for 15-minute lease recovery or clear stale claims only after confirming no worker is active.
+- Do not bulk replay dead letters until provider/config issues are fixed.
+
+### 7.1.4 Build Failure Response
+
+Use `docs/operations/BUILD_OPERATIONS.md` for the full runbook.
+
+Immediate checks:
+
+```sql
+SELECT build_status, COUNT(*)
+FROM delivery_builds
+GROUP BY build_status;
+```
+
+```sql
+SELECT id, script_id, version_id, build_status, build_error_code, build_error_message, updated_at
+FROM delivery_builds
+WHERE build_status IN ('failed', 'pending', 'building')
+ORDER BY updated_at DESC
+LIMIT 50;
+```
+
+Response summary:
+
+- `empty_source`: creator/source issue; update source and rebuild.
+- `missing_payload_secret`: environment issue; restore secret, redeploy if needed, rebuild.
+- Stale `pending`/`building`: inspect function logs and trigger manual rebuild after confirming no active build.
+- Secret rotation delivery failures: rebuild current deliverable versions under active `DELIVERY_PAYLOAD_SECRET` and `DELIVERY_PAYLOAD_KEY_ID`.
+
+### 7.1.5 Webhook Failure Response
+
+Use `docs/operations/EVENT_QUEUE_RUNBOOK.md` for the full runbook.
+
+Immediate checks:
+
+```sql
+SELECT event, message, created_at
+FROM verification_logs
+WHERE event LIKE 'webhook.%'
+ORDER BY created_at DESC
+LIMIT 50;
+```
+
+Response summary:
+
+- Check Discord/provider status.
+- Verify `webhook_config.enabled` and provider URL for affected script.
+- Replace revoked/invalid webhook URLs.
+- Replay dead letters only after the provider/config issue is resolved.
+
+### 7.1.6 License Incident Response
+
+License foundation monitoring is focused on owner isolation, invalid/revoked access attempts, abnormal assignment growth, and dashboard/API health.
+
+Immediate checks:
+
+```sql
+SELECT status, COUNT(*)
+FROM licenses
+GROUP BY status;
+```
+
+```sql
+SELECT l.script_id, l.status, COUNT(a.id) AS assignments
+FROM licenses l
+LEFT JOIN license_assignments a ON a.license_id = l.id
+GROUP BY l.script_id, l.status
+ORDER BY assignments DESC
+LIMIT 50;
+```
+
+Response summary:
+
+- Suspected leaked license: disable or revoke affected license, inspect assignments, review audit logs.
+- Incorrect owner access: treat as security incident, preserve logs, stop related deploys, verify RLS and service ownership checks.
+- Assignment abuse: disable affected license, inspect `customer_identifier_hash` patterns, review API logs.
+- License dashboard/API outage: verify auth/session, Supabase service role, and license table RLS policies.
 
 ### 7.2 Quiet Hours Policy
 

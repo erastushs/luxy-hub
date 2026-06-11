@@ -3,6 +3,7 @@
 ## Current Status
 
 - Current Phase: Phase 7B Runtime License Enforcement planning
+- Documentation Status: DOCUMENTATION COMPLETE
 - Phase 8: Complete (100%), production verified, Roblox verified
 - Analytics V1: Complete
 - Phase 7A: Complete / production ready
@@ -13,6 +14,7 @@ LuxyHub has closed Phase 7A with the license foundation, license management dash
 
 - `architecture/ARCHITECTURE.md` — current implementation architecture.
 - `architecture/PHASE7_LICENSE_ARCHITECTURE.md` — Phase 7 access mode, Work.ink key, and premium license architecture.
+- `architecture/decisions/` — accepted Architecture Decision Records required before Phase 7B implementation.
 - `phases/phase7/PHASE_7B_DESIGN.md` — Phase 7B runtime license enforcement design scope.
 - `phases/phase7/PHASE_7B_THREAT_MODEL.md` — Phase 7B license runtime threat model.
 - `roadmap/TODO.md` — roadmap, active phase, completed phases, and pending work.
@@ -40,6 +42,19 @@ Scheduler notes:
 - `architecture/ARCHITECTURE.md` — current system architecture.
 - `architecture/CDN_DATABASE.md` — CDN/database reference.
 - `architecture/PHASE7_LICENSE_ARCHITECTURE.md` — source-of-truth Phase 7 access mode and license architecture.
+- `architecture/decisions/` — accepted ADRs for delivery, event queue, scheduler, alerts, builds, monitoring counters, webhook credentials, payload secrets, and license authorization.
+
+#### Architecture Decision Records
+
+- `architecture/decisions/ADR-001-delivery-session-authorization-boundary.md` — delivery session authorization boundary.
+- `architecture/decisions/ADR-002-postgres-backed-event-queue.md` — PostgreSQL-backed event queue.
+- `architecture/decisions/ADR-003-github-actions-event-worker-scheduler.md` — GitHub Actions event worker scheduler.
+- `architecture/decisions/ADR-004-inline-alert-evaluation.md` — inline alert evaluation after worker execution.
+- `architecture/decisions/ADR-005-build-automation-failure-model.md` — build automation failure and recovery model.
+- `architecture/decisions/ADR-006-verification-logs-as-monitoring-counters.md` — verification logs as monitoring counters.
+- `architecture/decisions/ADR-007-webhook-credential-storage-risk.md` — webhook credential storage risk and mitigations.
+- `architecture/decisions/ADR-008-payload-secret-fallback-policy.md` — payload secret fallback and rotation policy.
+- `architecture/decisions/ADR-009-license-authorization-model.md` — Phase 7A license authorization model and Phase 7B boundary.
 
 ### `roadmap/`
 

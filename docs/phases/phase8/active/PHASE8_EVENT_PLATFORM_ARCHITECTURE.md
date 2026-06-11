@@ -1,5 +1,12 @@
 # Phase 8 — Event Reporting & Webhook Platform Architecture
 
+> **HISTORICAL DOCUMENT — NOT CURRENT SOURCE OF TRUTH**
+>
+> This file preserves Phase 8 architecture history and may contain superseded
+> request fields, signing details, timestamp windows, event names, and provider
+> planning notes. The canonical current Event Platform integration contract is
+> `../../../integration/EVENT_PLATFORM_INTEGRATION.md`.
+
 Status: Implemented / Superseded by `PHASE8_CLOSEOUT.md`
 Date: 2026-06-10
 Scope: Historical architecture record plus current implementation notes. Phase 8 is complete/100% for the Discord-backed production scope.

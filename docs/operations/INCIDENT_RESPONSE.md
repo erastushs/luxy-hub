@@ -1,6 +1,6 @@
 # LuxyHub — Incident Response Plan
 
-Last updated: 2026-06-07
+Last updated: 2026-06-11
 
 ---
 
@@ -24,12 +24,24 @@ Last updated: 2026-06-07
 - `/api/generate-key` returns 500 for all requests
 - Rate limiter fail-closed (all requests 429)
 - Key validation success rate drops below 90%
+- Event queue pending backlog exceeds 1000 or oldest pending age exceeds 30 minutes
+- Secure delivery build failures affect multiple active scripts
+- License ownership or assignment isolation issue suspected
 
 ### P2 Triggers
 - Single API endpoint returns elevated error rate
 - Rate limiting too aggressive for specific IPs
 - Cleanup cron job fails repeatedly
 - Dashboard partially degraded
+- Event queue pending backlog exceeds 500 without broad user impact
+- Webhook delivery failures affect one provider or a small set of scripts
+- License dashboard/API degraded without confirmed security impact
+
+### P3 Triggers
+- Individual creator webhook misconfiguration
+- Individual script build failure caused by empty source
+- Internal alert routing degraded while alert records still persist
+- Minor analytics/reporting inconsistencies without runtime impact
 
 ---
 
@@ -301,6 +313,190 @@ curl -s -X POST https://luxyhub.vercel.app/api/internal/event-worker \
 - Restore the Vercel daily cleanup cron for retention cleanup.
 - Do not use `https://www.luxyhub.space/api/internal/event-worker` for GitHub Actions; use the Vercel hostname to avoid Cloudflare challenges.
 
+### 3.8 P1/P2 — Event Backlog Incident
+
+**Symptom:** `queue_backlog_spike` alert fires, pending `event_logs` count grows, or creators report delayed webhook events.
+
+**Response Steps:**
+
+```bash
+# Step 1: Run worker manually
+curl -s -X POST https://luxyhub.vercel.app/api/internal/event-worker \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+```sql
+-- Step 2: Measure backlog
+SELECT delivery_status, COUNT(*)
+FROM event_logs
+GROUP BY delivery_status;
+
+-- Step 3: Inspect oldest pending events
+SELECT id, script_id, event_type, retry_count, received_at, claimed_at, error_message
+FROM event_logs
+WHERE delivery_status = 'pending'
+ORDER BY received_at ASC
+LIMIT 20;
+
+-- Step 4: Check active alerts
+SELECT alert_type, severity, current_value, threshold_value, created_at
+FROM alert_events
+WHERE status = 'active'
+ORDER BY created_at DESC;
+```
+
+**Containment:**
+
+- If worker auth fails, rotate/fix `CRON_SECRET` and scheduler secrets.
+- If worker succeeds but backlog remains, repeat worker runs at controlled intervals.
+- If provider failures are driving retries, stop bulk replay and fix provider/webhook config first.
+- If stale claims are older than 15 minutes, allow lease recovery or clear stale claims only after confirming no worker is active.
+
+**Resolution:**
+
+- Restore scheduler cadence.
+- Drain pending queue.
+- Resolve provider/config issues.
+- Confirm alert auto-resolves after backlog drops below threshold.
+- Follow `docs/operations/EVENT_QUEUE_RUNBOOK.md` for detailed replay/dead-letter handling.
+
+### 3.9 P1/P2 — Build Failure Incident
+
+**Symptom:** `delivery_builds` failures increase, creators cannot publish deliverable scripts, or `/api/delivery/session` returns `Delivery unavailable` for scripts that should be deliverable.
+
+**Response Steps:**
+
+```sql
+-- Step 1: Build status distribution
+SELECT build_status, COUNT(*)
+FROM delivery_builds
+GROUP BY build_status;
+
+-- Step 2: Recent failures and stale builds
+SELECT id, script_id, version_id, build_status, build_error_code, build_error_message, updated_at
+FROM delivery_builds
+WHERE build_status IN ('failed', 'pending', 'building')
+ORDER BY updated_at DESC
+LIMIT 50;
+```
+
+**Containment:**
+
+- If caused by deployment, roll back to the last known good production deployment.
+- If caused by missing payload secret, restore `DELIVERY_PAYLOAD_SECRET` and redeploy if required.
+- If caused by bad source content, keep existing ready build active and have creator fix source.
+- Do not invalidate previous ready builds unless a new ready build exists and has been validated.
+
+**Resolution:**
+
+- Rebuild affected current versions.
+- Verify new rows are `ready` and have expected `encryption_key_id`.
+- Test `/api/delivery/session` and `/api/delivery/fetch` for representative scripts.
+- Follow `docs/operations/BUILD_OPERATIONS.md` for detailed recovery.
+
+### 3.10 P1/P2 — Webhook Failure Incident
+
+**Symptom:** `webhook_failure_burst` alert fires, events move to dead letter, or creator Discord notifications stop.
+
+**Response Steps:**
+
+```sql
+-- Step 1: Check webhook counters
+SELECT event, message, created_at
+FROM verification_logs
+WHERE event LIKE 'webhook.%'
+ORDER BY created_at DESC
+LIMIT 50;
+
+-- Step 2: Check failed events with configs
+SELECT e.id, e.script_id, e.retry_count, e.delivery_status, e.error_message, w.provider, w.enabled
+FROM event_logs e
+LEFT JOIN webhook_config w ON w.script_id = e.script_id
+WHERE e.delivery_status IN ('pending', 'dead_letter')
+ORDER BY e.received_at DESC
+LIMIT 50;
+```
+
+**Containment:**
+
+- If provider outage is confirmed, pause replay and communicate degraded webhook delivery.
+- If a creator webhook URL is revoked/invalid, disable or update that config.
+- Avoid mass replay while provider rate limits or outage continue.
+
+**Resolution:**
+
+- Restore provider config or wait for provider recovery.
+- Replay dead letters in small batches.
+- Confirm `webhook.delivery_success` counters resume.
+- Follow `docs/operations/EVENT_QUEUE_RUNBOOK.md` for detailed dead-letter replay.
+
+### 3.11 P1/Security — License Incident
+
+**Symptom:** Suspected license leak, unexpected assignment growth, invalid owner access, license API isolation concern, or license dashboard exposing incorrect data.
+
+**Response Steps:**
+
+```sql
+-- Step 1: License status distribution
+SELECT status, COUNT(*)
+FROM licenses
+GROUP BY status;
+
+-- Step 2: Largest assignment sets
+SELECT l.id, l.script_id, l.creator_id, l.status, COUNT(a.id) AS assignments
+FROM licenses l
+LEFT JOIN license_assignments a ON a.license_id = l.id
+GROUP BY l.id, l.script_id, l.creator_id, l.status
+ORDER BY assignments DESC
+LIMIT 50;
+
+-- Step 3: Recent license audit records when available
+SELECT actor_id, action, resource_type, resource_id, resource_slug, created_at
+FROM audit_logs
+WHERE resource_type LIKE '%license%'
+ORDER BY created_at DESC
+LIMIT 50;
+```
+
+**Containment:**
+
+- Disable or revoke suspected leaked licenses.
+- Preserve `audit_logs`, relevant `licenses`, `license_assignments`, and function logs.
+- If owner isolation is suspected, stop related deploys and treat as a security incident.
+- Do not delete license rows during investigation unless approved by incident lead.
+
+**Resolution:**
+
+- Verify RLS policies for `licenses` and `license_assignments`.
+- Verify application services derive owner id from session, not client input.
+- Rotate affected license keys by revoking old licenses and issuing new ones.
+- Review assignment hashes and customer impact.
+- Complete security post-incident review for isolation or leakage incidents.
+
+### 3.12 P1/P2 — Internal Alert Routing Failure
+
+**Symptom:** `alert_events` rows are created but Discord/internal alert notifications do not arrive.
+
+**Response Steps:**
+
+```sql
+SELECT alert_type, severity, status, message, created_at, resolved_at
+FROM alert_events
+ORDER BY created_at DESC
+LIMIT 50;
+```
+
+**Containment:**
+
+- Use the operations dashboard or SQL as source of truth while routing is degraded.
+- Manually notify on-call for high/critical active alerts.
+
+**Resolution:**
+
+- Verify `INTERNAL_ALERT_DISCORD_WEBHOOK` in Vercel production.
+- Rotate Discord webhook if revoked or exposed.
+- Run `/api/internal/event-worker` or `/api/internal/check-alerts` with `CRON_SECRET` to validate alert evaluation.
+
 ---
 
 ## 4. Communication Templates
@@ -395,6 +591,13 @@ Conduct within 48 hours of incident resolution. Document in `INCIDENT_REPORTS/`.
 | Supabase DB Status | Supabase Dashboard | Connection failure | Email |
 | SSL Certificate Expiry | Cloudflare | < 30 days | Email |
 | Vercel Deploy Failure | Vercel | On failure | Email |
+| Queue Backlog Spike | `alert_events` / event worker | Pending events >= configured threshold | Internal Discord / Operations dashboard |
+| Dead Letter Spike | `alert_events` / event worker | Dead letters >= configured threshold | Internal Discord / Operations dashboard |
+| Invalid Signature Spike | `alert_events` / event worker | Invalid signatures >= configured threshold | Internal Discord / Security lead |
+| Replay Attack Spike | `alert_events` / event worker | Replay attempts >= configured threshold | Internal Discord / Security lead |
+| Webhook Failure Burst | `alert_events` / event worker | Provider failures >= configured threshold | Internal Discord / Operations dashboard |
+| Auth Failure Spike | `alert_events` / event worker | Auth failures >= configured threshold | Internal Discord / Security lead |
+| License Incident | Audit/API reports | Owner isolation, leak, or abnormal assignment growth | Security lead / Incident lead |
 
 ### 6.2 Health Check Endpoints
 
@@ -489,6 +692,32 @@ curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
 4. Redeploy immediately
 5. Verify: `curl https://luxyhub.vercel.app/api/health`
 
+### 7.5 Delivery Payload Secret Recovery
+
+1. Restore or rotate `DELIVERY_PAYLOAD_SECRET` in Vercel.
+2. Set `DELIVERY_PAYLOAD_KEY_ID` to the expected non-secret generation id.
+3. Redeploy if required.
+4. Rebuild current deliverable script versions.
+5. Verify `delivery_builds.encryption_key_id` and `build_status = 'ready'`.
+6. Test `/api/delivery/session` and `/api/delivery/fetch` for known scripts.
+
+### 7.6 Event Queue Recovery
+
+1. Restore `CRON_SECRET` and scheduler configuration.
+2. Run `/api/internal/event-worker` manually.
+3. Inspect pending/dead-letter counts.
+4. Fix webhook/provider root causes.
+5. Replay dead letters in small batches after root cause is fixed.
+6. Confirm `queue_backlog_spike` and `dead_letter_spike` alerts resolve.
+
+### 7.7 License Incident Recovery
+
+1. Disable or revoke affected licenses.
+2. Preserve logs and database rows for investigation.
+3. Verify owner-scoped access for affected creator accounts.
+4. Issue replacement licenses when appropriate.
+5. Document affected scripts, customers, and remediation.
+
 ---
 
 ## 8. Key Contacts & Resources
@@ -510,6 +739,12 @@ curl -s -X POST https://luxyhub.vercel.app/api/cleanup \
 | Integration Docs | `../archive/integration/API_INTEGRATION.md` |
 | Database Schema | `schema.sql` |
 | RLS Migration | `migrations/001_enable_rls.sql` |
+| Database Docs | `docs/database/SCHEMA.md` |
+| RLS Policy Docs | `docs/database/RLS_POLICIES.md` |
+| Event Queue Runbook | `docs/operations/EVENT_QUEUE_RUNBOOK.md` |
+| Build Operations Runbook | `docs/operations/BUILD_OPERATIONS.md` |
+| Secret Rotation Runbook | `docs/operations/SECRET_ROTATION.md` |
+| Backup/DR Runbook | `docs/operations/BACKUP_DR.md` |
 
 ---
 
@@ -540,6 +775,10 @@ Test these scenarios quarterly:
 3. **Rate limiter fail-closed test** — Verify cleanup restores service
 4. **CRON_SECRET rotation test** — Verify rotation procedure works
 5. **Database restore test** — Verify backup integrity and RLS re-application
+6. **Event backlog drill** — Disable scheduler in a non-production environment and verify backlog recovery
+7. **Build failure drill** — Force a safe failed build in a non-production environment and verify rebuild recovery
+8. **Webhook failure drill** — Use an invalid test webhook and verify dead-letter/replay procedure
+9. **License incident tabletop** — Verify revoke/disable, evidence preservation, and owner isolation checks
 
 ### 10.2 Test Commands
 

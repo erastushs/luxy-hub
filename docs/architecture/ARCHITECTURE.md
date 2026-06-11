@@ -387,6 +387,22 @@ Future improvements:
 - Login anomaly detection beyond local failed-attempt counters
 - Phase 7 authorization monitoring for access mode, Work.ink key, and license-required session attempts
 
+## Architecture Decisions
+
+Accepted Architecture Decision Records are stored in `docs/architecture/decisions/`.
+
+Current accepted decisions:
+
+- `decisions/ADR-001-delivery-session-authorization-boundary.md` — delivery sessions are the server-side authorization boundary before one-time payload fetch.
+- `decisions/ADR-002-postgres-backed-event-queue.md` — runtime events use a PostgreSQL-backed queue instead of Redis or an external broker at current scale.
+- `decisions/ADR-003-github-actions-event-worker-scheduler.md` — GitHub Actions schedules the event worker against the Vercel hostname.
+- `decisions/ADR-004-inline-alert-evaluation.md` — internal alerts are evaluated inline after worker execution, with no separate alert scheduler.
+- `decisions/ADR-005-build-automation-failure-model.md` — source mutations and derived delivery build generation have separate failure and recovery behavior.
+- `decisions/ADR-006-verification-logs-as-monitoring-counters.md` — monitoring counters originate from `verification_logs` and runtime event tables until a dedicated metrics system is justified.
+- `decisions/ADR-007-webhook-credential-storage-risk.md` — current webhook credential storage risks are accepted with operational mitigations and rotation processes.
+- `decisions/ADR-008-payload-secret-fallback-policy.md` — payload encryption prefers `DELIVERY_PAYLOAD_SECRET` with documented fallback and rotation implications.
+- `decisions/ADR-009-license-authorization-model.md` — `scripts.access_mode` is the accepted license/key/public delivery authorization model, with Phase 7B hardening planned but not implemented.
+
 ## Roadmap Alignment
 
 Current phase:
