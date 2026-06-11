@@ -14,13 +14,17 @@ import { supabaseAdmin } from '@/app/lib/supabase'
 import {
   createLicense,
   createLicenseAssignment,
+  disableLicense,
+  enableLicense,
   getLicenseAssignments,
   getLicenseById,
   getLicensesForScript,
+  removeLicenseAssignment,
   revokeLicense,
 } from '@/app/lib/repositories/license-repository'
 
 type QueryChain = {
+  delete: Mock
   insert: Mock
   update: Mock
   select: Mock
@@ -68,6 +72,7 @@ function createQueryChain(
   error: unknown = null
 ): QueryChain {
   const chain = {} as QueryChain
+  chain.delete = vi.fn(() => chain)
   chain.insert = vi.fn(() => chain)
   chain.update = vi.fn(() => chain)
   chain.select = vi.fn(() => chain)
@@ -146,6 +151,28 @@ describe('license repository', () => {
     expect(chain.eq).toHaveBeenCalledWith('id', 'license-uuid-1')
   })
 
+  it('disables and enables license rows by status only', async () => {
+    const disabled = mockLicenseRow({ status: 'disabled' })
+    const active = mockLicenseRow({ status: 'active' })
+    const chain = createQueryChain(disabled)
+    mockedFrom.mockReturnValue(chain)
+
+    await expect(disableLicense('license-uuid-1')).resolves.toEqual(disabled)
+    expect(chain.update).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'disabled',
+    }))
+    expect(chain.eq).toHaveBeenCalledWith('id', 'license-uuid-1')
+
+    const enableChain = createQueryChain(active)
+    mockedFrom.mockReturnValue(enableChain)
+
+    await expect(enableLicense('license-uuid-1')).resolves.toEqual(active)
+    expect(enableChain.update).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'active',
+    }))
+    expect(enableChain.eq).toHaveBeenCalledWith('id', 'license-uuid-1')
+  })
+
   it('creates assignments with hashed generic customer identifiers', async () => {
     const row = mockAssignmentRow()
     const chain = createQueryChain(row)
@@ -175,5 +202,18 @@ describe('license repository', () => {
     await expect(getLicenseAssignments('license-uuid-1')).resolves.toEqual([row])
     expect(chain.eq).toHaveBeenCalledWith('license_id', 'license-uuid-1')
     expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false })
+  })
+
+  it('removes assignments by id', async () => {
+    const row = mockAssignmentRow()
+    const chain = createQueryChain(row)
+    mockedFrom.mockReturnValue(chain)
+
+    await expect(removeLicenseAssignment('assignment-uuid-1')).resolves.toEqual(row)
+    expect(mockedFrom).toHaveBeenCalledWith('license_assignments')
+    expect(chain.delete).toHaveBeenCalled()
+    expect(chain.eq).toHaveBeenCalledWith('id', 'assignment-uuid-1')
+    expect(chain.select).toHaveBeenCalled()
+    expect(chain.maybeSingle).toHaveBeenCalled()
   })
 })

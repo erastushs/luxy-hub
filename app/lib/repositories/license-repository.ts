@@ -116,10 +116,22 @@ export async function getLicensesForScript(scriptId: string): Promise<LicenseRow
 }
 
 export async function revokeLicense(id: string): Promise<LicenseRow | null> {
+  return updateLicenseStatus(id, 'revoked')
+}
+
+export async function disableLicense(id: string): Promise<LicenseRow | null> {
+  return updateLicenseStatus(id, 'disabled')
+}
+
+export async function enableLicense(id: string): Promise<LicenseRow | null> {
+  return updateLicenseStatus(id, 'active')
+}
+
+async function updateLicenseStatus(id: string, status: LicenseStatus): Promise<LicenseRow | null> {
   const { data, error } = await supabaseAdmin
     .from('licenses')
     .update({
-      status: 'revoked',
+      status,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
@@ -160,4 +172,16 @@ export async function getLicenseAssignments(licenseId: string): Promise<LicenseA
 
   if (error) throw error
   return (data as unknown as LicenseAssignmentRow[]) ?? []
+}
+
+export async function removeLicenseAssignment(id: string): Promise<LicenseAssignmentRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('license_assignments')
+    .delete()
+    .eq('id', id)
+    .select(LICENSE_ASSIGNMENT_SELECT)
+    .maybeSingle()
+
+  if (error) throw error
+  return data as unknown as LicenseAssignmentRow | null
 }
