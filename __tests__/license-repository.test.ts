@@ -1,0 +1,179 @@
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import type {
+  LicenseAssignmentRow,
+  LicenseRow,
+} from '@/app/lib/repositories/license-repository'
+
+vi.mock('@/app/lib/supabase', () => ({
+  supabaseAdmin: {
+    from: vi.fn(),
+  },
+}))
+
+import { supabaseAdmin } from '@/app/lib/supabase'
+import {
+  createLicense,
+  createLicenseAssignment,
+  getLicenseAssignments,
+  getLicenseById,
+  getLicensesForScript,
+  revokeLicense,
+} from '@/app/lib/repositories/license-repository'
+
+type QueryChain = {
+  insert: Mock
+  update: Mock
+  select: Mock
+  eq: Mock
+  order: Mock
+  maybeSingle: Mock
+  single: Mock
+  then: (resolve: (value: { data?: unknown; error: unknown }) => void) => void
+}
+
+function mockLicenseRow(overrides: Partial<LicenseRow> = {}): LicenseRow {
+  return {
+    id: 'license-uuid-1',
+    script_id: 'script-uuid-1',
+    creator_id: 'creator-uuid-1',
+    key_hash: 'a'.repeat(64),
+    max_assignments: 1,
+    status: 'active',
+    activation_count: 0,
+    delivery_count: 0,
+    last_activation_at: null,
+    last_delivery_at: null,
+    expires_at: null,
+    created_at: '2026-06-11T00:00:00.000Z',
+    updated_at: '2026-06-11T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function mockAssignmentRow(overrides: Partial<LicenseAssignmentRow> = {}): LicenseAssignmentRow {
+  return {
+    id: 'assignment-uuid-1',
+    license_id: 'license-uuid-1',
+    customer_identifier_hash: 'b'.repeat(64),
+    display_name: 'Customer 1',
+    status: 'active',
+    created_at: '2026-06-11T00:00:00.000Z',
+    updated_at: '2026-06-11T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function createQueryChain(
+  data: LicenseRow | LicenseRow[] | LicenseAssignmentRow | LicenseAssignmentRow[] | null,
+  error: unknown = null
+): QueryChain {
+  const chain = {} as QueryChain
+  chain.insert = vi.fn(() => chain)
+  chain.update = vi.fn(() => chain)
+  chain.select = vi.fn(() => chain)
+  chain.eq = vi.fn(() => chain)
+  chain.order = vi.fn(() => chain)
+  chain.maybeSingle = vi.fn(async () => ({
+    data: Array.isArray(data) ? data[0] ?? null : data,
+    error,
+  }))
+  chain.single = vi.fn(async () => ({
+    data: Array.isArray(data) ? data[0] ?? null : data,
+    error,
+  }))
+  chain.then = (resolve) => {
+    resolve({ data, error })
+  }
+  return chain
+}
+
+describe('license repository', () => {
+  const mockedFrom = supabaseAdmin.from as unknown as Mock
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('creates license rows with hashed keys only', async () => {
+    const row = mockLicenseRow()
+    const chain = createQueryChain(row)
+    mockedFrom.mockReturnValue(chain)
+
+    const result = await createLicense({
+      scriptId: 'script-uuid-1',
+      creatorId: 'creator-uuid-1',
+      keyHash: 'a'.repeat(64),
+      maxAssignments: 3,
+      expiresAt: null,
+    })
+
+    expect(result).toEqual(row)
+    expect(mockedFrom).toHaveBeenCalledWith('licenses')
+    expect(chain.insert).toHaveBeenCalledWith(expect.objectContaining({
+      script_id: 'script-uuid-1',
+      creator_id: 'creator-uuid-1',
+      key_hash: 'a'.repeat(64),
+      max_assignments: 3,
+      status: 'active',
+      expires_at: null,
+    }))
+  })
+
+  it('retrieves licenses by id and script without delivery integration', async () => {
+    const row = mockLicenseRow()
+    const chain = createQueryChain([row])
+    mockedFrom.mockReturnValue(chain)
+
+    await expect(getLicenseById('license-uuid-1')).resolves.toEqual(row)
+    expect(chain.eq).toHaveBeenCalledWith('id', 'license-uuid-1')
+
+    await expect(getLicensesForScript('script-uuid-1')).resolves.toEqual([row])
+    expect(chain.eq).toHaveBeenCalledWith('script_id', 'script-uuid-1')
+    expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false })
+  })
+
+  it('revokes a license by status only', async () => {
+    const row = mockLicenseRow({ status: 'revoked' })
+    const chain = createQueryChain(row)
+    mockedFrom.mockReturnValue(chain)
+
+    const result = await revokeLicense('license-uuid-1')
+
+    expect(result).toEqual(row)
+    expect(chain.update).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'revoked',
+    }))
+    expect(chain.eq).toHaveBeenCalledWith('id', 'license-uuid-1')
+  })
+
+  it('creates assignments with hashed generic customer identifiers', async () => {
+    const row = mockAssignmentRow()
+    const chain = createQueryChain(row)
+    mockedFrom.mockReturnValue(chain)
+
+    const result = await createLicenseAssignment({
+      licenseId: 'license-uuid-1',
+      customerIdentifierHash: 'b'.repeat(64),
+      displayName: 'Customer 1',
+    })
+
+    expect(result).toEqual(row)
+    expect(mockedFrom).toHaveBeenCalledWith('license_assignments')
+    expect(chain.insert).toHaveBeenCalledWith(expect.objectContaining({
+      license_id: 'license-uuid-1',
+      customer_identifier_hash: 'b'.repeat(64),
+      display_name: 'Customer 1',
+      status: 'active',
+    }))
+  })
+
+  it('lists assignments for a license', async () => {
+    const row = mockAssignmentRow()
+    const chain = createQueryChain([row])
+    mockedFrom.mockReturnValue(chain)
+
+    await expect(getLicenseAssignments('license-uuid-1')).resolves.toEqual([row])
+    expect(chain.eq).toHaveBeenCalledWith('license_id', 'license-uuid-1')
+    expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false })
+  })
+})
