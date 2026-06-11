@@ -69,6 +69,8 @@ CREATE TABLE IF NOT EXISTS scripts (
     CHECK (visibility IN ('public', 'private', 'unlisted')),
   creator_id uuid,
   current_version_id uuid,
+  execute_count bigint NOT NULL DEFAULT 0,
+  last_executed_at timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now()
 );
@@ -81,6 +83,12 @@ CREATE INDEX IF NOT EXISTS idx_scripts_visibility
 
 CREATE INDEX IF NOT EXISTS idx_scripts_creator_id
   ON scripts (creator_id);
+
+CREATE INDEX IF NOT EXISTS idx_scripts_execute_count
+  ON scripts (execute_count DESC);
+
+CREATE INDEX IF NOT EXISTS idx_scripts_last_executed_at
+  ON scripts (last_executed_at DESC);
 
 -- Immutable version history
 CREATE TABLE IF NOT EXISTS script_versions (
@@ -210,6 +218,23 @@ CREATE INDEX IF NOT EXISTS idx_delivery_sessions_expires_at
 
 CREATE INDEX IF NOT EXISTS idx_delivery_sessions_build_id
   ON delivery_sessions (build_id);
+
+-- Analytics V1 execution tracking
+CREATE TABLE IF NOT EXISTS script_executions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  script_id uuid NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
+  session_id uuid NOT NULL UNIQUE REFERENCES delivery_sessions(id) ON DELETE CASCADE,
+  created_at timestamp with time zone NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_script_executions_script_id
+  ON script_executions (script_id);
+
+CREATE INDEX IF NOT EXISTS idx_script_executions_created_at
+  ON script_executions (created_at);
+
+CREATE INDEX IF NOT EXISTS idx_script_executions_script_time
+  ON script_executions (script_id, created_at DESC);
 
 -- ============================================================================
 -- LuxyHub Event Platform - Phase 8B.1

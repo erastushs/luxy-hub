@@ -23,6 +23,10 @@ vi.mock('@/app/lib/repositories/delivery-session-repository', () => ({
   consumeSession: vi.fn(),
 }))
 
+vi.mock('@/app/lib/repositories/script-execution-repository', () => ({
+  recordExecution: vi.fn(),
+}))
+
 vi.mock('@/app/lib/delivery/runtime-payload', () => ({
   RUNTIME_FORMAT_VERSION: 'runtime-v1',
   createRuntimePayloadFromBuild: vi.fn(),
@@ -41,6 +45,7 @@ import {
   createSession,
   getSessionByTokenHash,
 } from '@/app/lib/repositories/delivery-session-repository'
+import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { createRuntimePayloadFromBuild } from '@/app/lib/delivery/runtime-payload'
 
 const mockedFindScriptBySlug = vi.mocked(findScriptBySlug)
@@ -49,6 +54,7 @@ const mockedGetBuildById = vi.mocked(getBuildById)
 const mockedCreateSession = vi.mocked(createSession)
 const mockedGetSessionByTokenHash = vi.mocked(getSessionByTokenHash)
 const mockedConsumeSession = vi.mocked(consumeSession)
+const mockedRecordExecution = vi.mocked(recordExecution)
 const mockedCreateRuntimePayloadFromBuild = vi.mocked(createRuntimePayloadFromBuild)
 
 function futureIso(seconds: number = 60): string {
@@ -125,6 +131,12 @@ describe('Phase 5C delivery session service', () => {
       version_id: 'version-uuid-1',
       runtime_format_version: 'runtime-v1',
     })
+    mockedRecordExecution.mockResolvedValue({
+      id: 'execution-uuid-1',
+      script_id: 'script-uuid-1',
+      session_id: 'session-uuid-1',
+      created_at: '2026-01-01T00:00:00.000Z',
+    })
   })
 
   it('creates a short-lived session and stores only a token hash', async () => {
@@ -142,6 +154,10 @@ describe('Phase 5C delivery session service', () => {
 
     expect(result.success).toBe(true)
     expect(mockedCreateSession).toHaveBeenCalledTimes(1)
+    expect(mockedRecordExecution).toHaveBeenCalledWith({
+      scriptId: 'script-uuid-1',
+      sessionId: 'session-uuid-1',
+    })
 
     const createParams = mockedCreateSession.mock.calls[0][0]
     expect(createParams.tokenHash).toMatch(/^[a-f0-9]{64}$/)
@@ -176,6 +192,10 @@ describe('Phase 5C delivery session service', () => {
       expiresAt: expect.any(String),
       eventSecret: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
     }))
+    expect(mockedRecordExecution).toHaveBeenCalledWith({
+      scriptId: 'script-uuid-1',
+      sessionId: 'session-uuid-1',
+    })
     if (result.success) {
       expect(result.event_secret).toBe(result.session.event_secret)
       expect(result).not.toHaveProperty('session_token_hash')

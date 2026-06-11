@@ -1,22 +1,22 @@
-import {
-  getCreatorAnalyticsOverview,
-  getScriptAnalyticsForOwner,
-  getDownloadTrendsForOwner,
-  getScriptDownloadTrendsForOwner,
-  listScriptsForOwner,
-  type CreatorAnalyticsOverview as CreatorAnalyticsOverviewType,
-  type ScriptAnalytics as ScriptAnalyticsType,
-  type DownloadTrendsResult as DownloadTrendsResultType,
-} from '@/app/lib/repositories/script-repository'
+import { supabaseAdmin } from '@/app/lib/supabase'
+import { getTopScripts as getTopScriptsRepo, type TopScript } from '@/app/lib/repositories/script-execution-repository'
+import { findScriptBySlugForOwner } from '@/app/lib/repositories/script-repository'
 
-export type { CreatorAnalyticsOverviewType, ScriptAnalyticsType, DownloadTrendsResultType }
-
-export type TopScript = {
-  name: string
-  slug: string
-  visibility: string
-  downloads: number
+export type CreatorAnalyticsOverviewType = {
+  total_scripts: number
+  published_scripts: number
+  private_scripts: number
+  unlisted_scripts: number
+  total_executions: number
 }
+
+export type ScriptAnalyticsType = {
+  slug: string
+  total_executions: number
+  last_executed_at: string | null
+}
+
+export type { TopScript }
 
 export type OverviewResult =
   | { success: true; overview: CreatorAnalyticsOverviewType }
@@ -26,20 +26,36 @@ export type ScriptAnalyticsResult =
   | { success: true; analytics: ScriptAnalyticsType }
   | { success: false; message: string; status: number }
 
-export type DownloadTrendsResult =
-  | { success: true; trends: DownloadTrendsResultType }
-  | { success: false; message: string; status: number }
-
-function parseRangeDays(range: string | null): 7 | 30 | null {
-  if (range === '7' || range === '7d' || range === 'last_7_days') return 7
-  if (range === '30' || range === '30d' || range === 'last_30_days') return 30
-  return null
-}
-
 export async function getOverview(ownerId: string): Promise<OverviewResult> {
   try {
-    const overview = await getCreatorAnalyticsOverview(ownerId)
-    return { success: true, overview }
+    const { data, error } = await supabaseAdmin
+      .from('scripts')
+      .select('visibility, execute_count')
+      .eq('creator_id', ownerId)
+
+    if (error || !data) {
+      return {
+        success: true,
+        overview: {
+          total_scripts: 0,
+          published_scripts: 0,
+          private_scripts: 0,
+          unlisted_scripts: 0,
+          total_executions: 0,
+        },
+      }
+    }
+
+    return {
+      success: true,
+      overview: {
+        total_scripts: data.length,
+        published_scripts: data.filter((script) => script.visibility === 'public').length,
+        private_scripts: data.filter((script) => script.visibility === 'private').length,
+        unlisted_scripts: data.filter((script) => script.visibility === 'unlisted').length,
+        total_executions: data.reduce((sum, script) => sum + Number(script.execute_count ?? 0), 0),
+      },
+    }
   } catch {
     return { success: false, message: 'Failed to fetch analytics overview', status: 500 }
   }
@@ -47,61 +63,27 @@ export async function getOverview(ownerId: string): Promise<OverviewResult> {
 
 export async function getScriptStats(ownerId: string, slug: string): Promise<ScriptAnalyticsResult> {
   try {
-    const stats = await getScriptAnalyticsForOwner(slug, ownerId)
-    if (!stats) {
+    const script = await findScriptBySlugForOwner(slug, ownerId)
+    if (!script) {
       return { success: false, message: 'Script not found', status: 404 }
     }
-    return { success: true, analytics: stats }
+
+    return {
+      success: true,
+      analytics: {
+        slug,
+        total_executions: Number(script.execute_count ?? 0),
+        last_executed_at: script.last_executed_at ?? null,
+      },
+    }
   } catch {
     return { success: false, message: 'Failed to fetch script analytics', status: 500 }
   }
 }
 
-export async function getDownloadTrends(
-  ownerId: string,
-  range: string | null,
-  slug?: string | null
-): Promise<DownloadTrendsResult> {
-  const rangeDays = parseRangeDays(range)
-  if (rangeDays === null) {
-    return { success: false, message: 'Range must be last_7_days or last_30_days', status: 400 }
-  }
-
-  try {
-    if (slug) {
-      const result = await getScriptDownloadTrendsForOwner(slug, ownerId, rangeDays)
-      if (!result) {
-        return { success: false, message: 'Script not found', status: 404 }
-      }
-      return { success: true, trends: result }
-    }
-
-    const result = await getDownloadTrendsForOwner(ownerId, rangeDays)
-    return { success: true, trends: result }
-  } catch {
-    return { success: false, message: 'Failed to fetch download trends', status: 500 }
-  }
-}
-
 export async function getTopScripts(ownerId: string, limit: number = 5): Promise<TopScript[]> {
   try {
-    const { scripts } = await listScriptsForOwner({ ownerId, limit: 100, offset: 0 })
-
-    const withStats = await Promise.all(
-      scripts.map(async (script) => {
-        const stats = await getScriptAnalyticsForOwner(script.slug, ownerId)
-        return {
-          name: script.name,
-          slug: script.slug,
-          visibility: script.visibility,
-          downloads: stats?.total_downloads ?? 0,
-        }
-      })
-    )
-
-    return withStats
-      .sort((a, b) => b.downloads - a.downloads)
-      .slice(0, limit)
+    return await getTopScriptsRepo(ownerId, limit)
   } catch {
     return []
   }

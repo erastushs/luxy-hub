@@ -1,263 +1,153 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getOverview, getScriptStats, getDownloadTrends } from '@/app/lib/services/analytics-service'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getOverview, getScriptStats, getTopScripts } from '@/app/lib/services/analytics-service'
 
 const OWNER_A = '00000000-0000-0000-0000-00000000000a'
 const OWNER_B = '00000000-0000-0000-0000-00000000000b'
 
-const mockOverview = {
-  total_scripts: 5,
-  published_scripts: 3,
-  private_scripts: 2,
-  total_downloads: 1000,
-  downloads_today: 50,
-  downloads_7d: 300,
-  downloads_30d: 800,
-}
+const scriptRows = [
+  { visibility: 'public', execute_count: 10 },
+  { visibility: 'private', execute_count: 5 },
+  { visibility: 'unlisted', execute_count: 2 },
+]
 
-const mockScriptAnalytics = {
-  slug: 'my-script',
-  total_downloads: 200,
-  downloads_today: 10,
-  downloads_7d: 60,
-  downloads_30d: 150,
-  last_downloaded_at: '2026-01-01T00:00:00.000Z',
-}
-
-const mockTrends = {
-  points: [
-    { day: '2026-06-01', downloads: 10 },
-    { day: '2026-06-02', downloads: 15 },
-    { day: '2026-06-03', downloads: 0 },
-  ],
-}
-
-vi.mock('@/app/lib/repositories/script-repository', () => ({
-  getCreatorAnalyticsOverview: vi.fn(),
-  getScriptAnalyticsForOwner: vi.fn(),
-  getDownloadTrendsForOwner: vi.fn(),
-  getScriptDownloadTrendsForOwner: vi.fn(),
-  findScriptBySlug: vi.fn(),
-  findScriptBySlugForOwner: vi.fn(),
-  listScripts: vi.fn(),
-  listScriptsForOwner: vi.fn(),
-  createScript: vi.fn(),
-  updateScript: vi.fn(),
-  deleteScript: vi.fn(),
-  createVersion: vi.fn(),
-  getLatestVersion: vi.fn(),
-  getScriptStats: vi.fn(),
-  getScriptStatsForOwner: vi.fn(),
-  recordDownload: vi.fn(),
-  hashIdentifier: vi.fn(),
-  ScriptConflictError: class extends Error {
-    constructor(slug: string) {
-      super(`A script with slug "${slug}" already exists`)
-      this.name = 'ScriptConflictError'
-    }
+vi.mock('@/app/lib/supabase', () => ({
+  supabaseAdmin: {
+    from: vi.fn(),
   },
 }))
 
-import {
-  getCreatorAnalyticsOverview,
-  getScriptAnalyticsForOwner,
-  getDownloadTrendsForOwner,
-  getScriptDownloadTrendsForOwner,
-} from '@/app/lib/repositories/script-repository'
+vi.mock('@/app/lib/repositories/script-repository', () => ({
+  findScriptBySlugForOwner: vi.fn(),
+}))
 
-const mockedGetCreatorAnalyticsOverview = getCreatorAnalyticsOverview as ReturnType<typeof vi.fn>
-const mockedGetScriptAnalyticsForOwner = getScriptAnalyticsForOwner as ReturnType<typeof vi.fn>
-const mockedGetDownloadTrendsForOwner = getDownloadTrendsForOwner as ReturnType<typeof vi.fn>
-const mockedGetScriptDownloadTrendsForOwner = getScriptDownloadTrendsForOwner as ReturnType<typeof vi.fn>
+vi.mock('@/app/lib/repositories/script-execution-repository', () => ({
+  getTopScripts: vi.fn(),
+}))
 
-describe('Phase 3C.2 Analytics Aggregation APIs', () => {
+import { supabaseAdmin } from '@/app/lib/supabase'
+import { findScriptBySlugForOwner } from '@/app/lib/repositories/script-repository'
+import { getTopScripts as getTopScriptsRepo } from '@/app/lib/repositories/script-execution-repository'
+
+const mockedFrom = vi.mocked(supabaseAdmin.from)
+const mockedFindScriptBySlugForOwner = vi.mocked(findScriptBySlugForOwner)
+const mockedGetTopScriptsRepo = vi.mocked(getTopScriptsRepo)
+
+function mockScriptsSelect(data: Array<{ visibility: string; execute_count: number }> | null, error: unknown = null) {
+  const eq = vi.fn().mockResolvedValue({ data, error })
+  const select = vi.fn().mockReturnValue({ eq })
+  mockedFrom.mockReturnValue({ select } as never)
+  return { select, eq }
+}
+
+describe('Analytics V1 service', () => {
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
   describe('getOverview', () => {
-    it('returns analytics overview for creator', async () => {
-      mockedGetCreatorAnalyticsOverview.mockResolvedValue(mockOverview)
+    it('returns execution overview for a creator', async () => {
+      mockScriptsSelect(scriptRows)
 
       const result = await getOverview(OWNER_A)
+
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.overview.total_scripts).toBe(5)
-        expect(result.overview.total_downloads).toBe(1000)
-        expect(result.overview.downloads_today).toBe(50)
-        expect(result.overview.downloads_7d).toBe(300)
-        expect(result.overview.downloads_30d).toBe(800)
-        expect(result.overview.published_scripts).toBe(3)
-        expect(result.overview.private_scripts).toBe(2)
+        expect(result.overview).toEqual({
+          total_scripts: 3,
+          published_scripts: 1,
+          private_scripts: 1,
+          unlisted_scripts: 1,
+          total_executions: 17,
+        })
       }
     })
 
-    it('passes correct ownerId to repository', async () => {
-      mockedGetCreatorAnalyticsOverview.mockResolvedValue(mockOverview)
+    it('scopes overview by owner id', async () => {
+      const { eq } = mockScriptsSelect(scriptRows)
 
       await getOverview(OWNER_A)
-      expect(mockedGetCreatorAnalyticsOverview).toHaveBeenCalledWith(OWNER_A)
+
+      expect(mockedFrom).toHaveBeenCalledWith('scripts')
+      expect(eq).toHaveBeenCalledWith('creator_id', OWNER_A)
+      expect(eq).not.toHaveBeenCalledWith('creator_id', OWNER_B)
     })
 
-    it('returns overview scoped to creator only', async () => {
-      const creatorAOverview = { ...mockOverview, total_scripts: 3 }
-      const creatorBOverview = { ...mockOverview, total_scripts: 7 }
-      mockedGetCreatorAnalyticsOverview.mockResolvedValueOnce(creatorAOverview)
-      mockedGetCreatorAnalyticsOverview.mockResolvedValueOnce(creatorBOverview)
+    it('does not expose raw execution rows or legacy download fields', async () => {
+      mockScriptsSelect(scriptRows)
 
-      const resultA = await getOverview(OWNER_A)
-      const resultB = await getOverview(OWNER_B)
+      const result = await getOverview(OWNER_A)
 
-      if (resultA.success) expect(resultA.overview.total_scripts).toBe(3)
-      if (resultB.success) expect(resultB.overview.total_scripts).toBe(7)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        const overview = result.overview as Record<string, unknown>
+        expect(overview).toHaveProperty('total_executions')
+        expect(overview).not.toHaveProperty('script_id')
+        expect(overview).not.toHaveProperty('session_id')
+        expect(overview).not.toHaveProperty('total_downloads')
+        expect(overview).not.toHaveProperty('downloads_7d')
+      }
     })
   })
 
   describe('getScriptStats', () => {
-    it('returns analytics for owned script', async () => {
-      mockedGetScriptAnalyticsForOwner.mockResolvedValue(mockScriptAnalytics)
+    it('returns execution analytics for an owned script', async () => {
+      mockedFindScriptBySlugForOwner.mockResolvedValue({
+        id: 'script-uuid-1',
+        slug: 'my-script',
+        name: 'My Script',
+        description: '',
+        visibility: 'public',
+        creator_id: OWNER_A,
+        current_version_id: 'version-uuid-1',
+        execute_count: 42,
+        last_executed_at: '2026-01-01T00:00:00.000Z',
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      })
 
       const result = await getScriptStats(OWNER_A, 'my-script')
+
       expect(result.success).toBe(true)
+      expect(mockedFindScriptBySlugForOwner).toHaveBeenCalledWith('my-script', OWNER_A)
       if (result.success) {
-        expect(result.analytics.slug).toBe('my-script')
-        expect(result.analytics.total_downloads).toBe(200)
-        expect(result.analytics.downloads_7d).toBe(60)
-        expect(result.analytics.downloads_30d).toBe(150)
+        expect(result.analytics).toEqual({
+          slug: 'my-script',
+          total_executions: 42,
+          last_executed_at: '2026-01-01T00:00:00.000Z',
+        })
       }
     })
 
     it('returns 404 for foreign script analytics', async () => {
-      mockedGetScriptAnalyticsForOwner.mockResolvedValue(null)
+      mockedFindScriptBySlugForOwner.mockResolvedValue(null)
 
       const result = await getScriptStats(OWNER_A, 'creator-b-script')
+
       expect(result.success).toBe(false)
       if (!result.success) {
         expect(result.status).toBe(404)
         expect(result.message).toBe('Script not found')
       }
     })
-
-    it('passes correct ownerId and slug to repository', async () => {
-      mockedGetScriptAnalyticsForOwner.mockResolvedValue(mockScriptAnalytics)
-
-      await getScriptStats(OWNER_A, 'test-script')
-      expect(mockedGetScriptAnalyticsForOwner).toHaveBeenCalledWith('test-script', OWNER_A)
-    })
   })
 
-  describe('getDownloadTrends', () => {
-    it('returns portfolio-level trends for last_7_days', async () => {
-      mockedGetDownloadTrendsForOwner.mockResolvedValue(mockTrends)
+  describe('getTopScripts', () => {
+    it('returns top scripts from the execution repository', async () => {
+      mockedGetTopScriptsRepo.mockResolvedValue([
+        {
+          name: 'My Script',
+          slug: 'my-script',
+          visibility: 'public',
+          executions: 42,
+          last_executed_at: '2026-01-01T00:00:00.000Z',
+        },
+      ])
 
-      const result = await getDownloadTrends(OWNER_A, 'last_7_days')
-      expect(result.success).toBe(true)
-      if (result.success) {
-        expect(result.trends.points).toHaveLength(3)
-        expect(result.trends.points[0].downloads).toBe(10)
-      }
-      expect(mockedGetDownloadTrendsForOwner).toHaveBeenCalledWith(OWNER_A, 7)
-    })
+      const result = await getTopScripts(OWNER_A, 5)
 
-    it('returns portfolio-level trends for last_30_days', async () => {
-      mockedGetDownloadTrendsForOwner.mockResolvedValue(mockTrends)
-
-      const result = await getDownloadTrends(OWNER_A, 'last_30_days')
-      expect(result.success).toBe(true)
-      expect(mockedGetDownloadTrendsForOwner).toHaveBeenCalledWith(OWNER_A, 30)
-    })
-
-    it('returns script-level trends when slug provided', async () => {
-      mockedGetScriptDownloadTrendsForOwner.mockResolvedValue(mockTrends)
-
-      const result = await getDownloadTrends(OWNER_A, 'last_7_days', 'my-script')
-      expect(result.success).toBe(true)
-      expect(mockedGetScriptDownloadTrendsForOwner).toHaveBeenCalledWith('my-script', OWNER_A, 7)
-    })
-
-    it('returns 404 for foreign script trends', async () => {
-      mockedGetScriptDownloadTrendsForOwner.mockResolvedValue(null)
-
-      const result = await getDownloadTrends(OWNER_A, 'last_7_days', 'foreign-script')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(result.status).toBe(404)
-      }
-    })
-
-    it('rejects invalid range parameter', async () => {
-      const result = await getDownloadTrends(OWNER_A, 'invalid_range')
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(result.status).toBe(400)
-        expect(result.message).toContain('last_7_days or last_30_days')
-      }
-    })
-
-    it('accepts shorthand range formats', async () => {
-      mockedGetDownloadTrendsForOwner.mockResolvedValue(mockTrends)
-
-      const result7 = await getDownloadTrends(OWNER_A, '7d')
-      expect(result7.success).toBe(true)
-      expect(mockedGetDownloadTrendsForOwner).toHaveBeenCalledWith(OWNER_A, 7)
-
-      const result30 = await getDownloadTrends(OWNER_A, '30')
-      expect(result30.success).toBe(true)
-      expect(mockedGetDownloadTrendsForOwner).toHaveBeenCalledWith(OWNER_A, 30)
-    })
-  })
-
-  describe('cross-account analytics isolation', () => {
-    it('Creator A cannot access Creator B analytics overview', async () => {
-      mockedGetCreatorAnalyticsOverview.mockResolvedValue({ ...mockOverview, total_scripts: 3 })
-
-      const result = await getOverview(OWNER_A)
-      expect(mockedGetCreatorAnalyticsOverview).toHaveBeenCalledWith(OWNER_A)
-      expect(mockedGetCreatorAnalyticsOverview).not.toHaveBeenCalledWith(OWNER_B)
-    })
-
-    it('Creator A cannot access Creator B script analytics', async () => {
-      mockedGetScriptAnalyticsForOwner.mockResolvedValue(null)
-
-      const result = await getScriptStats(OWNER_A, 'creator-b-script')
-      expect(result.success).toBe(false)
-      expect(result.status).toBe(404)
-    })
-
-    it('Creator A cannot access Creator B download trends', async () => {
-      mockedGetScriptDownloadTrendsForOwner.mockResolvedValue(null)
-
-      const result = await getDownloadTrends(OWNER_A, 'last_7_days', 'creator-b-script')
-      expect(result.success).toBe(false)
-      expect(result.status).toBe(404)
-    })
-  })
-
-  describe('aggregation guarantees', () => {
-    it('never returns raw download events', async () => {
-      mockedGetCreatorAnalyticsOverview.mockResolvedValue(mockOverview)
-
-      const result = await getOverview(OWNER_A)
-      if (result.success) {
-        const overview = result.overview as Record<string, unknown>
-        expect(overview).not.toHaveProperty('ip_hash')
-        expect(overview).not.toHaveProperty('user_agent_hash')
-        expect(overview).not.toHaveProperty('script_id')
-        expect(overview).not.toHaveProperty('downloads')
-        expect(overview).toHaveProperty('total_downloads')
-      }
-    })
-
-    it('trends only expose day-level aggregation', async () => {
-      mockedGetDownloadTrendsForOwner.mockResolvedValue(mockTrends)
-
-      const result = await getDownloadTrends(OWNER_A, 'last_7_days')
-      if (result.success) {
-        const firstPoint = result.trends.points[0] as Record<string, unknown>
-        expect(firstPoint).toHaveProperty('day')
-        expect(firstPoint).toHaveProperty('downloads')
-        expect(firstPoint).not.toHaveProperty('created_at')
-        expect(firstPoint).not.toHaveProperty('ip_hash')
-      }
+      expect(mockedGetTopScriptsRepo).toHaveBeenCalledWith(OWNER_A, 5)
+      expect(result[0].executions).toBe(42)
+      expect(result[0].last_executed_at).toBe('2026-01-01T00:00:00.000Z')
     })
   })
 })

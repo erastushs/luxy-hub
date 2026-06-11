@@ -13,6 +13,7 @@ import {
   createRuntimePayloadFromBuild,
   type RuntimePayloadResponse,
 } from '@/app/lib/delivery/runtime-payload'
+import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 
 export const DELIVERY_SESSION_TTL_SECONDS = 60
 const UNAVAILABLE_MESSAGE = 'Delivery unavailable'
@@ -101,6 +102,7 @@ export async function createDeliverySession(slug: unknown): Promise<CreateDelive
       expiresAt: new Date(Date.now() + DELIVERY_SESSION_TTL_SECONDS * 1000).toISOString(),
       eventSecret,
     })
+    await recordExecution({ scriptId: script.id, sessionId: session.id })
 
     return {
       success: true,

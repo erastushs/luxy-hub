@@ -6,7 +6,7 @@ import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
 import {
   BarChart3,
   FileCode,
-  Download,
+  Activity,
   Eye,
   BookOpen,
   Code2,
@@ -52,18 +52,18 @@ export default async function DashboardHomePage() {
           }
         />
         <AnalyticsCard
-          label="Total Downloads"
-          value={overview?.total_downloads ?? '—'}
-          icon={Download}
+          label="Total Executions"
+          value={overview?.total_executions ?? '—'}
+          icon={Activity}
         />
         <AnalyticsCard
-          label="Downloads (7 Days)"
-          value={overview?.downloads_7d ?? '—'}
+          label="Published Scripts"
+          value={overview?.published_scripts ?? '—'}
           icon={BarChart3}
         />
         <AnalyticsCard
-          label="Downloads Today"
-          value={overview?.downloads_today ?? '—'}
+          label="Private Scripts"
+          value={overview?.private_scripts ?? '—'}
           icon={Eye}
         />
       </div>
@@ -74,7 +74,7 @@ export default async function DashboardHomePage() {
           Full Analytics
         </h2>
         <p className="mt-1 text-xs text-zinc-500">
-          View detailed charts, trends, and top scripts in the{' '}
+          View execution totals, per-script counts, and top scripts in the{' '}
           <Link href="/dashboard/analytics" className="text-red-400 hover:text-red-300 underline">
             Analytics section
           </Link>.

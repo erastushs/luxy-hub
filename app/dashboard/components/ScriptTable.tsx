@@ -33,6 +33,12 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
             <th className="hidden px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider sm:table-cell">
               Build Status
             </th>
+            <th className="hidden px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider lg:table-cell">
+              Executions
+            </th>
+            <th className="hidden px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider xl:table-cell">
+              Last Executed
+            </th>
             <th className="hidden px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider xl:table-cell">
               Last Updated
             </th>
@@ -80,6 +86,12 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
                       {formatDate(script.buildInfo.lastBuildAt)}
                     </p>
                   )}
+                </td>
+                <td className="hidden px-4 py-3 text-right font-mono text-sm text-white tabular-nums lg:table-cell">
+                  {Number(script.execute_count ?? 0).toLocaleString()}
+                </td>
+                <td className="hidden px-4 py-3 text-xs text-zinc-500 xl:table-cell">
+                  {script.last_executed_at ? formatDate(script.last_executed_at) : 'Never'}
                 </td>
                 <td className="hidden px-4 py-3 text-xs text-zinc-500 xl:table-cell">
                   {formatDate(script.updated_at)}

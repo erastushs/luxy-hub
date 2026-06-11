@@ -8,9 +8,13 @@ export type ScriptRow = {
   visibility: 'public' | 'private' | 'unlisted'
   creator_id: string | null
   current_version_id: string | null
+  execute_count?: number | null
+  last_executed_at?: string | null
   created_at: string
   updated_at: string
 }
+
+const SCRIPT_SELECT = 'id, slug, name, description, visibility, creator_id, current_version_id, execute_count, last_executed_at, created_at, updated_at'
 
 export type VersionRow = {
   id: string
@@ -89,7 +93,7 @@ export async function hashIdentifier(value: string): Promise<string> {
 export async function findScriptBySlug(slug: string): Promise<ScriptRow | null> {
   const { data, error } = await supabaseAdmin
     .from('scripts')
-    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at')
+    .select(SCRIPT_SELECT)
     .eq('slug', slug)
     .single()
 
@@ -100,7 +104,7 @@ export async function findScriptBySlug(slug: string): Promise<ScriptRow | null> 
 export async function findScriptBySlugForOwner(slug: string, ownerId: string): Promise<ScriptRow | null> {
   const { data, error } = await supabaseAdmin
     .from('scripts')
-    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at')
+    .select(SCRIPT_SELECT)
     .eq('slug', slug)
     .eq('creator_id', ownerId)
     .single()
@@ -116,7 +120,7 @@ export async function listScripts(
 ): Promise<ListScriptsResult> {
   const query = supabaseAdmin
     .from('scripts')
-    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at', { count: 'exact' })
+    .select(SCRIPT_SELECT, { count: 'exact' })
     .eq('visibility', visibility)
     .order('updated_at', { ascending: false })
     .range(offset, offset + limit - 1)
@@ -136,7 +140,7 @@ export async function listScriptsForOwner(params: {
 }): Promise<ListScriptsResult> {
   let query = supabaseAdmin
     .from('scripts')
-    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at', { count: 'exact' })
+    .select(SCRIPT_SELECT, { count: 'exact' })
     .eq('creator_id', params.ownerId)
     .order('updated_at', { ascending: false })
 
@@ -177,7 +181,7 @@ export async function createScript(params: {
       created_at: now,
       updated_at: now,
     })
-    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at')
+    .select(SCRIPT_SELECT)
     .single()
 
   if (error) {
@@ -223,7 +227,7 @@ export async function updateScript(
   }
 
   const { data, error } = await query
-    .select('id, slug, name, description, visibility, creator_id, current_version_id, created_at, updated_at')
+    .select(SCRIPT_SELECT)
     .single()
 
   if (error) return null

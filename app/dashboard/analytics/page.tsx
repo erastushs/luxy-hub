@@ -1,14 +1,13 @@
 import { getCurrentUser } from '@/app/lib/auth/session-auth'
-import { getOverview, getDownloadTrends, getTopScripts } from '@/app/lib/services/analytics-service'
-import type { CreatorAnalyticsOverviewType, DownloadTrendsResultType, TopScript } from '@/app/lib/services/analytics-service'
+import { getOverview, getTopScripts } from '@/app/lib/services/analytics-service'
+import type { CreatorAnalyticsOverviewType, TopScript } from '@/app/lib/services/analytics-service'
 import { AnalyticsCard } from '@/app/dashboard/components/AnalyticsCard'
-import { DownloadsChart } from '@/app/dashboard/components/DownloadsChart'
 import { TopScriptsTable } from '@/app/dashboard/components/TopScriptsTable'
 import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
 import {
   BarChart3,
   FileCode,
-  Download,
+  Activity,
   Eye,
   Globe,
 } from 'lucide-react'
@@ -17,27 +16,21 @@ export default async function AnalyticsPage() {
   const user = await getCurrentUser()
 
   let overview: CreatorAnalyticsOverviewType | null = null
-  let trends7d: DownloadTrendsResultType | null = null
-  let trends30d: DownloadTrendsResultType | null = null
   let topScripts: TopScript[] = []
   let error: string | null = null
 
   if (user) {
-    const [overviewResult, trends7dResult, trends30dResult, topScriptsResult] =
+    const [overviewResult, topScriptsResult] =
       await Promise.all([
         getOverview(user.id),
-        getDownloadTrends(user.id, '7d'),
-        getDownloadTrends(user.id, '30d'),
         getTopScripts(user.id, 5),
       ])
 
     if (overviewResult.success) overview = overviewResult.overview
-    if (trends7dResult.success) trends7d = trends7dResult.trends
-    if (trends30dResult.success) trends30d = trends30dResult.trends
     topScripts = topScriptsResult
 
-    if (!overviewResult.success && !trends7dResult.success) {
-      error = overviewResult.message || trends7dResult.message || 'Failed to load analytics'
+    if (!overviewResult.success) {
+      error = overviewResult.message || 'Failed to load analytics'
     }
   }
 
@@ -62,45 +55,36 @@ export default async function AnalyticsPage() {
           }
         />
         <AnalyticsCard
-          label="Total Downloads"
-          value={overview?.total_downloads ?? '—'}
-          icon={Download}
-        />
-        <AnalyticsCard
-          label="Downloads (7 Days)"
-          value={overview?.downloads_7d ?? '—'}
-          icon={BarChart3}
-        />
-        <AnalyticsCard
-          label="Downloads Today"
-          value={overview?.downloads_today ?? '—'}
-          icon={Eye}
+          label="Total Executions"
+          value={overview?.total_executions ?? '—'}
+          icon={Activity}
         />
         <AnalyticsCard
           label="Published Scripts"
           value={overview?.published_scripts ?? '—'}
+          icon={BarChart3}
+        />
+        <AnalyticsCard
+          label="Private Scripts"
+          value={overview?.private_scripts ?? '—'}
+          icon={Eye}
+        />
+        <AnalyticsCard
+          label="Unlisted Scripts"
+          value={overview?.unlisted_scripts ?? '—'}
           icon={Globe}
         />
         <AnalyticsCard
-          label="Downloads (30 Days)"
-          value={overview?.downloads_30d ?? '—'}
+          label="Executions per Script"
+          value={overview && overview.total_scripts > 0
+            ? Math.round(overview.total_executions / overview.total_scripts)
+            : '—'}
           icon={BarChart3}
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <DownloadsChart
-          points={trends7d?.points ?? []}
-          title="Downloads — Last 7 Days"
-        />
-        <DownloadsChart
-          points={trends30d?.points ?? []}
-          title="Downloads — Last 30 Days"
-        />
-      </div>
-
       <div>
-        <h2 className="mb-4 text-lg font-semibold text-white">Top Scripts</h2>
+        <h2 className="mb-4 text-lg font-semibold text-white">Top Scripts by Executions</h2>
         <TopScriptsTable scripts={topScripts} />
       </div>
     </div>

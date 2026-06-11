@@ -150,6 +150,18 @@ export function ScriptCard({
             <BuildStatusBadge status={script.buildInfo?.status ?? 'not_built'} />
           </div>
         </div>
+        <div>
+          <p className="text-zinc-600">Executions</p>
+          <p className="mt-1 font-mono text-zinc-400">
+            {Number(script.execute_count ?? 0).toLocaleString()}
+          </p>
+        </div>
+        <div>
+          <p className="text-zinc-600">Last Executed</p>
+          <p className="mt-1 text-zinc-400">
+            {script.last_executed_at ? formatDate(script.last_executed_at) : 'Never'}
+          </p>
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-zinc-600">

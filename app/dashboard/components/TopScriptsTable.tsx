@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/app/dashboard/lib/format-date'
 import { cn } from '@/app/lib/utils'
 import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
 
@@ -5,7 +6,8 @@ type TopScript = {
   name: string
   slug: string
   visibility: string
-  downloads: number
+  executions: number
+  last_executed_at: string | null
 }
 
 type TopScriptsTableProps = {
@@ -33,7 +35,10 @@ export function TopScriptsTable({ scripts }: TopScriptsTableProps) {
               Visibility
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Downloads
+              Executions
+            </th>
+            <th className="hidden px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider sm:table-cell">
+              Last Executed
             </th>
           </tr>
         </thead>
@@ -64,7 +69,10 @@ export function TopScriptsTable({ scripts }: TopScriptsTableProps) {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-sm text-white tabular-nums">
-                  {script.downloads.toLocaleString()}
+                  {script.executions.toLocaleString()}
+                </td>
+                <td className="hidden px-4 py-3 text-right text-xs text-zinc-500 sm:table-cell">
+                  {script.last_executed_at ? formatDateTime(script.last_executed_at) : 'Never'}
                 </td>
               </tr>
             )
