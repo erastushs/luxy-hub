@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { MAX_SCRIPT_SIZE_DISPLAY } from '@/app/lib/constants/size-limits'
 
 type ScriptFormData = {
   name: string
@@ -136,7 +137,7 @@ export function ScriptForm({
           <label htmlFor="content" className="block text-sm font-medium text-zinc-300">
             Content
           </label>
-          <p className="mt-1 text-xs text-zinc-500">Script body. Max 1 MB.</p>
+          <p className="mt-1 text-xs text-zinc-500">Script body. Max {MAX_SCRIPT_SIZE_DISPLAY}.</p>
           <textarea
             id="content"
             name="content"

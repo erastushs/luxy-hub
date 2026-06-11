@@ -7,6 +7,7 @@ import { createScriptAction } from '@/app/actions/scripts'
 import { cn } from '@/app/lib/utils'
 import { FileUploadZone } from '@/app/dashboard/components/FileUploadZone'
 import { Tooltip } from '@/app/dashboard/components/Tooltip'
+import { MAX_SCRIPT_SIZE_DISPLAY } from '@/app/lib/constants/size-limits'
 import type { SourceFileMetadata } from '@/app/dashboard/lib/source-file'
 
 type SourceMode = 'upload' | 'paste'
@@ -163,7 +164,7 @@ export default function NewScriptPage() {
               <label htmlFor="source-content" className="block text-sm font-medium text-zinc-300">
                 Content
               </label>
-              <p className="mt-1 text-xs text-zinc-500">Script body. Max 1 MB.</p>
+              <p className="mt-1 text-xs text-zinc-500">Script body. Max {MAX_SCRIPT_SIZE_DISPLAY}.</p>
               <textarea
                 id="source-content"
                 rows={8}

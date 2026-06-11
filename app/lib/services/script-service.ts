@@ -23,6 +23,7 @@ import {
 } from '@/app/lib/repositories/script-repository'
 import { assertScriptOwner, OwnershipError } from '@/app/lib/auth/ownership'
 import { isValidSlug, isValidScriptName, isValidVisibility, isValidScriptContent, type Visibility } from '@/app/lib/validators'
+import { MAX_SCRIPT_SIZE_DISPLAY } from '@/app/lib/constants/size-limits'
 import { logAuditEvent } from '@/app/lib/services/audit-service'
 import { createUploadChangelog, sanitizeSourceFilename } from '@/app/lib/source-file-metadata'
 import { runAutoBuildForVersion } from '@/app/lib/services/build-automation-service'
@@ -94,7 +95,7 @@ export async function createScript(params: {
   }
 
   if (!isValidScriptContent(params.content)) {
-    return { success: false, message: 'Content is required and must not exceed 1 MB', status: 400 }
+    return { success: false, message: `Content is required and must not exceed ${MAX_SCRIPT_SIZE_DISPLAY}`, status: 400 }
   }
 
   const visibility = params.visibility !== undefined ? params.visibility : 'private'
@@ -297,7 +298,7 @@ export async function updateScript(
   }
 
   if (params.content !== undefined && !isValidScriptContent(params.content)) {
-    return { success: false, message: 'Content must not exceed 1 MB', status: 400 }
+    return { success: false, message: `Content must not exceed ${MAX_SCRIPT_SIZE_DISPLAY}`, status: 400 }
   }
 
   try {

@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { updateSession } from '@/app/lib/supabase/proxy'
 
-import { MAX_SCRIPT_SIZE_BYTES } from '@/app/lib/constants/size-limits'
+import { MAX_SCRIPT_REQUEST_BODY_BYTES } from '@/app/lib/constants/size-limits'
 
-const API_MAX_BODY = MAX_SCRIPT_SIZE_BYTES + 128 * 1024 // 1 MB script + JSON wrapper overhead
+const API_MAX_BODY = MAX_SCRIPT_REQUEST_BODY_BYTES
 
 export async function proxy(request: NextRequest) {
   if (request.method === 'OPTIONS' && request.nextUrl.pathname.startsWith('/api/')) {

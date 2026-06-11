@@ -1,2 +1,6 @@
-/** Maximum script size in bytes: 1 MB (1,048,576 bytes). */
-export const MAX_SCRIPT_SIZE_BYTES = 1_048_576
+/** Maximum Lua script source size in bytes: 2 MB (2,097,152 bytes). */
+export const MAX_SCRIPT_SIZE_BYTES = 2_097_152
+export const MAX_SCRIPT_SIZE_DISPLAY = '2 MB'
+
+export const SCRIPT_REQUEST_OVERHEAD_BYTES = 128 * 1024
+export const MAX_SCRIPT_REQUEST_BODY_BYTES = MAX_SCRIPT_SIZE_BYTES + SCRIPT_REQUEST_OVERHEAD_BYTES

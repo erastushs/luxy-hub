@@ -1,8 +1,8 @@
-import { MAX_SCRIPT_SIZE_BYTES } from '@/app/lib/constants/size-limits'
+import { MAX_SCRIPT_REQUEST_BODY_BYTES, MAX_SCRIPT_SIZE_BYTES } from '@/app/lib/constants/size-limits'
 
 const KEY_REGEX = /^LUXY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
 const MAX_TOKEN_LENGTH = 256
-const MAX_BODY_SIZE = 2_097_152 // 2 MB proxy overhead ceiling
+const MAX_BODY_SIZE = MAX_SCRIPT_REQUEST_BODY_BYTES
 
 export function isValidKeyFormat(key: unknown): key is string {
   return typeof key === 'string' && KEY_REGEX.test(key)
