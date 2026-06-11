@@ -104,6 +104,21 @@ export async function getLicenseById(id: string): Promise<LicenseRow | null> {
   return data as unknown as LicenseRow | null
 }
 
+export async function getLicenseForScriptByKeyHash(
+  scriptId: string,
+  keyHash: string
+): Promise<LicenseRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('licenses')
+    .select(LICENSE_SELECT)
+    .eq('script_id', scriptId)
+    .eq('key_hash', keyHash)
+    .maybeSingle()
+
+  if (error) throw error
+  return data as unknown as LicenseRow | null
+}
+
 export async function getLicensesForScript(scriptId: string): Promise<LicenseRow[]> {
   const { data, error } = await supabaseAdmin
     .from('licenses')
@@ -172,6 +187,21 @@ export async function getLicenseAssignments(licenseId: string): Promise<LicenseA
 
   if (error) throw error
   return (data as unknown as LicenseAssignmentRow[]) ?? []
+}
+
+export async function getLicenseAssignmentByCustomerHash(
+  licenseId: string,
+  customerIdentifierHash: string
+): Promise<LicenseAssignmentRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('license_assignments')
+    .select(LICENSE_ASSIGNMENT_SELECT)
+    .eq('license_id', licenseId)
+    .eq('customer_identifier_hash', customerIdentifierHash)
+    .maybeSingle()
+
+  if (error) throw error
+  return data as unknown as LicenseAssignmentRow | null
 }
 
 export async function removeLicenseAssignment(id: string): Promise<LicenseAssignmentRow | null> {

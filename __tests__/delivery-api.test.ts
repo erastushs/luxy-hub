@@ -61,7 +61,7 @@ describe('Phase 5C delivery API routes', () => {
     expect(response.status).toBe(200)
     expect(body).toEqual({ session_token: 'raw-session-token', event_secret: 'event-secret', expires_in: 60 })
     expect(response.headers.get('Cache-Control')).toBe('no-store')
-    expect(mockedCreateDeliverySession).toHaveBeenCalledWith('my-script', undefined)
+    expect(mockedCreateDeliverySession).toHaveBeenCalledWith('my-script', undefined, undefined, undefined)
   })
 
   it('POST /api/delivery/session forwards key to service layer', async () => {
@@ -90,7 +90,41 @@ describe('Phase 5C delivery API routes', () => {
 
     expect(response.status).toBe(200)
     expect(body).toEqual({ session_token: 'raw-session-token', event_secret: 'event-secret', expires_in: 60 })
-    expect(mockedCreateDeliverySession).toHaveBeenCalledWith('my-script', 'LUXY-ABCD-1234-EFGH')
+    expect(mockedCreateDeliverySession).toHaveBeenCalledWith('my-script', 'LUXY-ABCD-1234-EFGH', undefined, undefined)
+  })
+
+  it('POST /api/delivery/session forwards license to service layer', async () => {
+    mockedCreateDeliverySession.mockResolvedValue({
+      success: true,
+      session_token: 'raw-session-token',
+      event_secret: 'event-secret',
+      expires_in: 60,
+      session: {
+        id: 'session-uuid-1',
+        script_id: 'script-uuid-1',
+        build_id: 'build-uuid-1',
+        session_token_hash: '0'.repeat(64),
+        expires_at: '2026-01-01T00:01:00.000Z',
+        consumed_at: null,
+        event_secret: 'event-secret',
+        created_at: '2026-01-01T00:00:00.000Z',
+      },
+    })
+
+    const response = await createSessionRoute(jsonRequest('https://example.test/api/delivery/session', {
+      slug: 'premium-script',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+    }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toEqual({ session_token: 'raw-session-token', event_secret: 'event-secret', expires_in: 60 })
+    expect(mockedCreateDeliverySession).toHaveBeenCalledWith(
+      'premium-script',
+      undefined,
+      'LUXY-PREM-XXXX-XXXX-XXXX',
+      undefined
+    )
   })
 
   it('POST /api/delivery/fetch returns runtime payload and consumes token', async () => {

@@ -74,7 +74,12 @@ function isReadyBuildDeliverable(build: DeliveryBuildRow): boolean {
     && isSha256Hex(build.payload_sha256)
 }
 
-export async function createDeliverySession(slug: unknown, key?: unknown): Promise<CreateDeliverySessionResult> {
+export async function createDeliverySession(
+  slug: unknown,
+  key?: unknown,
+  license?: unknown,
+  customerIdentifier?: unknown
+): Promise<CreateDeliverySessionResult> {
   if (!isValidSlug(slug)) {
     return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
   }
@@ -85,7 +90,7 @@ export async function createDeliverySession(slug: unknown, key?: unknown): Promi
       return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
     }
 
-    const authorization = await authorizeDeliveryAccess({ script, key })
+    const authorization = await authorizeDeliveryAccess({ script, key, license, customerIdentifier })
     if (!authorization.success) {
       return authorization
     }

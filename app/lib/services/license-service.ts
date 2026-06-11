@@ -4,8 +4,10 @@ import {
   createLicenseAssignment,
   disableLicense as disableLicenseRow,
   enableLicense as enableLicenseRow,
+  getLicenseAssignmentByCustomerHash,
   getLicenseAssignments,
   getLicenseById,
+  getLicenseForScriptByKeyHash,
   getLicensesForScript as getLicenseRowsForScript,
   removeLicenseAssignment,
   revokeLicense as revokeLicenseRow,
@@ -32,6 +34,10 @@ export type CreateAssignmentInput = {
   customer_identifier: string
   display_name?: string | null
 }
+
+export type ValidateLicenseResult =
+  | { success: true; license: LicenseRow; assignment: LicenseAssignmentRow }
+  | { success: false; status: number; message: string }
 
 function randomLicenseSegment(length: number): string {
   const bytes = randomBytes(length)
@@ -67,8 +73,57 @@ export function getLicense(id: string): Promise<LicenseRow | null> {
   return getLicenseById(id)
 }
 
+export async function getOwnedLicense(id: string, ownerId: string): Promise<LicenseRow | null> {
+  const license = await getLicenseById(id)
+  if (!license || license.creator_id !== ownerId) return null
+  return license
+}
+
 export function getLicensesForScript(scriptId: string): Promise<LicenseRow[]> {
   return getLicenseRowsForScript(scriptId)
+}
+
+export async function validateLicense({
+  scriptId,
+  license,
+  customerIdentifier,
+}: {
+  scriptId: string
+  license: unknown
+  customerIdentifier?: unknown
+}): Promise<ValidateLicenseResult> {
+  if (typeof license !== 'string' || license.trim().length === 0) {
+    return { success: false, status: 403, message: 'License is required' }
+  }
+
+  const rawLicense = license.trim()
+  const licenseRow = await getLicenseForScriptByKeyHash(scriptId, hashLicenseSecret(rawLicense))
+
+  if (!licenseRow || licenseRow.status !== 'active') {
+    return { success: false, status: 403, message: 'Invalid license' }
+  }
+
+  if (licenseRow.expires_at && new Date(licenseRow.expires_at).getTime() <= Date.now()) {
+    return { success: false, status: 403, message: 'Invalid license' }
+  }
+
+  const assignmentIdentifier = typeof customerIdentifier === 'string' && customerIdentifier.trim().length > 0
+    ? customerIdentifier.trim()
+    : rawLicense
+  const customerIdentifierHash = hashLicenseSecret(assignmentIdentifier)
+  const existingAssignment = await getLicenseAssignmentByCustomerHash(licenseRow.id, customerIdentifierHash)
+
+  if (existingAssignment) {
+    return { success: true, license: licenseRow, assignment: existingAssignment }
+  }
+
+  const assignment = await createLicenseAssignment({
+    licenseId: licenseRow.id,
+    customerIdentifierHash,
+    displayName: null,
+  })
+
+  return { success: true, license: licenseRow, assignment }
 }
 
 export async function revokeLicense(id: string): Promise<LicenseRow | null> {

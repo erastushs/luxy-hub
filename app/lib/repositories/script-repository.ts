@@ -131,6 +131,18 @@ export async function findScriptBySlugForOwner(slug: string, ownerId: string): P
   return data
 }
 
+export async function findScriptByIdForOwner(scriptId: string, ownerId: string): Promise<ScriptRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('scripts')
+    .select(SCRIPT_SELECT)
+    .eq('id', scriptId)
+    .eq('creator_id', ownerId)
+    .single()
+
+  if (error) return null
+  return data
+}
+
 export async function listScripts(
   visibility: string = 'public',
   limit: number = 20,

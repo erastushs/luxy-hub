@@ -9,8 +9,10 @@ vi.mock('@/app/lib/repositories/license-repository', () => ({
   createLicenseAssignment: vi.fn(),
   disableLicense: vi.fn(),
   enableLicense: vi.fn(),
+  getLicenseAssignmentByCustomerHash: vi.fn(),
   getLicenseAssignments: vi.fn(),
   getLicenseById: vi.fn(),
+  getLicenseForScriptByKeyHash: vi.fn(),
   getLicensesForScript: vi.fn(),
   removeLicenseAssignment: vi.fn(),
   revokeLicense: vi.fn(),
@@ -28,14 +30,17 @@ import {
   hashLicenseSecret,
   removeAssignment,
   revokeLicense,
+  validateLicense,
 } from '@/app/lib/services/license-service'
 import {
   createLicense as createLicenseRow,
   createLicenseAssignment,
   disableLicense as disableLicenseRow,
   enableLicense as enableLicenseRow,
+  getLicenseAssignmentByCustomerHash,
   getLicenseAssignments,
   getLicenseById,
+  getLicenseForScriptByKeyHash,
   getLicensesForScript as getLicenseRowsForScript,
   removeLicenseAssignment,
   revokeLicense as revokeLicenseRow,
@@ -45,11 +50,21 @@ const mockedCreateLicenseRow = vi.mocked(createLicenseRow)
 const mockedCreateLicenseAssignment = vi.mocked(createLicenseAssignment)
 const mockedDisableLicenseRow = vi.mocked(disableLicenseRow)
 const mockedEnableLicenseRow = vi.mocked(enableLicenseRow)
+const mockedGetLicenseAssignmentByCustomerHash = vi.mocked(getLicenseAssignmentByCustomerHash)
 const mockedGetLicenseAssignments = vi.mocked(getLicenseAssignments)
 const mockedGetLicenseById = vi.mocked(getLicenseById)
+const mockedGetLicenseForScriptByKeyHash = vi.mocked(getLicenseForScriptByKeyHash)
 const mockedGetLicenseRowsForScript = vi.mocked(getLicenseRowsForScript)
 const mockedRemoveLicenseAssignment = vi.mocked(removeLicenseAssignment)
 const mockedRevokeLicenseRow = vi.mocked(revokeLicenseRow)
+
+function futureIso(seconds: number = 60): string {
+  return new Date(Date.now() + seconds * 1000).toISOString()
+}
+
+function pastIso(seconds: number = 60): string {
+  return new Date(Date.now() - seconds * 1000).toISOString()
+}
 
 function mockLicenseRow(overrides: Partial<LicenseRow> = {}): LicenseRow {
   return {
@@ -89,7 +104,7 @@ describe('license service', () => {
   })
 
   it('generates raw license keys in the expected public format', () => {
-    expect(generateRawLicenseKey()).toMatch(/^LUXY-LIC-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/)
+    expect(generateRawLicenseKey()).toMatch(/^LUXY-PREM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/)
   })
 
   it('creates a license with hash-only storage and returns the raw key once', async () => {
@@ -103,7 +118,7 @@ describe('license service', () => {
       expires_at: '2026-07-01T00:00:00.000Z',
     })
 
-    expect(result.raw_key).toMatch(/^LUXY-LIC-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/)
+    expect(result.raw_key).toMatch(/^LUXY-PREM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/)
     expect(result.license).toEqual(row)
 
     const createParams = mockedCreateLicenseRow.mock.calls[0][0]
@@ -214,5 +229,93 @@ describe('license service', () => {
 
     await expect(removeAssignment('assignment-uuid-1')).resolves.toEqual(row)
     expect(mockedRemoveLicenseAssignment).toHaveBeenCalledWith('assignment-uuid-1')
+  })
+
+  it('rejects license validation when license is missing', async () => {
+    await expect(validateLicense({ scriptId: 'script-uuid-1', license: undefined })).resolves.toEqual({
+      success: false,
+      status: 403,
+      message: 'License is required',
+    })
+    expect(mockedGetLicenseForScriptByKeyHash).not.toHaveBeenCalled()
+  })
+
+  it('rejects license validation when the license does not exist', async () => {
+    mockedGetLicenseForScriptByKeyHash.mockResolvedValue(null)
+
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license' })
+    expect(mockedGetLicenseForScriptByKeyHash).toHaveBeenCalledWith(
+      'script-uuid-1',
+      hashLicenseSecret('LUXY-PREM-XXXX-XXXX-XXXX')
+    )
+  })
+
+  it('rejects revoked licenses', async () => {
+    mockedGetLicenseForScriptByKeyHash.mockResolvedValue(mockLicenseRow({ status: 'revoked' }))
+
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license' })
+    expect(mockedGetLicenseAssignmentByCustomerHash).not.toHaveBeenCalled()
+  })
+
+  it('rejects disabled licenses', async () => {
+    mockedGetLicenseForScriptByKeyHash.mockResolvedValue(mockLicenseRow({ status: 'disabled' }))
+
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license' })
+    expect(mockedGetLicenseAssignmentByCustomerHash).not.toHaveBeenCalled()
+  })
+
+  it('rejects expired licenses', async () => {
+    mockedGetLicenseForScriptByKeyHash.mockResolvedValue(mockLicenseRow({ expires_at: pastIso() }))
+
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license' })
+    expect(mockedGetLicenseAssignmentByCustomerHash).not.toHaveBeenCalled()
+  })
+
+  it('allows valid licenses when an assignment already exists', async () => {
+    const license = mockLicenseRow({ expires_at: futureIso() })
+    const assignment = mockAssignmentRow()
+    mockedGetLicenseForScriptByKeyHash.mockResolvedValue(license)
+    mockedGetLicenseAssignmentByCustomerHash.mockResolvedValue(assignment)
+
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+      customerIdentifier: 'customer-1',
+    })).resolves.toEqual({ success: true, license, assignment })
+    expect(mockedGetLicenseAssignmentByCustomerHash).toHaveBeenCalledWith(
+      'license-uuid-1',
+      hashLicenseSecret('customer-1')
+    )
+    expect(mockedCreateLicenseAssignment).not.toHaveBeenCalled()
+  })
+
+  it('creates a missing assignment for valid licenses', async () => {
+    const license = mockLicenseRow()
+    const assignment = mockAssignmentRow()
+    mockedGetLicenseForScriptByKeyHash.mockResolvedValue(license)
+    mockedGetLicenseAssignmentByCustomerHash.mockResolvedValue(null)
+    mockedCreateLicenseAssignment.mockResolvedValue(assignment)
+
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+    })).resolves.toEqual({ success: true, license, assignment })
+    expect(mockedCreateLicenseAssignment).toHaveBeenCalledWith({
+      licenseId: 'license-uuid-1',
+      customerIdentifierHash: hashLicenseSecret('LUXY-PREM-XXXX-XXXX-XXXX'),
+      displayName: null,
+    })
   })
 })

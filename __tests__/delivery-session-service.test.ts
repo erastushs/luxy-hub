@@ -36,6 +36,10 @@ vi.mock('@/app/lib/services/key-service', () => ({
   validateKey: vi.fn(),
 }))
 
+vi.mock('@/app/lib/services/license-service', () => ({
+  validateLicense: vi.fn(),
+}))
+
 import {
   consumeDeliverySession,
   createDeliverySession,
@@ -52,6 +56,7 @@ import {
 import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { createRuntimePayloadFromBuild } from '@/app/lib/delivery/runtime-payload'
 import { validateKey } from '@/app/lib/services/key-service'
+import { validateLicense } from '@/app/lib/services/license-service'
 
 const mockedFindScriptForDeliveryBySlug = vi.mocked(findScriptForDeliveryBySlug)
 const mockedGetReadyBuild = vi.mocked(getReadyBuild)
@@ -62,6 +67,7 @@ const mockedConsumeSession = vi.mocked(consumeSession)
 const mockedRecordExecution = vi.mocked(recordExecution)
 const mockedCreateRuntimePayloadFromBuild = vi.mocked(createRuntimePayloadFromBuild)
 const mockedValidateKey = vi.mocked(validateKey)
+const mockedValidateLicense = vi.mocked(validateLicense)
 
 function futureIso(seconds: number = 60): string {
   return new Date(Date.now() + seconds * 1000).toISOString()
@@ -306,19 +312,58 @@ describe('Phase 5C delivery session service', () => {
     expect(mockedRecordExecution).not.toHaveBeenCalled()
   })
 
-  it('does not create sessions for license-required scripts yet', async () => {
+  it('rejects license-required sessions when no license is provided', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'license_required' }))
+    mockedValidateLicense.mockResolvedValue({ success: false, status: 403, message: 'License is required' })
 
     const result = await createDeliverySession('my-script')
 
     expect(result).toEqual({
       success: false,
-      status: 501,
-      message: 'Delivery access mode not implemented',
+      status: 403,
+      message: 'License is required',
+    })
+    expect(mockedValidateLicense).toHaveBeenCalledWith({
+      scriptId: 'script-uuid-1',
+      license: undefined,
+      customerIdentifier: undefined,
     })
     expect(mockedGetReadyBuild).not.toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
     expect(mockedRecordExecution).not.toHaveBeenCalled()
+  })
+
+  it('creates sessions for license-required scripts with a valid license', async () => {
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'license_required' }))
+    mockedValidateLicense.mockResolvedValue({ success: true, license: {}, assignment: {} })
+    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
+    mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
+      script_id: params.scriptId,
+      build_id: params.buildId,
+      session_token_hash: params.tokenHash,
+      expires_at: params.expiresAt,
+      event_secret: params.eventSecret ?? null,
+    }))
+
+    const result = await createDeliverySession(
+      'my-script',
+      undefined,
+      'LUXY-PREM-XXXX-XXXX-XXXX',
+      'customer-1'
+    )
+
+    expect(result.success).toBe(true)
+    expect(mockedValidateLicense).toHaveBeenCalledWith({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+      customerIdentifier: 'customer-1',
+    })
+    expect(mockedGetReadyBuild).toHaveBeenCalled()
+    expect(mockedCreateSession).toHaveBeenCalledTimes(1)
+    expect(mockedRecordExecution).toHaveBeenCalledWith({
+      scriptId: 'script-uuid-1',
+      sessionId: 'session-uuid-1',
+    })
   })
 
   it('rejects expired tokens uniformly', async () => {
