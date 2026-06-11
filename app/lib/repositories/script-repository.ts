@@ -14,7 +14,14 @@ export type ScriptRow = {
   updated_at: string
 }
 
+export type ScriptAccessMode = 'public' | 'key_required' | 'license_required'
+
+export type DeliveryScriptRow = ScriptRow & {
+  access_mode: ScriptAccessMode
+}
+
 const SCRIPT_SELECT = 'id, slug, name, description, visibility, creator_id, current_version_id, execute_count, last_executed_at, created_at, updated_at'
+const DELIVERY_SCRIPT_SELECT = `${SCRIPT_SELECT}, access_mode`
 
 export type VersionRow = {
   id: string
@@ -99,6 +106,17 @@ export async function findScriptBySlug(slug: string): Promise<ScriptRow | null> 
 
   if (error) return null
   return data
+}
+
+export async function findScriptForDeliveryBySlug(slug: string): Promise<DeliveryScriptRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('scripts')
+    .select(DELIVERY_SCRIPT_SELECT)
+    .eq('slug', slug)
+    .single()
+
+  if (error) return null
+  return data as unknown as DeliveryScriptRow
 }
 
 export async function findScriptBySlugForOwner(slug: string, ownerId: string): Promise<ScriptRow | null> {

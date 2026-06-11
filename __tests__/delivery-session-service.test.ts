@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ScriptRow } from '@/app/lib/repositories/script-repository'
+import type { DeliveryScriptRow } from '@/app/lib/repositories/script-repository'
 import type { DeliveryBuildRow } from '@/app/lib/repositories/delivery-build-repository'
 import type { DeliverySessionRow } from '@/app/lib/repositories/delivery-session-repository'
 
@@ -9,7 +9,7 @@ vi.mock('@/app/lib/services/delivery-build-service', () => ({
 }))
 
 vi.mock('@/app/lib/repositories/script-repository', () => ({
-  findScriptBySlug: vi.fn(),
+  findScriptForDeliveryBySlug: vi.fn(),
 }))
 
 vi.mock('@/app/lib/repositories/delivery-build-repository', () => ({
@@ -38,7 +38,7 @@ import {
   hashDeliverySessionToken,
   validateDeliverySession,
 } from '@/app/lib/services/delivery-session-service'
-import { findScriptBySlug } from '@/app/lib/repositories/script-repository'
+import { findScriptForDeliveryBySlug } from '@/app/lib/repositories/script-repository'
 import { getBuildById, getReadyBuild } from '@/app/lib/repositories/delivery-build-repository'
 import {
   consumeSession,
@@ -48,7 +48,7 @@ import {
 import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { createRuntimePayloadFromBuild } from '@/app/lib/delivery/runtime-payload'
 
-const mockedFindScriptBySlug = vi.mocked(findScriptBySlug)
+const mockedFindScriptForDeliveryBySlug = vi.mocked(findScriptForDeliveryBySlug)
 const mockedGetReadyBuild = vi.mocked(getReadyBuild)
 const mockedGetBuildById = vi.mocked(getBuildById)
 const mockedCreateSession = vi.mocked(createSession)
@@ -65,7 +65,7 @@ function pastIso(seconds: number = 60): string {
   return new Date(Date.now() - seconds * 1000).toISOString()
 }
 
-function mockScriptRow(overrides: Partial<ScriptRow> = {}): ScriptRow {
+function mockScriptRow(overrides: Partial<DeliveryScriptRow> = {}): DeliveryScriptRow {
   return {
     id: 'script-uuid-1',
     slug: 'my-script',
@@ -74,6 +74,7 @@ function mockScriptRow(overrides: Partial<ScriptRow> = {}): ScriptRow {
     visibility: 'public',
     creator_id: 'owner-uuid-1',
     current_version_id: 'version-uuid-1',
+    access_mode: 'public',
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
     ...overrides,
@@ -140,7 +141,7 @@ describe('Phase 5C delivery session service', () => {
   })
 
   it('creates a short-lived session and stores only a token hash', async () => {
-    mockedFindScriptBySlug.mockResolvedValue(mockScriptRow())
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow())
     mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
     mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
       script_id: params.scriptId,
@@ -172,7 +173,7 @@ describe('Phase 5C delivery session service', () => {
   })
 
   it('persists and returns an event secret for runtime signing', async () => {
-    mockedFindScriptBySlug.mockResolvedValue(mockScriptRow())
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow())
     mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
     mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
       script_id: params.scriptId,
@@ -203,7 +204,7 @@ describe('Phase 5C delivery session service', () => {
   })
 
   it('rejects session creation when the current ready build is missing', async () => {
-    mockedFindScriptBySlug.mockResolvedValue(mockScriptRow())
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow())
     mockedGetReadyBuild.mockResolvedValue(null)
 
     const result = await createDeliverySession('my-script')
@@ -214,6 +215,62 @@ describe('Phase 5C delivery session service', () => {
       expect(result.status).toBe(404)
       expect(result.message).toBe('Delivery unavailable')
     }
+  })
+
+  it('keeps public session creation flow unchanged before recording analytics', async () => {
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'public' }))
+    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
+    mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
+      script_id: params.scriptId,
+      build_id: params.buildId,
+      session_token_hash: params.tokenHash,
+      expires_at: params.expiresAt,
+      event_secret: params.eventSecret ?? null,
+    }))
+
+    const result = await createDeliverySession('my-script')
+
+    expect(result.success).toBe(true)
+    expect(mockedFindScriptForDeliveryBySlug).toHaveBeenCalledWith('my-script')
+    expect(mockedGetReadyBuild).toHaveBeenCalledWith('version-uuid-1', {
+      buildVersion: 'delivery-build-v1',
+      payloadFormatVersion: 'inline-json-v1',
+    })
+    expect(mockedCreateSession).toHaveBeenCalledTimes(1)
+    expect(mockedRecordExecution).toHaveBeenCalledWith({
+      scriptId: 'script-uuid-1',
+      sessionId: 'session-uuid-1',
+    })
+  })
+
+  it('does not create sessions for key-required scripts yet', async () => {
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'key_required' }))
+
+    const result = await createDeliverySession('my-script')
+
+    expect(result).toEqual({
+      success: false,
+      status: 501,
+      message: 'Delivery access mode not implemented',
+    })
+    expect(mockedGetReadyBuild).not.toHaveBeenCalled()
+    expect(mockedCreateSession).not.toHaveBeenCalled()
+    expect(mockedRecordExecution).not.toHaveBeenCalled()
+  })
+
+  it('does not create sessions for license-required scripts yet', async () => {
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'license_required' }))
+
+    const result = await createDeliverySession('my-script')
+
+    expect(result).toEqual({
+      success: false,
+      status: 501,
+      message: 'Delivery access mode not implemented',
+    })
+    expect(mockedGetReadyBuild).not.toHaveBeenCalled()
+    expect(mockedCreateSession).not.toHaveBeenCalled()
+    expect(mockedRecordExecution).not.toHaveBeenCalled()
   })
 
   it('rejects expired tokens uniformly', async () => {

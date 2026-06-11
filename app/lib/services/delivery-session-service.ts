@@ -6,7 +6,7 @@ import {
   getSessionByTokenHash,
   type DeliverySessionRow,
 } from '@/app/lib/repositories/delivery-session-repository'
-import { findScriptBySlug, type ScriptRow } from '@/app/lib/repositories/script-repository'
+import { findScriptForDeliveryBySlug, type ScriptRow } from '@/app/lib/repositories/script-repository'
 import { isValidSlug } from '@/app/lib/validators'
 import { DELIVERY_BUILD_VERSION, PAYLOAD_FORMAT_VERSION } from '@/app/lib/services/delivery-build-service'
 import {
@@ -14,6 +14,7 @@ import {
   type RuntimePayloadResponse,
 } from '@/app/lib/delivery/runtime-payload'
 import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
+import { authorizeDeliveryAccess } from '@/app/lib/services/delivery-authorization-service'
 
 export const DELIVERY_SESSION_TTL_SECONDS = 60
 const UNAVAILABLE_MESSAGE = 'Delivery unavailable'
@@ -79,9 +80,14 @@ export async function createDeliverySession(slug: unknown): Promise<CreateDelive
   }
 
   try {
-    const script = await findScriptBySlug(slug)
+    const script = await findScriptForDeliveryBySlug(slug)
     if (!script || !script.current_version_id || !isScriptDeliverable(script)) {
       return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
+    }
+
+    const authorization = authorizeDeliveryAccess({ script })
+    if (!authorization.success) {
+      return authorization
     }
 
     const build = await getReadyBuild(script.current_version_id, {
