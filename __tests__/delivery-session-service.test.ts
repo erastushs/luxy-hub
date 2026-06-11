@@ -32,6 +32,10 @@ vi.mock('@/app/lib/delivery/runtime-payload', () => ({
   createRuntimePayloadFromBuild: vi.fn(),
 }))
 
+vi.mock('@/app/lib/services/key-service', () => ({
+  validateKey: vi.fn(),
+}))
+
 import {
   consumeDeliverySession,
   createDeliverySession,
@@ -47,6 +51,7 @@ import {
 } from '@/app/lib/repositories/delivery-session-repository'
 import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { createRuntimePayloadFromBuild } from '@/app/lib/delivery/runtime-payload'
+import { validateKey } from '@/app/lib/services/key-service'
 
 const mockedFindScriptForDeliveryBySlug = vi.mocked(findScriptForDeliveryBySlug)
 const mockedGetReadyBuild = vi.mocked(getReadyBuild)
@@ -56,6 +61,7 @@ const mockedGetSessionByTokenHash = vi.mocked(getSessionByTokenHash)
 const mockedConsumeSession = vi.mocked(consumeSession)
 const mockedRecordExecution = vi.mocked(recordExecution)
 const mockedCreateRuntimePayloadFromBuild = vi.mocked(createRuntimePayloadFromBuild)
+const mockedValidateKey = vi.mocked(validateKey)
 
 function futureIso(seconds: number = 60): string {
   return new Date(Date.now() + seconds * 1000).toISOString()
@@ -243,16 +249,58 @@ describe('Phase 5C delivery session service', () => {
     })
   })
 
-  it('does not create sessions for key-required scripts yet', async () => {
+  it('creates sessions for key-required scripts when a valid key is provided', async () => {
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'key_required' }))
+    mockedValidateKey.mockResolvedValue({ valid: true })
+    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
+    mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
+      script_id: params.scriptId,
+      build_id: params.buildId,
+      session_token_hash: params.tokenHash,
+      expires_at: params.expiresAt,
+      event_secret: params.eventSecret ?? null,
+    }))
+
+    const result = await createDeliverySession('my-script', 'LUXY-ABCD-1234-EFGH')
+
+    expect(result.success).toBe(true)
+    expect(mockedValidateKey).toHaveBeenCalledWith('LUXY-ABCD-1234-EFGH')
+    expect(mockedGetReadyBuild).toHaveBeenCalled()
+    expect(mockedCreateSession).toHaveBeenCalledTimes(1)
+    expect(mockedRecordExecution).toHaveBeenCalledWith({
+      scriptId: 'script-uuid-1',
+      sessionId: 'session-uuid-1',
+    })
+  })
+
+  it('rejects key-required sessions when no key is provided', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'key_required' }))
 
     const result = await createDeliverySession('my-script')
 
     expect(result).toEqual({
       success: false,
-      status: 501,
-      message: 'Delivery access mode not implemented',
+      status: 403,
+      message: 'Key is required',
     })
+    expect(mockedValidateKey).not.toHaveBeenCalled()
+    expect(mockedGetReadyBuild).not.toHaveBeenCalled()
+    expect(mockedCreateSession).not.toHaveBeenCalled()
+    expect(mockedRecordExecution).not.toHaveBeenCalled()
+  })
+
+  it('rejects key-required sessions with an invalid key', async () => {
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'key_required' }))
+    mockedValidateKey.mockResolvedValue({ valid: false, message: 'Invalid key', status: 403 })
+
+    const result = await createDeliverySession('my-script', 'BAD-KEY-XXXX-YYYY')
+
+    expect(result).toEqual({
+      success: false,
+      status: 403,
+      message: 'Invalid key',
+    })
+    expect(mockedValidateKey).toHaveBeenCalledWith('BAD-KEY-XXXX-YYYY')
     expect(mockedGetReadyBuild).not.toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
     expect(mockedRecordExecution).not.toHaveBeenCalled()
