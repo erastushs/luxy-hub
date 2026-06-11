@@ -64,7 +64,7 @@ Creator-facing analytics and security dashboards showed global `verification_log
 `../../../architecture/ARCHITECTURE.md` and `../../../roadmap/TODO.md` had stale route lists and ambiguous Phase 8 status.
 
 - `../../../architecture/ARCHITECTURE.md`: route topology updated with `/dashboard/scripts/[slug]/analytics/events`, `/dashboard/scripts/[slug]/security`, `/dashboard/admin/alerts`, `/api/internal/check-alerts`, `/api/cleanup`. Dashboard sections, API groups, database tables, and security posture updated. Phase 8 marked complete/100%. Bulk replay cap and GitHub Actions scheduler documented.
-- `../../../roadmap/TODO.md`: current phase updated to Phase 7A License Foundation, Event Platform completion updated to 100%, Telegram/Slack moved to deferred accepted risks, future ordering set to Phase 7 → Phase 9 → Phase 10.
+- `../../../roadmap/TODO.md`: current phase updated to Phase 7A.1 Schema Foundation, Event Platform completion updated to 100%, Telegram/Slack moved to deferred accepted risks, future ordering set to Phase 7 → Phase 9 → Phase 10.
 
 ## Remaining Accepted Risks
 
@@ -124,4 +124,4 @@ The secure delivery and event platform layers are now materially self-consistent
 
 ## Next Phase
 
-Phase 7A — License Foundation. Phase 7 License & Key System has not started in code; review license, assignment, customer identifier, entitlement, and delivery authorization architecture before implementation.
+Phase 7A.1 — Schema Foundation. Phase 7 Access Modes, Keys, and License Authorization has not started in code; review access mode, Work.ink compatibility, license, assignment, customer identifier, and delivery authorization architecture before implementation.

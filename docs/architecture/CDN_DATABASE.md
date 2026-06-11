@@ -378,11 +378,14 @@ WHERE conname = 'fk_scripts_current_version';
 - RLS update: swap `deny_all` for `USING (creator_id = auth.uid())` on `scripts` and `script_versions`
 - Add FK: `ALTER TABLE scripts ADD CONSTRAINT fk_scripts_creator FOREIGN KEY (creator_id) REFERENCES auth.users(id)`
 
-### 7.2 License & Key System (Phase 7 — Planned)
-- Add `scripts.access_mode` with default `free` after Phase 7 architecture review.
-- Add `licenses` table for creator-owned hashed license keys and lifecycle state.
-- Add `license_assignments` table for creator-scoped customer identifiers and assignment state.
-- Gate delivery session creation for `license_required` scripts; do not add marketplace purchases, paid visibility, or creator earnings tables in Phase 7.
+### 7.2 Access Modes, Keys, and Licenses (Phase 7 — Planned)
+- Add `scripts.access_mode` with default `public` after Phase 7 documentation approval.
+- Supported access modes: `public`, `key_required`, `license_required`.
+- Keep `visibility` (`public`, `unlisted`, `private`) separate from `access_mode`.
+- Reuse the existing Work.ink key system for `access_mode = key_required`.
+- Add `licenses` table for creator-owned hashed premium license keys, nullable `expires_at`, lifecycle state, and assignment limits.
+- Add `license_assignments` table for hashed generic customer identifiers and assignment state.
+- Gate authorization only during `POST /api/delivery/session`; do not add authorization logic to delivery fetch, payload delivery, runtime execution, event reporting, marketplace purchases, paid visibility, or creator earnings tables in Phase 7.
 
 ### 7.3 LuxyHub Vault (Phase 5)
 - `scripts.visibility = 'private'` scripts become vault-protected

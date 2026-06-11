@@ -75,8 +75,8 @@ Audit and synchronize all documentation with the actual implementation state. No
 
 These files contain language that was evaluated but not changed because the drift is informational or the impact is low:
 
-- `../../audits/ARCHITECTURE_COMPLIANCE_REPORT.md` — Later reconciled for Phase 7 License & Key System planning; marketplace readiness language removed.
-- `../../architecture/CDN_DATABASE.md` — Later reconciled for Phase 7 License & Key System planning; Script Marketplace / purchase-table speculation removed.
+- `../../audits/ARCHITECTURE_COMPLIANCE_REPORT.md` — Later reconciled for Phase 7 Access Modes, Keys, and License Authorization planning; marketplace readiness language removed.
+- `../../architecture/CDN_DATABASE.md` — Later reconciled for Phase 7 Access Modes, Keys, and License Authorization planning; Script Marketplace / purchase-table speculation removed.
 - `../../archive/architecture/CDN_ARCHITECTURE.md` — Contains `cdn.luxyhub.space` future-state examples; labeled as future-state diagrams, low risk.
 - `../../archive/integration/CDN_MIGRATION_GUIDE.md` — Describes future `cdn.luxyhub.space/raw/:slug`; labeled as "Future State", low risk.
 - `../../archive/phase3/PHASE3C_CREATOR_APIS.md` — Contains "will later power dashboard.luxyhub.space" language; historical phase doc, low risk.

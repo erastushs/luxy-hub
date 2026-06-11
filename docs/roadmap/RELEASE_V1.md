@@ -200,11 +200,11 @@ Completed after Release V1:
 
 Current active track:
 
-- Phase 7A — License Foundation: not started in code. Review license, assignment, customer identifier, entitlement, and delivery authorization architecture before implementation.
+- Phase 7A.1 — Schema Foundation: not started in code. Approved Phase 7 direction supports `public`, `key_required`, and `license_required` access modes; review schema, assignment, customer identifier, Work.ink compatibility, and delivery authorization boundaries before implementation.
 
 Future ordering:
 
-1. Phase 7 — License & Key System
+1. Phase 7 — Access Modes, Keys, and License Authorization
 2. Phase 9 — Internal Operations & Release Workflow
 3. Phase 10 — Scale & Infrastructure (Optional)
 

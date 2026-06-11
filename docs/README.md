@@ -2,15 +2,16 @@
 
 ## Current Status
 
-- Current Phase: Phase 7A License Foundation
-- Phase 8: Complete (100%)
+- Current Phase: Phase 7A.1 Schema Foundation
+- Phase 8: Complete (100%), production verified, Roblox verified
+- Analytics V1: Complete
 
-LuxyHub is ready for Phase 7A implementation planning. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
+LuxyHub is ready for Phase 7A.1 Schema Foundation implementation planning. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope. Phase 7 is now the active development phase for `public`, `key_required`, and `license_required` access modes.
 
 ## Source of Truth Documents
 
 - `architecture/ARCHITECTURE.md` — current implementation architecture.
-- `architecture/PHASE7_LICENSE_ARCHITECTURE.md` — Phase 7 license foundation design.
+- `architecture/PHASE7_LICENSE_ARCHITECTURE.md` — Phase 7 access mode, Work.ink key, and premium license architecture.
 - `roadmap/TODO.md` — roadmap, active phase, completed phases, and pending work.
 
 ## Production Scheduler
@@ -35,7 +36,7 @@ Scheduler notes:
 
 - `architecture/ARCHITECTURE.md` — current system architecture.
 - `architecture/CDN_DATABASE.md` — CDN/database reference.
-- `architecture/PHASE7_LICENSE_ARCHITECTURE.md` — source-of-truth Phase 7 license architecture.
+- `architecture/PHASE7_LICENSE_ARCHITECTURE.md` — source-of-truth Phase 7 access mode and license architecture.
 
 ### `roadmap/`
 
@@ -57,7 +58,7 @@ Scheduler notes:
 - `phases/phase4/PHASE4_DOCUMENTATION_REVIEW.md` — Phase 4 documentation review.
 - `phases/phase7/README.md` — Phase 7 pointer to the source-of-truth license architecture.
 - `phases/phase7/historical/` — Phase 7 supporting historical records.
-- `phases/phase8/active/` — Phase 8 closeout and active operational decisions.
+- `phases/phase8/active/` — Phase 8 closeout and operational decisions retained after production verification.
 - `phases/phase8/historical/` — Phase 8 historical implementation records.
 
 ### `audits/`
@@ -85,4 +86,4 @@ Scheduler notes:
 - Phase 4 — complete.
 - Phase 5 — complete.
 - Phase 6 — complete.
-- Phase 8 — complete / formally closed at 100%.
+- Phase 8 — complete / formally closed at 100%, production verified, Roblox verified.

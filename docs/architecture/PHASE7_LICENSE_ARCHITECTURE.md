@@ -1,369 +1,440 @@
-# Phase 7 — License & Delivery Authorization Architecture
+# Phase 7 — Access Modes, Keys, and License Authorization Architecture
 
-Status: Planning / Architecture Review Required Before Implementation
-Date: 2026-06-10
-Scope: Architecture and roadmap only. Phase 7 has not started in code. Do not create migrations, APIs, delivery changes, or loader modifications until the review findings in this document are resolved.
+Status: Active Development Phase / Documentation Approved Before Implementation
+Date: 2026-06-11
+Scope: Architecture and roadmap only. Do not create migrations, APIs, runtime behavior changes, or loader changes until Phase 7A.1 implementation begins.
 
-## 1. Goals
+## 1. Approved Direction
 
-Introduce a licensing model that sits above the existing secure delivery architecture without modifying it:
+Phase 7 introduces script access authorization above the existing Secure Delivery architecture. The platform must support three access models:
 
-- Scripts can be free (no key) or license-required.
-- License validation gates delivery session creation.
-- Creators manage licenses and customers from the dashboard.
-- The build pipeline, encryption, session lifecycle, and loader runtime remain unchanged.
+| Access Mode | Purpose | Authorization |
+|---|---|---|
+| `public` | Open access | No authorization required |
+| `key_required` | Monetized free access | Existing Work.ink key system |
+| `license_required` | Paid/premium access | Creator-generated premium license |
 
-## 2. Architecture Overview
+Important separation of concerns:
 
-### 2.1 Relationship to Existing System
+- `visibility` controls script discoverability and public slug availability: `public`, `unlisted`, `private`.
+- `access_mode` controls delivery authorization: `public`, `key_required`, `license_required`.
 
+Secure Delivery remains unchanged. Phase 7 only decides whether a delivery session may be created.
+
+## 2. Current Platform Status
+
+| Area | Status |
+|---|---|
+| Phase 4 | Complete |
+| Phase 5 Secure Delivery | Complete |
+| Phase 6 Loader Integration / Analytics V1 | Complete |
+| Phase 8 Event Platform | Complete, production verified, Roblox verified |
+| Phase 7 | Active development phase |
+
+Analytics V1 is complete and uses `script_executions` as the canonical execution event table for secure delivery sessions. Phase 7 should integrate license and key activity into analytics without changing the existing execution-count contract.
+
+## 3. Relationship to Existing System
+
+```text
+                 Phase 7 Authorization Layer
+       ┌──────────────────────────────────────────┐
+       │ access_mode = public                     │
+       │ access_mode = key_required               │
+       │ access_mode = license_required           │
+       └──────────────────────┬───────────────────┘
+                              │ gates only session creation
+                              v
+Phase 5-6 Secure Delivery ┌──────────────────────────┐
+                          │ delivery_sessions         │
+                          │ delivery_builds           │
+                          │ runtime payload delivery  │
+                          │ loader bootstrap/runtime  │
+                          └──────────────────────────┘
 ```
-                    Phase 7 (new)
-               ┌─────────────────────┐
-               │ License Validation   │
-               │ Entitlement Check    │
-               │ Key Management       │
-               └────────┬────────────┘
-                        │ gates session creation
-                        v
-Phase 5-6 (unchanged) ┌─────────────────────┐
-                       │ Delivery Session     │
-                       │ Build Pipeline       │
-                       │ Runtime Payload      │
-                       │ Loader Bootstrap     │
-                       └─────────────────────┘
+
+Authorization occurs only during:
+
+```text
+POST /api/delivery/session
 ```
 
-### 2.2 New Tables (planned)
+Authorization must not occur during:
 
-**`licenses`** — license definitions owned by creators:
+- `POST /api/delivery/fetch`
+- Payload delivery
+- Runtime execution
+- Event reporting
 
-| Column | Type | Purpose |
-|--------|------|---------|
-| `id` | uuid | Primary key |
-| `script_id` | uuid | FK to `scripts.id` |
-| `creator_id` | uuid | FK to `auth.users.id` |
-| `key_prefix` | text | Key format prefix (e.g. `LUXY`) |
-| `key_suffix` | text | Unique key suffix (e.g. encrypted random) |
-| `key_hash` | text | SHA-256 hash of generated license key; never store raw key after issuance |
-| `max_assignments` | int | Max customers per license (null = unlimited) |
-| `status` | text | `active`, `revoked`, `expired` |
-| `created_at` | timestamptz | |
-| `updated_at` | timestamptz | |
-| `revoked_at` | timestamptz | Nullable |
-| `last_activation_at` | timestamptz | Nullable — last delivery session created |
-| `last_delivery_at` | timestamptz | Nullable — last fetch completed |
-| `metadata` | jsonb | Optional creator-facing notes/tier labels; not used for authorization decisions |
+## 4. Access Mode Design
 
-**`license_assignments`** — customer-to-license bindings:
+### 4.1 `public`
 
-| Column | Type | Purpose |
-|--------|------|---------|
-| `id` | uuid | Primary key |
-| `license_id` | uuid | FK to `licenses.id` |
-| `customer_identifier` | text | Creator-defined customer label |
-| `status` | text | `active`, `revoked` |
-| `assigned_at` | timestamptz | |
-| `revoked_at` | timestamptz | Nullable |
+Definition:
 
-RLS posture:
-- `licenses` — owner-aware, same pattern as `scripts`
-- `license_assignments` — gated through parent license owner
-- Both tables follow existing `deny_all` default + service-role-only operational pattern
+- No key required.
+- Delivery session is created immediately when the script is deliverable and a ready build exists.
 
-## 3. Access Mode Model
+Flow:
 
-Scripts have an access mode that controls whether a license key is required for delivery.
-
-| Mode | Session Creation | Key Required | Behavior |
-|------|-----------------|-------------|----------|
-| `free` | Proceeds as today | No | Identical to current Phase 6H flow |
-| `license_required` | License validation required | Yes (`script_key`) | Valid active license + assignment must exist |
-
-### Default Mode
-
-All existing scripts default to `free`. Creators explicitly opt scripts into `license_required`. Phase 7A implementation should add `scripts.access_mode text not null default 'free' check (access_mode in ('free', 'license_required'))`; this is an additive existing-table migration with no data backfill.
-
-### Mode Ownership
-
-Access mode lives on the script, not on the license. A `license_required` script can have multiple licenses (for example, per-customer keys or future tiers). License records hold key material, assignment limits, and lifecycle state; the script's mode determines whether validation runs. Do not duplicate `access_mode` on `licenses`.
-
-## 4. Delivery Authorization Model
-
-### 4.1 Current Flow (Phase 6H)
-
-```
+```text
 Loader
-  |
-  | POST /api/delivery/session { slug }
-  v
-Delivery Session Service
-  |
-  | find ready encrypted build
-  | create one-time session
-  v
-session_token + expires_in
-  |
-  | POST /api/delivery/fetch { session_token }
-  v
-validate session → decrypt → decompress → runtime payload
+  -> POST /api/delivery/session { slug }
+  -> create session
+  -> success
 ```
 
-### 4.2 Licensed Flow (Phase 7C)
+### 4.2 `key_required`
 
-```
+Definition:
+
+- Uses the existing Work.ink-backed key system.
+- Intended for monetized free access.
+- Existing endpoints remain supported:
+  - `/get-key`
+  - `/api/generate-key`
+  - `/api/validate`
+  - `/api/verify-workink`
+
+Flow:
+
+```text
 Loader
-  |
-  | script_key = "LUXY-XXXX-XXXX"     ← set by executor environment
-  |
-  | POST /api/delivery/session { slug, script_key }
-  v
-License Validation                     ← NEW GATE
-  |
-  | validate key format
-  | lookup license by key
-  | verify license.status = active
-  | verify license.script.access_mode = license_required
-  | verify assignment exists and is active
-  v
-Create Session
-  |
-  | update last_activation_at
-  v
-session_token + expires_in
-  |
-  | POST /api/delivery/fetch { session_token }
-  v
-validate session → decrypt → decompress → runtime payload
-  |
-  | update last_delivery_at
-  v
+  -> validate/submit Work.ink key
+  -> POST /api/delivery/session { slug, key }
+  -> validate existing key system
+  -> create session
+  -> success
 ```
 
-### 4.3 Free Flow (Unchanged)
+The current Work.ink key system is not being replaced. It becomes the implementation of `access_mode = key_required`.
 
-```
+### 4.3 `license_required`
+
+Definition:
+
+- Uses the new premium license system.
+- Intended for paid access.
+- Creator-generated license keys.
+- Assignment/device limits enforced through license assignments.
+
+Flow:
+
+```text
 Loader
-  |
-  | (no script_key set)
-  |
-  | POST /api/delivery/session { slug }
-  v
-License check: script.access_mode = free → SKIP
-  |
-  v
-Create Session → fetch → runtime payload
+  -> POST /api/delivery/session { slug, license_key, customer_identifier }
+  -> validate license
+  -> check or create assignment
+  -> create session
+  -> success
 ```
 
-### 4.4 Integration Points
+## 5. Planned Schema
 
-License validation is inserted at exactly one point: **inside `POST /api/delivery/session` after script/build lookup and before session token generation.**
+### 5.1 `scripts.access_mode`
 
-The integration is additive:
+Planned column:
 
-- `script_key` is an optional field on the existing session request body.
-- Absent `script_key` + `access_mode = free` → proceed as today.
-- Present `script_key` + `access_mode = license_required` → validate before session.
-- Present `script_key` + `access_mode = free` → ignore key (or reject as misconfiguration; TBD).
-- Absent `script_key` + `access_mode = license_required` → deny.
-
-Nothing else changes:
-- `/api/delivery/fetch` remains unchanged.
-- `/api/loader/[slug]` bootstrap code remains unchanged.
-- Build pipeline, encryption, session token hashing, runtime format — all unchanged.
-
-### 4.5 Denial Response
-
-Uniform error for all license failures:
-
-```json
-{
-  "success": false,
-  "message": "Invalid or revoked license"
-}
+```sql
+access_mode text not null default 'public'
+  check (access_mode in ('public', 'key_required', 'license_required'))
 ```
 
-This matches the existing `Invalid delivery session` pattern — no oracle for whether the license is missing, expired, or revoked.
+Recommended indexes:
 
-## 5. Key Format
-
-License keys use a human-readable prefix format:
-
-```
-LUXY-XXXX-XXXX
+```sql
+create index idx_scripts_access_mode on scripts (access_mode);
+create index idx_scripts_creator_access_mode on scripts (creator_id, access_mode);
 ```
 
-- `LUXY` — fixed prefix for brand recognition
-- `XXXX-XXXX` — two groups of four alphanumeric characters
-- Generated server-side on license creation
-- Hashed in database (SHA-256, same pattern as session tokens)
-- Full key shown once to creator on creation; copy workflow available thereafter
+Defaulting existing rows to `public` preserves current delivery behavior.
 
-The key is **not** a cryptographic secret — it is a lookup identifier. The real security comes from one-time session tokens, rate limiting, and server-side validation. This is consistent with the existing threat model documented in Phase 6H §8.
+### 5.2 `licenses`
 
-## 6. Dashboard Management Model
+Required fields:
 
-### 6.1 License Lifecycle
+| Column | Purpose |
+|---|---|
+| `id` | Primary key |
+| `script_id` | Licensed script |
+| `creator_id` | Owning creator; derived from server session in creator APIs |
+| `key_hash` | Hash/HMAC of generated license key; raw key is never stored |
+| `max_assignments` | Device/customer assignment limit |
+| `status` | `active`, `disabled`, `revoked` |
+| `activation_count` | Count of new assignment activations |
+| `delivery_count` | Count of successful license-authorized delivery sessions |
+| `last_activation_at` | Last time a new assignment was created |
+| `last_delivery_at` | Last successful license-authorized delivery session |
+| `expires_at` | Nullable expiry timestamp; `NULL` means permanent license |
+| `created_at` | Creation timestamp |
+| `updated_at` | Update timestamp |
 
+License statuses:
+
+- `active`
+- `disabled`
+- `revoked`
+
+Do not use a separate `expired` status. Expiry is derived from `expires_at`:
+
+- `expires_at = NULL` means permanent license.
+- `expires_at != NULL` means time-limited license.
+- A license is expired when `expires_at <= now()`.
+
+Recommended constraints and indexes:
+
+- `key_hash` unique.
+- `max_assignments > 0`.
+- `status in ('active', 'disabled', 'revoked')`.
+- Index `(script_id, status)` for delivery authorization.
+- Index `(creator_id, script_id)` for dashboard management.
+- Enforce that `creator_id` matches the parent script owner through service checks, RLS, or a composite FK where migration-safe.
+
+### 5.3 `license_assignments`
+
+Required fields:
+
+| Column | Purpose |
+|---|---|
+| `id` | Primary key |
+| `license_id` | Parent license |
+| `customer_identifier_hash` | Hashed normalized generic customer/device identifier |
+| `display_name` | Optional creator-facing label |
+| `status` | Assignment lifecycle state |
+| `created_at` | Creation timestamp |
+| `updated_at` | Update timestamp |
+
+Recommended assignment statuses:
+
+- `active`
+- `disabled`
+- `revoked`
+
+Recommended constraints and indexes:
+
+- Unique `(license_id, customer_identifier_hash)`.
+- Index `(license_id, status)`.
+- Index `customer_identifier_hash` for support lookup where needed.
+
+Avoid storing raw customer identifiers when possible. Store hashes for enforcement and use `display_name` for creator-facing identification.
+
+## 6. Customer Identifier Strategy
+
+Customer identifiers remain generic strings. Examples:
+
+- `roblox_user:123456`
+- `hwid:abcdef`
+- `custom:xyz`
+
+Rules:
+
+- Normalize before hashing.
+- Reject empty values.
+- Enforce a maximum length.
+- Store `customer_identifier_hash` for enforcement.
+- Avoid storing raw identifiers unless a future support workflow explicitly requires it.
+
+The generic strategy keeps Phase 7 future-proof across Roblox user IDs, HWIDs, custom customer IDs, external store IDs, and future loader-generated identifiers.
+
+## 7. Delivery Authorization Boundary
+
+The only authorization boundary is `POST /api/delivery/session`.
+
+Recommended internal abstraction:
+
+```ts
+authorizeDeliveryAccess({
+  script,
+  key,
+  licenseKey,
+  customerIdentifier,
+})
 ```
-Create → Active → Revoked
-              ↘ Expired (future: time-based)
+
+Expected outcomes:
+
+```text
+public
+  -> allow
+
+key_required
+  -> require key
+  -> validate through existing Work.ink key service
+  -> allow or deny
+
+license_required
+  -> require license_key and customer_identifier
+  -> validate license status, expiry, script ownership, assignment limit
+  -> allow or deny
 ```
 
-- **Create**: Creator generates a license for a script, receives key once.
-- **Edit**: Update max_assignments, metadata.
-- **Revoke**: Immediate — all assignments invalidated, all sessions denied.
-- **Reset**: Revoke current + generate new key (preserves assignments).
-- **Search**: By key, customer identifier, or status.
-- **Status**: Active / Revoked / Expired badge per license.
+`/api/delivery/fetch` remains a session-token validation and one-time consumption endpoint. It should not re-check access mode, Work.ink keys, license keys, assignments, or runtime entitlement.
 
-### 6.2 Customer Assignment
+Event reporting uses the existing per-session `event_secret`. It should not perform key/license authorization.
 
-- Creator assigns a license to a customer by identifier.
-- Customer identifier is creator-defined (e.g., Discord username, email, order ID).
-- Revoking an assignment is immediate; revoking the parent license revokes all assignments.
-- No self-service customer portal in V1.
+## 8. Work.ink Integration Strategy
 
-### 6.3 Creator UX
+The existing Work.ink system remains supported and becomes the foundation of `key_required`.
 
-Dashboard additions on the script detail page:
+Preserved behavior:
 
-- **License Overview Cards**: Count of active, revoked, total licenses per script.
-- **Copy Key**: One-click copy of license key.
-- **Copy Loader Example**: Snippet with key embedded:
+- `/get-key` continues to direct users through Work.ink.
+- `/api/generate-key` continues to generate a key after Work.ink token verification.
+- `/api/validate` continues to validate existing keys.
+- `/api/verify-workink` continues to verify Work.ink tokens and generate keys.
+- `used_workink_tokens` continues to protect against Work.ink token replay.
 
-```lua
-getgenv().script_key = "LUXY-XXXX-XXXX"
+Phase 7 should not replace this system. Future hardening may add key hashing, script scoping, or creator-specific Work.ink campaigns, but compatibility with existing behavior must be preserved.
 
-loadstring(game:HttpGet(
-    "https://www.luxyhub.space/api/loader/luxy"
-))()
+## 9. Device Limit Strategy
+
+Device/customer limits are enforced with:
+
+- `licenses.max_assignments`
+- `license_assignments`
+
+Supported limits:
+
+- 1 device
+- 3 devices
+- 5 devices
+- Custom integer limits
+
+Enforcement during `POST /api/delivery/session`:
+
+```text
+Existing active assignment
+  -> allow
+
+Existing disabled/revoked assignment
+  -> deny
+
+No assignment
+  -> check active assignment count against max_assignments
+  -> create active assignment if limit is available
+  -> deny if limit is exhausted
 ```
 
-- **Status Badges**: Active (green), Revoked (red), Expired (yellow).
-- **Customer Assignment UI**: Assign, revoke, search customers per license.
+Assignment creation and limit checks must be atomic to prevent concurrent requests from exceeding `max_assignments`.
 
-## 7. Analytics & Audit
+## 10. Analytics and Audit
 
-### 7.1 License Activity
+Analytics V1 is complete. Phase 7 should integrate without redefining execution analytics.
 
-Tracked on the `licenses` row:
+License counters:
 
-- `last_activation_at` — updated when a delivery session is created with this license
-- `last_delivery_at` — updated when `/api/delivery/fetch` succeeds with a session created under this license
+- `activation_count`: increment only when a new assignment is created.
+- `delivery_count`: increment when a license-authorized delivery session is created.
+- `last_activation_at`: update when a new assignment is created.
+- `last_delivery_at`: update when a license-authorized delivery session is created.
 
-### 7.2 Audit Events
-
-New audit log event types:
+Recommended audit events:
 
 - `license.created`
 - `license.updated`
+- `license.disabled`
 - `license.revoked`
 - `license.assignment_created`
+- `license.assignment_disabled`
 - `license.assignment_revoked`
+- `script.access_mode_changed`
 
-Follows existing fire-and-forget audit pattern — audit failures do not block operations.
+Audit logging should follow the existing fire-and-forget pattern. Audit failures must not block creator operations or delivery authorization.
 
-### 7.3 Revocation History
+## 11. Roadmap
 
-Stored inline on `licenses.revoked_at`. Full history of revoke/reissue cycles available through audit logs.
+### Phase 7A.1 — Schema Foundation
 
-## 8. Migration Strategy
+- `scripts.access_mode`
+- `licenses`
+- `license_assignments`
+- Constraints, indexes, ownership model, and RLS design
 
-### Zero-Downtime Rollout
+### Phase 7A.2 — Authorization Abstraction
 
-1. Review and finalize the License / Assignment / Customer Identifier / Entitlement / Delivery Authorization model below.
-2. Deploy migration: add `scripts.access_mode`, `licenses`, and `license_assignments`.
-3. Deploy code: license service, repository, validators — all behind `scripts.access_mode` check.
-4. Existing scripts default to `free`; no backfill or behavior change for current traffic.
-5. Creators opt scripts into `license_required` explicitly.
+- `authorizeDeliveryAccess()`
+- Delivery session request contract for `key`, `license_key`, and `customer_identifier`
+- Tests for all access-mode branches before behavior rollout
 
-### Backward Compatibility
+### Phase 7A.3 — Key Required Mode
 
-- All 114 completed tasks continue working.
-- All existing tests continue passing.
-- `/api/delivery/session` accepts `script_key` as optional — absent means free.
-- `/api/loader/[slug]` bootstrap is unchanged.
-- Phase 5-6 delivery infrastructure is untouched.
+- Integrate existing Work.ink key validation into delivery session creation
+- Map `access_mode = key_required` to the existing key ecosystem
+- Preserve `/get-key`, `/api/generate-key`, `/api/validate`, and `/api/verify-workink`
 
-## 9. Future Customer Workflow
+### Phase 7A.4 — License Services
 
-### V1 (Phase 7)
+- Generate license
+- Revoke/disable license
+- Assignment management
+- Hash license keys before storage
 
-- Creator manages everything from dashboard.
-- Creator assigns licenses manually by customer identifier.
-- Customer receives key out-of-band (Discord, email, etc.).
-- Customer sets `script_key` in executor environment before bootstrap.
+### Phase 7A.5 — License Delivery Authorization
 
-### Future (Beyond Phase 7)
+- Enforce `access_mode = license_required`
+- Validate license status and `expires_at`
+- Check/create assignments under `max_assignments`
+- Update license activity counters
 
-- Customer self-service portal (redeem key, view status).
-- Time-based license expiration.
-- HWID binding (executor hardware fingerprint).
-- Seat limits (concurrent session tracking).
-- Tiered licenses (different scripts under one key).
-- License analytics dashboard for customers.
+### Phase 7A.6 — Dashboard & Loader UX
 
-## 10. Security Review
+- Access mode selector
+- License management UI
+- Assignment/device management UI
+- Loader support for key and license modes
 
-### What License Validation Protects
+### Phase 7A.7 — Hardening & Audit
 
-- Prevents unauthorized executors from receiving a delivery session.
-- Revocation is immediate — no cached sessions survive (sessions are 60s TTL, one-time use).
-- Key format is not brute-forceable at scale due to rate limiting on session creation (20 req/min/IP).
+- Audit logs
+- Authorization monitoring
+- Analytics integration
+- Rate-limit and abuse monitoring for key/license attempts
 
-### What It Does Not Protect
+## 12. Migration Strategy
 
-- A valid customer can still dump memory after `loadstring` executes.
-- Key sharing between customers (no HWID binding in V1).
-- Key leaking through executor environment inspection.
+Recommended implementation order:
 
-These are accepted tradeoffs consistent with the Phase 6H threat model: the practical protections are session gating, rate limiting, revocation, and future build-time obfuscation.
+1. Add schema foundation with default `scripts.access_mode = 'public'`.
+2. Add service/repository types without changing delivery behavior.
+3. Add authorization abstraction and preserve current public behavior.
+4. Integrate `key_required` using existing Work.ink key validation.
+5. Add license generation and assignment services.
+6. Integrate `license_required` into session creation.
+7. Add dashboard and loader UX.
+8. Add hardening, audit, and analytics refinements.
 
-### No New Attack Surface
+Backward compatibility requirements:
 
-- `script_key` is hashed before storage (SHA-256, same pattern as session tokens).
-- No raw keys in database.
-- Uniform error responses prevent oracle attacks.
-- License validation runs server-side only — no client-side license checks.
-- No key material shipped to the loader.
+- Existing scripts remain `public` unless explicitly changed.
+- Existing Work.ink endpoints remain valid.
+- Existing secure delivery session/fetch architecture remains unchanged.
+- No authorization logic moves into fetch, payload delivery, runtime execution, or event reporting.
 
-## 11. Architecture Decisions Summary
+## 13. Security Review
 
-| Decision | Rationale |
-|----------|-----------|
-| Gate at session creation, not fetch | Fetch path stays simple; denial is cheap (no session created) |
-| `script_key` as optional field | Zero overhead for free scripts |
-| Key as lookup identifier, not cryptographic secret | Consistent with existing threat model |
-| License owned by creator (same as scripts) | Reuses existing ownership enforcement infrastructure |
-| No HWID/IP binding in V1 | Complexity deferred; revocation + rate limiting are sufficient first pass |
-| Uniform denial response | Prevents oracle attacks (matches existing `Invalid delivery session` pattern) |
-| Audit logging fire-and-forget | Matches existing audit system contract |
-| Build pipeline, encryption, loader unchanged | License is authorization, not delivery — separation of concerns |
+Primary controls:
 
-## 12. Conflicts & Risks
+- Gate access before a delivery session exists.
+- Store delivery session token hashes only.
+- Store premium license key hashes only.
+- Preserve rate limiting on `POST /api/delivery/session`.
+- Use generic denial responses for invalid credentials where practical.
+- Enforce creator ownership for all license management operations.
+- Use service-role-only delivery authorization server-side; no direct anonymous database access.
 
-### Architecture Review Findings Before Phase 7A
+Known limits:
 
-Phase 7 should not start implementation until these model boundaries are settled:
+- A valid customer can still share keys or dump memory after runtime execution.
+- HWIDs and customer identifiers can be spoofed depending on loader/executor environment.
+- License enforcement is an access-control layer, not a tamper-proof DRM system.
 
-| Area | Finding | Recommendation |
-|------|---------|----------------|
-| License | The earlier plan mixed access mode into both script and license concepts. | Keep access mode only on `scripts`; keep license records focused on key hash, lifecycle, assignment limit, and script ownership. |
-| Assignment | Assignment currently binds a license to a free-form customer label, but the lifecycle semantics are thin. | Define whether an assignment is a seat, customer binding, or activation record before building dashboard UX. Store assignment status and timestamps; keep historical changes in audit logs. |
-| Customer Identifier | `customer_identifier` is creator-defined and can contain Discord IDs, email-like strings, or manual labels. | Treat it as creator-scoped opaque text, normalize for lookup only if needed, avoid global uniqueness, and do not use it as an authentication secret. |
-| Entitlement | Phase 7 is license-gated delivery authorization, not marketplace/payment entitlement. | Model entitlement as "active license for this script, within assignment rules". Do not introduce paid marketplace, creator earnings, or purchase tables in Phase 7. |
-| Delivery Authorization | The clean boundary is delivery session creation. | Validate license before creating `delivery_sessions`; do not add license logic to `/api/delivery/fetch`, payload decryption, build generation, or the loader runtime except passing optional `script_key` into session creation. |
+Accepted approach:
 
-### Current Compatibility
+- Secure Delivery remains the payload protection layer.
+- Phase 7 controls who can create sessions.
+- Runtime and event layers remain separate from licensing decisions.
 
-- Phase 7 sits above Phase 5-6 delivery infrastructure.
-- Existing `keys` table (Work.ink legacy) is unrelated and should remain untouched unless a later migration explicitly deprecates it.
-- No API route collisions — license validation is inside existing session handler.
-- There is an intentional additive schema change to `scripts.access_mode`; previous "new tables only" assumptions are obsolete.
+## 14. Implementation Readiness
 
-### Risks
+Ready to begin Phase 7A.1 after documentation approval.
 
-- **Key sharing**: No HWID binding means keys can be shared. Mitigation: rate limiting, revocation, future HWID binding.
-- **Creator confusion**: Creators must understand access modes. Mitigation: dashboard UX with clear mode selector and defaults.
-- **License validation latency**: Adds a DB query to session creation. Mitigation: indexed key lookup, single-row query, negligible overhead.
+Phase 7A.1 must be schema-only foundation work and should not change runtime delivery behavior until the authorization abstraction and access-mode tests are ready.

@@ -1,7 +1,7 @@
 # LuxyHub Architecture
 
-Last updated: 2026-06-10
-Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, and Phase 8 event platform closeout
+Last updated: 2026-06-11
+Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, and Phase 8 Event Platform production verification. Phase 7 is the active development phase.
 
 ## Overview
 
@@ -270,13 +270,29 @@ Runtime payload response with event_secret and Cache-Control: no-store
 
 Delivery sessions are only issued for public or unlisted scripts with a ready inline encrypted delivery build for the current version. `/api/delivery/session` and `/api/delivery/fetch` return the per-session `event_secret` needed to sign `/api/events/report` payloads. `/api/delivery/fetch` consumes the session before returning the runtime payload; reused, expired, malformed, or missing sessions return `Invalid delivery session`.
 
-Delivery builds are created automatically after script creation, content version creation, and visibility publish actions. Build payloads use the current `delivery-build-v1` and `inline-json-v1` formats with AES-256-GCM payload packaging, gzip compression, and SHA-256 integrity fields. The current loader executes the server-produced runtime payload with `loadstring`; license management and marketplace entitlement checks are not implemented.
+Delivery builds are created automatically after script creation, content version creation, and visibility publish actions. Build payloads use the current `delivery-build-v1` and `inline-json-v1` formats with AES-256-GCM payload packaging, gzip compression, and SHA-256 integrity fields. The current loader executes the server-produced runtime payload with `loadstring`.
+
+Phase 7 will add `scripts.access_mode` as a separate concern from `scripts.visibility`:
+
+| Concern | Values | Purpose |
+|---|---|---|
+| `visibility` | `public`, `unlisted`, `private` | Discoverability and whether a script can be publicly addressed by slug |
+| `access_mode` | `public`, `key_required`, `license_required` | Delivery authorization requirement |
+
+Approved Phase 7 authorization boundary:
+
+- Authorization occurs only during `POST /api/delivery/session`.
+- Authorization must not occur during delivery fetch, payload delivery, runtime execution, or event reporting.
+- `public` creates a delivery session immediately when the script/build is deliverable.
+- `key_required` reuses the existing Work.ink key ecosystem.
+- `license_required` uses premium creator-generated licenses and assignment/device limits.
 
 ## Analytics Architecture
 
-Analytics source of truth:
+Analytics V1 source of truth:
 
-- `script_downloads`
+- `script_executions` for secure delivery execution counts.
+- `script_downloads` remains historical/raw CDN download telemetry for legacy raw delivery analytics.
 
 Dashboard analytics includes:
 
@@ -285,7 +301,7 @@ Dashboard analytics includes:
 - Top scripts by downloads
 - Per-script analytics API response
 
-Current analytics queries are live aggregate queries. Phase 4.2 identified future performance work around top-script N+1 aggregation, SQL date bucketing, and possible short-TTL owner-scoped caching after query consolidation.
+Analytics V1 is complete. Current analytics queries use owner-scoped service/repository access and cached execution counters where implemented. Future performance work can still consolidate query shapes or add short-TTL owner-scoped caching, but this is not a Phase 7 blocker.
 
 ## Audit Logging
 
@@ -359,13 +375,13 @@ Future improvements:
 - Dependency updates when stable security fixes are available
 - Security monitoring and alerting for authentication and delivery anomalies
 - Login anomaly detection beyond local failed-attempt counters
-- License, entitlement, and paid-access checks after loader requirements are finalized
+- Phase 7 authorization monitoring for access mode, Work.ink key, and license-required session attempts
 
 ## Roadmap Alignment
 
 Current phase:
 
-- Phase 7A — License Foundation: active, not started in code.
+- Phase 7A.1 — Schema Foundation: active, not started in code.
 
 Completed phases:
 
@@ -375,11 +391,11 @@ Completed phases:
 - Phase 4.4 — Production Hardening: complete
 - Phase 5 — Secure Script Delivery: complete
 - Phase 6 — Loader Integration: complete
-- Phase 8 — Event Reporting & Webhook Platform: complete / 100% (database foundation, HMAC reporting API, replay and timestamp validation, queue worker with claim leases, dead-letter handling, Discord provider, dashboard webhook management, event operations, analytics dashboard, security dashboard, internal alerts, GitHub Actions scheduler, event retention cleanup, monitoring counters, and RLS hardening). Telegram and Slack providers, webhook encryption at rest, nonce atomicity improvements, and durable audit event stream expansion are deferred future enhancements and accepted risks, not Phase 8 blockers.
+- Phase 8 — Event Reporting & Webhook Platform: complete / 100%, production verified, and Roblox verified (database foundation, HMAC reporting API, replay and timestamp validation, queue worker with claim leases, dead-letter handling, Discord provider, dashboard webhook management, event operations, analytics dashboard, security dashboard, internal alerts, GitHub Actions scheduler, event retention cleanup, monitoring counters, and RLS hardening). Telegram and Slack providers, webhook encryption at rest, nonce atomicity improvements, and durable audit event stream expansion are deferred future enhancements and accepted risks, not Phase 8 blockers.
 
 Future ordering:
 
-1. Phase 7 — License & Key System
+1. Phase 7 — Access Modes, Keys, and License Authorization
 2. Phase 9 — Internal Operations & Release Workflow
 3. Phase 10 — Scale & Infrastructure (Optional)
 
@@ -387,4 +403,4 @@ Deprecated roadmap assumptions removed from current architecture:
 
 - Separate `dashboard.luxyhub.space`, `api.luxyhub.space`, `cdn.luxyhub.space`, and `vault.luxyhub.space` services are not implemented.
 - Marketplace architecture is not part of the current roadmap.
-- License management is planned but not implemented — see `PHASE7_LICENSE_ARCHITECTURE.md`.
+- Phase 7 access modes and premium license management are planned but not implemented — see `PHASE7_LICENSE_ARCHITECTURE.md`.

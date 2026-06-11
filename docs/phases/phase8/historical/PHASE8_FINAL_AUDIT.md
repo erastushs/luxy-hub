@@ -4,7 +4,7 @@ Date: 2026-06-10
 Status: Final audit-only review
 Final recommendation: GO WITH CONDITIONS
 
-> Superseded on 2026-06-10 by `../active/PHASE8_CLOSEOUT.md`. Final hardening resolved the remaining production conditions or accepted them as deferred risks. Phase 8 is now formally complete/100%; the active project phase is Phase 7A License Foundation.
+> Superseded on 2026-06-10 by `../active/PHASE8_CLOSEOUT.md`. Final hardening resolved the remaining production conditions or accepted them as deferred risks. Phase 8 is now formally complete/100%; the active project phase is Phase 7A.1 Schema Foundation.
 
 ## Executive Summary
 

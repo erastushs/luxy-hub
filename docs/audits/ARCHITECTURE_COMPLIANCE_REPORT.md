@@ -100,9 +100,10 @@ Status: ✅ COMPLIANT
 
 | Phase 7 Requirement | CDN MVP Readiness | Action Needed |
 |--------------------|-------------------|---------------|
-| Script access mode | ⚠️ Planned | Phase 7A: add `scripts.access_mode` with default `free` |
-| License management | ⚠️ Planned | Phase 7A: add `licenses` and `license_assignments` tables after architecture review |
-| Delivery authorization | ⚠️ Planned | Phase 7C: gate delivery session creation, not delivery fetch or build generation |
+| Script access mode | ⚠️ Planned | Phase 7A.1: add `scripts.access_mode` with default `public`; supported values are `public`, `key_required`, `license_required` |
+| Work.ink key-required mode | ⚠️ Planned | Phase 7A.3: reuse existing Work.ink key ecosystem for `access_mode = key_required` |
+| License management | ⚠️ Planned | Phase 7A.4: add services for `licenses` and `license_assignments` after schema foundation |
+| Delivery authorization | ⚠️ Planned | Phase 7A.2/7A.5: gate authorization only during delivery session creation, not delivery fetch, payload delivery, runtime execution, or event reporting |
 
 ---
 
@@ -156,7 +157,7 @@ Compat:      85%  █████████████████░░░
 
 **GO — Production Ready (code and documentation).**
 
-Phase 3 (Creator Dashboard) compatibility is implemented. Phase 7 License & Key System is planned but not started; marketplace, paid scripts, and creator economy are not part of the current roadmap. The CDN MVP is ready for database migration execution and endpoint testing (Phase 2C).
+Phase 3 (Creator Dashboard) compatibility is implemented. Phase 7 Access Modes, Keys, and License Authorization is planned but not started in code; marketplace, paid scripts, and creator economy are not part of the current roadmap. The CDN MVP is ready for database migration execution and endpoint testing (Phase 2C).
 
 ### Remaining Work (Phase 2C)
 
