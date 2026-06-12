@@ -199,7 +199,7 @@ Use when production data is broadly corrupted or deleted.
 1. Declare incident severity and freeze deploys/migrations.
 2. Identify recovery point objective timestamp.
 3. Restore Supabase backup/PITR to a new database or project if possible.
-4. Validate restored schema through migration 013 state.
+4. Validate restored schema through migration 014 state.
 5. Validate RLS policies.
 6. Validate critical data counts.
 7. Configure environment variables for restored environment.
