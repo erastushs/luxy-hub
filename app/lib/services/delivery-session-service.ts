@@ -15,6 +15,8 @@ import {
 } from '@/app/lib/delivery/runtime-payload'
 import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { authorizeDeliveryAccess } from '@/app/lib/services/delivery-authorization-service'
+import { recordLicenseDelivery } from '@/app/lib/services/license-service'
+import { logAuditEvent } from '@/app/lib/services/audit-service'
 
 export const DELIVERY_SESSION_TTL_SECONDS = 60
 const UNAVAILABLE_MESSAGE = 'Delivery unavailable'
@@ -77,7 +79,7 @@ function isReadyBuildDeliverable(build: DeliveryBuildRow): boolean {
 export async function createDeliverySession(
   slug: unknown,
   key?: unknown,
-  license?: unknown,
+  licenseKey?: unknown,
   customerIdentifier?: unknown
 ): Promise<CreateDeliverySessionResult> {
   if (!isValidSlug(slug)) {
@@ -90,7 +92,7 @@ export async function createDeliverySession(
       return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
     }
 
-    const authorization = await authorizeDeliveryAccess({ script, key, license, customerIdentifier })
+    const authorization = await authorizeDeliveryAccess({ script, key, license: licenseKey, customerIdentifier })
     if (!authorization.success) {
       return authorization
     }
@@ -114,6 +116,22 @@ export async function createDeliverySession(
       eventSecret,
     })
     await recordExecution({ scriptId: script.id, sessionId: session.id })
+    if (authorization.accessMode === 'license_required' && authorization.license) {
+      await recordLicenseDelivery(authorization.license.id)
+      logAuditEvent({
+        actor_id: authorization.license.creator_id,
+        actor_role: 'runtime',
+        action: 'delivery.session_created',
+        resource_type: 'delivery_session',
+        resource_id: session.id,
+        metadata: {
+          script_id: script.id,
+          license_id: authorization.license.id,
+          assignment_id: authorization.assignment?.id ?? null,
+          access_mode: authorization.accessMode,
+        },
+      })
+    }
 
     return {
       success: true,

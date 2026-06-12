@@ -46,6 +46,10 @@ export type CreateLicenseAssignmentParams = {
   status?: LicenseStatus
 }
 
+export type LicenseAssignmentAuthorizationResult =
+  | { success: true; assignment: LicenseAssignmentRow; created: boolean }
+  | { success: false; reason: 'capacity_exhausted' }
+
 const LICENSE_SELECT = [
   'id',
   'script_id',
@@ -176,6 +180,64 @@ export async function createLicenseAssignment(
 
   if (error) throw error
   return data as unknown as LicenseAssignmentRow
+}
+
+export async function authorizeLicenseAssignment(
+  params: CreateLicenseAssignmentParams
+): Promise<LicenseAssignmentAuthorizationResult> {
+  const { data, error } = await supabaseAdmin.rpc('authorize_license_assignment', {
+    p_license_id: params.licenseId,
+    p_customer_identifier_hash: params.customerIdentifierHash,
+    p_display_name: params.displayName ?? null,
+  })
+
+  if (error) throw error
+
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row || row.success === false) {
+    return { success: false, reason: 'capacity_exhausted' }
+  }
+
+  return {
+    success: true,
+    created: Boolean(row.created),
+    assignment: {
+      id: row.id,
+      license_id: row.license_id,
+      customer_identifier_hash: row.customer_identifier_hash,
+      display_name: row.display_name ?? null,
+      status: row.status,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    } as LicenseAssignmentRow,
+  }
+}
+
+export async function countActiveLicenseAssignments(licenseId: string): Promise<number> {
+  const { count, error } = await supabaseAdmin
+    .from('license_assignments')
+    .select('id', { count: 'exact', head: true })
+    .eq('license_id', licenseId)
+    .eq('status', 'active')
+
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function incrementLicenseActivationCount(id: string): Promise<void> {
+  const { error } = await supabaseAdmin.rpc('increment_license_activation_count', {
+    p_license_id: id,
+  })
+
+  if (error) throw error
+}
+
+export async function incrementLicenseDeliveryCount(id: string): Promise<void> {
+  const { error } = await supabaseAdmin.rpc('increment_license_delivery_count', {
+    p_license_id: id,
+  })
+
+  if (error) throw error
 }
 
 export async function getLicenseAssignments(licenseId: string): Promise<LicenseAssignmentRow[]> {

@@ -6,10 +6,18 @@ export type AuditAction =
   | 'script.deleted'
   | 'script.visibility_changed'
   | 'script.version_created'
+  | 'license.created'
+  | 'license.disabled'
+  | 'license.enabled'
+  | 'license.revoked'
+  | 'license.assignment_created'
+  | 'license.authorization_allowed'
+  | 'license.authorization_denied'
+  | 'delivery.session_created'
   | 'auth.login'
   | 'auth.logout'
 
-export type AuditResourceType = 'script' | 'script_version' | 'user'
+export type AuditResourceType = 'script' | 'script_version' | 'user' | 'license' | 'license_assignment' | 'delivery_session'
 
 export type AuditRow = {
   id: string
@@ -57,6 +65,9 @@ export async function insertAuditLog(input: AuditLogInput): Promise<void> {
 const EXCLUDED_METADATA_KEYS = new Set([
   'token',
   'key',
+  'license',
+  'license_key',
+  'customer_identifier',
   'api_key',
   'secret',
   'password',

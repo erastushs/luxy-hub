@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getOverview, getScriptStats, getTopScripts } from '@/app/lib/services/analytics-service'
+import { getAnalyticsV2Overview, getOverview, getScriptStats, getTopScripts } from '@/app/lib/services/analytics-service'
 
 const OWNER_A = '00000000-0000-0000-0000-00000000000a'
 const OWNER_B = '00000000-0000-0000-0000-00000000000b'
@@ -85,6 +85,98 @@ describe('Analytics V1 service', () => {
         expect(overview).not.toHaveProperty('session_id')
         expect(overview).not.toHaveProperty('total_downloads')
         expect(overview).not.toHaveProperty('downloads_7d')
+      }
+    })
+  })
+
+  describe('getAnalyticsV2Overview', () => {
+    it('returns authorization, license, delivery, and runtime metrics', async () => {
+      mockedFrom.mockImplementation((table: string) => {
+        if (table === 'scripts') {
+          const eq = vi.fn().mockResolvedValue({ data: scriptRows, error: null })
+          return { select: vi.fn(() => ({ eq })) } as never
+        }
+
+        if (table === 'licenses') {
+          const select = vi.fn((columns: string) => {
+            if (columns.includes('license_assignments')) {
+              return { eq: vi.fn().mockResolvedValue({
+                data: [
+                  { id: 'license-1', license_assignments: [{ status: 'active' }] },
+                  { id: 'license-2', license_assignments: [{ status: 'revoked' }] },
+                ],
+                error: null,
+              }) }
+            }
+
+            return { eq: vi.fn().mockResolvedValue({
+            data: [
+              { status: 'active', max_assignments: 2 },
+              { status: 'revoked', max_assignments: 1 },
+            ],
+            error: null,
+            }) }
+          })
+          return { select } as never
+        }
+
+        if (table === 'audit_logs') {
+          const inFilter = vi.fn().mockResolvedValue({
+            data: [
+              { action: 'license.authorization_allowed', metadata: { reason: 'assignment_reused' } },
+              { action: 'license.authorization_denied', metadata: { reason: 'capacity_exhausted' } },
+            ],
+            error: null,
+          })
+          const actionEq = vi.fn().mockResolvedValue({
+            data: [{ action: 'delivery.session_created' }],
+            error: null,
+          })
+          const eqActor = vi.fn(() => ({ in: inFilter, eq: actionEq }))
+          return { select: vi.fn(() => ({ eq: eqActor })) } as never
+        }
+
+        if (table === 'event_logs') {
+          const inFilter = vi.fn().mockResolvedValue({
+            data: [
+              { type: 'execute', status: 'delivered' },
+              { type: 'error', status: 'dead_letter' },
+            ],
+            error: null,
+          })
+          const eq = vi.fn(() => ({ in: inFilter }))
+          return { select: vi.fn(() => ({ eq })) } as never
+        }
+
+        return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) } as never
+      })
+
+      const result = await getAnalyticsV2Overview(OWNER_A)
+
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.overview.total_executions).toBe(17)
+        expect(result.overview.authorization).toEqual({
+          success: 1,
+          failure: 1,
+          denial_reasons: { capacity_exhausted: 1 },
+        })
+        expect(result.overview.licenses).toEqual({
+          active: 1,
+          revoked: 1,
+          disabled: 0,
+          assignment_utilization: 1 / 3,
+        })
+        expect(result.overview.delivery).toEqual({
+          session_creation: 1,
+          payload_fetch: 1,
+          fetch_failures: 0,
+        })
+        expect(result.overview.runtime).toEqual({
+          starts: 1,
+          failures: 1,
+          execution_volume: 17,
+        })
       }
     })
   })

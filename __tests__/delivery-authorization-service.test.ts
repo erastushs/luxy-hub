@@ -128,7 +128,7 @@ describe('delivery authorization service', () => {
   })
 
   it('rejects license-required delivery access when no license is provided', async () => {
-    mockedValidateLicense.mockResolvedValue({ success: false, status: 403, message: 'License is required' })
+    mockedValidateLicense.mockResolvedValue({ success: false, status: 403, message: 'License is required', reason: 'license_required' })
 
     const result = await authorizeDeliveryAccess({
       script: scriptWithAccessMode('license_required'),
@@ -148,10 +148,13 @@ describe('delivery authorization service', () => {
   })
 
   it('authorizes license-required delivery access with a valid license', async () => {
+    const license = {} as Awaited<ReturnType<typeof validateLicense>> extends { success: true; license: infer T } ? T : never
+    const assignment = {} as Awaited<ReturnType<typeof validateLicense>> extends { success: true; assignment: infer T } ? T : never
     mockedValidateLicense.mockResolvedValue({
       success: true,
-      license: {} as Awaited<ReturnType<typeof validateLicense>> extends { success: true; license: infer T } ? T : never,
-      assignment: {} as Awaited<ReturnType<typeof validateLicense>> extends { success: true; assignment: infer T } ? T : never,
+      license,
+      assignment,
+      assignmentCreated: false,
     })
 
     const result = await authorizeDeliveryAccess({
@@ -163,6 +166,9 @@ describe('delivery authorization service', () => {
     expect(result).toEqual({
       success: true,
       accessMode: 'license_required',
+      license,
+      assignment,
+      assignmentCreated: false,
     })
     expect(mockedValidateKey).not.toHaveBeenCalled()
     expect(mockedValidateLicense).toHaveBeenCalledWith({

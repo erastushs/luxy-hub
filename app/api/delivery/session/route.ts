@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => null)
-    const result = await createDeliverySession(body?.slug, body?.key, body?.license, body?.customer_identifier)
+    const licenseKey = body?.license_key ?? body?.license
+    const result = await createDeliverySession(body?.slug, body?.key, licenseKey, body?.customer_identifier)
 
     if (!result.success) {
       return NextResponse.json(

@@ -28,6 +28,7 @@ vi.mock('@/app/lib/services/license-service', () => ({
   getAssignments: vi.fn(),
   getLicensesForScript: vi.fn(),
   getOwnedLicense: vi.fn(),
+  normalizeCustomerIdentifier: vi.fn((value: unknown) => typeof value === 'string' && value.trim().length > 0 ? value.trim().toLowerCase() : null),
   removeAssignment: vi.fn(),
   revokeLicense: vi.fn(),
 }))

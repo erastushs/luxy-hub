@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { AuthError, requireAuth, type AuthenticatedUser } from '@/app/lib/auth/session-auth'
 import { findScriptByIdForOwner } from '@/app/lib/repositories/script-repository'
-import { getOwnedLicense } from '@/app/lib/services/license-service'
+import { getOwnedLicense, normalizeCustomerIdentifier } from '@/app/lib/services/license-service'
 import type { LicenseAssignmentRow, LicenseRow } from '@/app/lib/repositories/license-repository'
 
 export type LicenseRouteContext = {
@@ -68,13 +68,14 @@ export function parseCreateAssignmentBody(body: Record<string, unknown>): {
   display_name: string | null
 } | null {
   const customerIdentifier = body.customer_identifier
-  if (typeof customerIdentifier !== 'string' || customerIdentifier.trim().length === 0) {
+  const normalizedCustomerIdentifier = normalizeCustomerIdentifier(customerIdentifier)
+  if (!normalizedCustomerIdentifier) {
     return null
   }
 
   const displayName = body.display_name
   return {
-    customer_identifier: customerIdentifier.trim(),
+    customer_identifier: normalizedCustomerIdentifier,
     display_name: typeof displayName === 'string' && displayName.trim().length > 0
       ? displayName.trim()
       : null,

@@ -5,6 +5,8 @@ import type {
 } from '@/app/lib/repositories/license-repository'
 
 vi.mock('@/app/lib/repositories/license-repository', () => ({
+  authorizeLicenseAssignment: vi.fn(),
+  countActiveLicenseAssignments: vi.fn(),
   createLicense: vi.fn(),
   createLicenseAssignment: vi.fn(),
   disableLicense: vi.fn(),
@@ -14,8 +16,14 @@ vi.mock('@/app/lib/repositories/license-repository', () => ({
   getLicenseById: vi.fn(),
   getLicenseForScriptByKeyHash: vi.fn(),
   getLicensesForScript: vi.fn(),
+  incrementLicenseActivationCount: vi.fn(),
+  incrementLicenseDeliveryCount: vi.fn(),
   removeLicenseAssignment: vi.fn(),
   revokeLicense: vi.fn(),
+}))
+
+vi.mock('@/app/lib/services/audit-service', () => ({
+  logAuditEvent: vi.fn(),
 }))
 
 import {
@@ -29,10 +37,14 @@ import {
   getLicensesForScript,
   hashLicenseSecret,
   removeAssignment,
+  normalizeCustomerIdentifier,
+  recordLicenseDelivery,
   revokeLicense,
   validateLicense,
 } from '@/app/lib/services/license-service'
 import {
+  authorizeLicenseAssignment,
+  countActiveLicenseAssignments,
   createLicense as createLicenseRow,
   createLicenseAssignment,
   disableLicense as disableLicenseRow,
@@ -42,10 +54,15 @@ import {
   getLicenseById,
   getLicenseForScriptByKeyHash,
   getLicensesForScript as getLicenseRowsForScript,
+  incrementLicenseActivationCount,
+  incrementLicenseDeliveryCount,
   removeLicenseAssignment,
   revokeLicense as revokeLicenseRow,
 } from '@/app/lib/repositories/license-repository'
+import { logAuditEvent } from '@/app/lib/services/audit-service'
 
+const mockedAuthorizeLicenseAssignment = vi.mocked(authorizeLicenseAssignment)
+const mockedCountActiveLicenseAssignments = vi.mocked(countActiveLicenseAssignments)
 const mockedCreateLicenseRow = vi.mocked(createLicenseRow)
 const mockedCreateLicenseAssignment = vi.mocked(createLicenseAssignment)
 const mockedDisableLicenseRow = vi.mocked(disableLicenseRow)
@@ -55,6 +72,9 @@ const mockedGetLicenseAssignments = vi.mocked(getLicenseAssignments)
 const mockedGetLicenseById = vi.mocked(getLicenseById)
 const mockedGetLicenseForScriptByKeyHash = vi.mocked(getLicenseForScriptByKeyHash)
 const mockedGetLicenseRowsForScript = vi.mocked(getLicenseRowsForScript)
+const mockedIncrementLicenseActivationCount = vi.mocked(incrementLicenseActivationCount)
+const mockedIncrementLicenseDeliveryCount = vi.mocked(incrementLicenseDeliveryCount)
+const mockedLogAuditEvent = vi.mocked(logAuditEvent)
 const mockedRemoveLicenseAssignment = vi.mocked(removeLicenseAssignment)
 const mockedRevokeLicenseRow = vi.mocked(revokeLicenseRow)
 
@@ -131,6 +151,18 @@ describe('license service', () => {
     expect(createParams.keyHash).toMatch(/^[a-f0-9]{64}$/)
     expect(createParams.keyHash).toBe(hashLicenseSecret(result.raw_key))
     expect(JSON.stringify(createParams)).not.toContain(result.raw_key)
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'license.created',
+      resource_type: 'license',
+      resource_id: row.id,
+    }))
+  })
+
+  it('normalizes customer identifiers consistently', () => {
+    expect(normalizeCustomerIdentifier('  Customer@Example.COM  ')).toBe('customer@example.com')
+    expect(normalizeCustomerIdentifier('customer   device')).toBe('customer device')
+    expect(normalizeCustomerIdentifier('ab')).toBeNull()
+    expect(normalizeCustomerIdentifier('x'.repeat(129))).toBeNull()
   })
 
   it('supports nullable expires_at during license creation', async () => {
@@ -200,6 +232,8 @@ describe('license service', () => {
 
   it('creates assignments with hash-only customer identifier storage', async () => {
     const row = mockAssignmentRow()
+    mockedGetLicenseById.mockResolvedValue(mockLicenseRow())
+    mockedCountActiveLicenseAssignments.mockResolvedValue(0)
     mockedCreateLicenseAssignment.mockResolvedValue(row)
 
     const result = await createAssignment({
@@ -236,6 +270,7 @@ describe('license service', () => {
       success: false,
       status: 403,
       message: 'License is required',
+      reason: 'license_required',
     })
     expect(mockedGetLicenseForScriptByKeyHash).not.toHaveBeenCalled()
   })
@@ -246,7 +281,8 @@ describe('license service', () => {
     await expect(validateLicense({
       scriptId: 'script-uuid-1',
       license: 'LUXY-PREM-XXXX-XXXX-XXXX',
-    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license' })
+      customerIdentifier: 'customer-1',
+    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license', reason: 'invalid_license' })
     expect(mockedGetLicenseForScriptByKeyHash).toHaveBeenCalledWith(
       'script-uuid-1',
       hashLicenseSecret('LUXY-PREM-XXXX-XXXX-XXXX')
@@ -259,7 +295,8 @@ describe('license service', () => {
     await expect(validateLicense({
       scriptId: 'script-uuid-1',
       license: 'LUXY-PREM-XXXX-XXXX-XXXX',
-    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license' })
+      customerIdentifier: 'customer-1',
+    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license', reason: 'invalid_license' })
     expect(mockedGetLicenseAssignmentByCustomerHash).not.toHaveBeenCalled()
   })
 
@@ -269,7 +306,8 @@ describe('license service', () => {
     await expect(validateLicense({
       scriptId: 'script-uuid-1',
       license: 'LUXY-PREM-XXXX-XXXX-XXXX',
-    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license' })
+      customerIdentifier: 'customer-1',
+    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license', reason: 'invalid_license' })
     expect(mockedGetLicenseAssignmentByCustomerHash).not.toHaveBeenCalled()
   })
 
@@ -279,7 +317,8 @@ describe('license service', () => {
     await expect(validateLicense({
       scriptId: 'script-uuid-1',
       license: 'LUXY-PREM-XXXX-XXXX-XXXX',
-    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license' })
+      customerIdentifier: 'customer-1',
+    })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license', reason: 'invalid_license' })
     expect(mockedGetLicenseAssignmentByCustomerHash).not.toHaveBeenCalled()
   })
 
@@ -293,7 +332,7 @@ describe('license service', () => {
       scriptId: 'script-uuid-1',
       license: 'LUXY-PREM-XXXX-XXXX-XXXX',
       customerIdentifier: 'customer-1',
-    })).resolves.toEqual({ success: true, license, assignment })
+    })).resolves.toEqual({ success: true, license, assignment, assignmentCreated: false })
     expect(mockedGetLicenseAssignmentByCustomerHash).toHaveBeenCalledWith(
       'license-uuid-1',
       hashLicenseSecret('customer-1')
@@ -301,21 +340,91 @@ describe('license service', () => {
     expect(mockedCreateLicenseAssignment).not.toHaveBeenCalled()
   })
 
-  it('creates a missing assignment for valid licenses', async () => {
+  it('rejects license validation when customer identifier is missing', async () => {
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+    })).resolves.toEqual({
+      success: false,
+      status: 403,
+      message: 'Customer identifier is required',
+      reason: 'customer_identifier_required',
+    })
+    expect(mockedGetLicenseForScriptByKeyHash).not.toHaveBeenCalled()
+  })
+
+  it('rejects inactive assignments for otherwise valid licenses', async () => {
     const license = mockLicenseRow()
-    const assignment = mockAssignmentRow()
     mockedGetLicenseForScriptByKeyHash.mockResolvedValue(license)
-    mockedGetLicenseAssignmentByCustomerHash.mockResolvedValue(null)
-    mockedCreateLicenseAssignment.mockResolvedValue(assignment)
+    mockedGetLicenseAssignmentByCustomerHash.mockResolvedValue(mockAssignmentRow({ status: 'disabled' }))
 
     await expect(validateLicense({
       scriptId: 'script-uuid-1',
       license: 'LUXY-PREM-XXXX-XXXX-XXXX',
-    })).resolves.toEqual({ success: true, license, assignment })
-    expect(mockedCreateLicenseAssignment).toHaveBeenCalledWith({
+      customerIdentifier: 'customer-1',
+    })).resolves.toEqual({
+      success: false,
+      status: 403,
+      message: 'Invalid license assignment',
+      reason: 'invalid_assignment',
+    })
+  })
+
+  it('creates a missing assignment atomically for valid licenses', async () => {
+    const license = mockLicenseRow()
+    const assignment = mockAssignmentRow()
+    mockedGetLicenseForScriptByKeyHash.mockResolvedValue(license)
+    mockedGetLicenseAssignmentByCustomerHash.mockResolvedValue(null)
+    mockedAuthorizeLicenseAssignment.mockResolvedValue({ success: true, assignment, created: true })
+    mockedIncrementLicenseActivationCount.mockResolvedValue(undefined)
+
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+      customerIdentifier: 'Customer-1',
+    })).resolves.toEqual({ success: true, license, assignment, assignmentCreated: true })
+    expect(mockedAuthorizeLicenseAssignment).toHaveBeenCalledWith({
       licenseId: 'license-uuid-1',
-      customerIdentifierHash: hashLicenseSecret('LUXY-PREM-XXXX-XXXX-XXXX'),
+      customerIdentifierHash: hashLicenseSecret('customer-1'),
       displayName: null,
     })
+    expect(mockedIncrementLicenseActivationCount).toHaveBeenCalledWith('license-uuid-1')
+  })
+
+  it('rejects missing assignment when capacity is exhausted', async () => {
+    const license = mockLicenseRow({ max_assignments: 1 })
+    mockedGetLicenseForScriptByKeyHash.mockResolvedValue(license)
+    mockedGetLicenseAssignmentByCustomerHash.mockResolvedValue(null)
+    mockedAuthorizeLicenseAssignment.mockResolvedValue({ success: false, reason: 'capacity_exhausted' })
+
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+      customerIdentifier: 'customer-2',
+    })).resolves.toEqual({
+      success: false,
+      status: 403,
+      message: 'License assignment capacity exceeded',
+      reason: 'capacity_exhausted',
+    })
+  })
+
+  it('enforces manual assignment capacity before creator assignment creation', async () => {
+    mockedGetLicenseById.mockResolvedValue(mockLicenseRow({ max_assignments: 1 }))
+    mockedCountActiveLicenseAssignments.mockResolvedValue(1)
+
+    await expect(createAssignment({
+      license_id: 'license-uuid-1',
+      customer_identifier: 'customer-2',
+      display_name: null,
+    })).rejects.toThrow('License assignment capacity exceeded')
+    expect(mockedCreateLicenseAssignment).not.toHaveBeenCalled()
+  })
+
+  it('records license delivery counters', async () => {
+    mockedIncrementLicenseDeliveryCount.mockResolvedValue(undefined)
+
+    await expect(recordLicenseDelivery('license-uuid-1')).resolves.toBeUndefined()
+    expect(mockedIncrementLicenseDeliveryCount).toHaveBeenCalledWith('license-uuid-1')
   })
 })

@@ -7,6 +7,7 @@ import type {
 vi.mock('@/app/lib/supabase', () => ({
   supabaseAdmin: {
     from: vi.fn(),
+    rpc: vi.fn(),
   },
 }))
 
@@ -14,6 +15,8 @@ import { supabaseAdmin } from '@/app/lib/supabase'
 import {
   createLicense,
   createLicenseAssignment,
+  authorizeLicenseAssignment,
+  countActiveLicenseAssignments,
   disableLicense,
   enableLicense,
   getLicenseAssignments,
@@ -21,6 +24,8 @@ import {
   getLicensesForScript,
   removeLicenseAssignment,
   revokeLicense,
+  incrementLicenseActivationCount,
+  incrementLicenseDeliveryCount,
 } from '@/app/lib/repositories/license-repository'
 
 type QueryChain = {
@@ -94,6 +99,7 @@ function createQueryChain(
 
 describe('license repository', () => {
   const mockedFrom = supabaseAdmin.from as unknown as Mock
+  const mockedRpc = supabaseAdmin.rpc as unknown as Mock
 
   beforeEach(() => {
     vi.resetAllMocks()
@@ -194,6 +200,36 @@ describe('license repository', () => {
     }))
   })
 
+  it('authorizes license assignments through atomic capacity RPC', async () => {
+    const assignment = mockAssignmentRow()
+    mockedRpc.mockResolvedValue({
+      data: [{ success: true, created: true, ...assignment }],
+      error: null,
+    })
+
+    const result = await authorizeLicenseAssignment({
+      licenseId: 'license-uuid-1',
+      customerIdentifierHash: 'b'.repeat(64),
+      displayName: null,
+    })
+
+    expect(mockedRpc).toHaveBeenCalledWith('authorize_license_assignment', {
+      p_license_id: 'license-uuid-1',
+      p_customer_identifier_hash: 'b'.repeat(64),
+      p_display_name: null,
+    })
+    expect(result).toEqual({ success: true, created: true, assignment })
+  })
+
+  it('returns capacity exhausted when atomic assignment RPC denies creation', async () => {
+    mockedRpc.mockResolvedValue({ data: [{ success: false }], error: null })
+
+    await expect(authorizeLicenseAssignment({
+      licenseId: 'license-uuid-1',
+      customerIdentifierHash: 'c'.repeat(64),
+    })).resolves.toEqual({ success: false, reason: 'capacity_exhausted' })
+  })
+
   it('lists assignments for a license', async () => {
     const row = mockAssignmentRow()
     const chain = createQueryChain([row])
@@ -202,6 +238,35 @@ describe('license repository', () => {
     await expect(getLicenseAssignments('license-uuid-1')).resolves.toEqual([row])
     expect(chain.eq).toHaveBeenCalledWith('license_id', 'license-uuid-1')
     expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false })
+  })
+
+  it('counts active assignments for capacity validation', async () => {
+    const chain = createQueryChain(null)
+    chain.select = vi.fn(() => chain)
+    chain.eq = vi.fn(() => chain)
+    chain.then = (resolve) => {
+      resolve({ count: 2, error: null } as never)
+    }
+    mockedFrom.mockReturnValue(chain)
+
+    await expect(countActiveLicenseAssignments('license-uuid-1')).resolves.toBe(2)
+    expect(chain.select).toHaveBeenCalledWith('id', { count: 'exact', head: true })
+    expect(chain.eq).toHaveBeenCalledWith('license_id', 'license-uuid-1')
+    expect(chain.eq).toHaveBeenCalledWith('status', 'active')
+  })
+
+  it('increments runtime license counters through RPC helpers', async () => {
+    mockedRpc.mockResolvedValue({ data: null, error: null })
+
+    await expect(incrementLicenseActivationCount('license-uuid-1')).resolves.toBeUndefined()
+    await expect(incrementLicenseDeliveryCount('license-uuid-1')).resolves.toBeUndefined()
+
+    expect(mockedRpc).toHaveBeenCalledWith('increment_license_activation_count', {
+      p_license_id: 'license-uuid-1',
+    })
+    expect(mockedRpc).toHaveBeenCalledWith('increment_license_delivery_count', {
+      p_license_id: 'license-uuid-1',
+    })
   })
 
   it('removes assignments by id', async () => {

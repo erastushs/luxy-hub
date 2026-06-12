@@ -1,5 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import {
+  authorizeLicenseAssignment,
+  countActiveLicenseAssignments,
   createLicense as createLicenseRow,
   createLicenseAssignment,
   disableLicense as disableLicenseRow,
@@ -9,11 +11,14 @@ import {
   getLicenseById,
   getLicenseForScriptByKeyHash,
   getLicensesForScript as getLicenseRowsForScript,
+  incrementLicenseActivationCount,
+  incrementLicenseDeliveryCount,
   removeLicenseAssignment,
   revokeLicense as revokeLicenseRow,
   type LicenseAssignmentRow,
   type LicenseRow,
 } from '@/app/lib/repositories/license-repository'
+import { logAuditEvent } from '@/app/lib/services/audit-service'
 
 const LICENSE_KEY_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
@@ -36,8 +41,18 @@ export type CreateAssignmentInput = {
 }
 
 export type ValidateLicenseResult =
-  | { success: true; license: LicenseRow; assignment: LicenseAssignmentRow }
-  | { success: false; status: number; message: string }
+  | { success: true; license: LicenseRow; assignment: LicenseAssignmentRow; assignmentCreated: boolean }
+  | { success: false; status: number; message: string; reason: LicenseValidationFailureReason }
+
+export type LicenseValidationFailureReason =
+  | 'license_required'
+  | 'customer_identifier_required'
+  | 'invalid_license'
+  | 'invalid_assignment'
+  | 'capacity_exhausted'
+
+export const CUSTOMER_IDENTIFIER_MIN_LENGTH = 3
+export const CUSTOMER_IDENTIFIER_MAX_LENGTH = 128
 
 function randomLicenseSegment(length: number): string {
   const bytes = randomBytes(length)
@@ -56,6 +71,18 @@ export function hashLicenseSecret(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }
 
+export function normalizeCustomerIdentifier(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim().replace(/\s+/g, ' ').toLowerCase()
+  if (
+    normalized.length < CUSTOMER_IDENTIFIER_MIN_LENGTH
+    || normalized.length > CUSTOMER_IDENTIFIER_MAX_LENGTH
+  ) {
+    return null
+  }
+  return normalized
+}
+
 export async function createLicense(input: CreateLicenseInput): Promise<CreateLicenseResult> {
   const rawKey = generateRawLicenseKey()
   const license = await createLicenseRow({
@@ -64,6 +91,19 @@ export async function createLicense(input: CreateLicenseInput): Promise<CreateLi
     keyHash: hashLicenseSecret(rawKey),
     maxAssignments: input.max_assignments,
     expiresAt: input.expires_at ?? null,
+  })
+
+  logAuditEvent({
+    actor_id: input.creator_id,
+    actor_role: 'creator',
+    action: 'license.created',
+    resource_type: 'license',
+    resource_id: license.id,
+    metadata: {
+      script_id: input.script_id,
+      max_assignments: license.max_assignments,
+      expires_at: license.expires_at,
+    },
   })
 
   return { license, raw_key: rawKey }
@@ -93,55 +133,101 @@ export async function validateLicense({
   customerIdentifier?: unknown
 }): Promise<ValidateLicenseResult> {
   if (typeof license !== 'string' || license.trim().length === 0) {
-    return { success: false, status: 403, message: 'License is required' }
+    return { success: false, status: 403, message: 'License is required', reason: 'license_required' }
   }
 
   const rawLicense = license.trim()
+  const normalizedCustomerIdentifier = normalizeCustomerIdentifier(customerIdentifier)
+  if (!normalizedCustomerIdentifier) {
+    return {
+    success: false,
+    status: 403,
+    message: 'Customer identifier is required',
+    reason: 'customer_identifier_required',
+  }
+  }
+
   const licenseRow = await getLicenseForScriptByKeyHash(scriptId, hashLicenseSecret(rawLicense))
 
   if (!licenseRow || licenseRow.status !== 'active') {
-    return { success: false, status: 403, message: 'Invalid license' }
+    if (licenseRow) logRuntimeLicenseAudit(licenseRow, null, 'license.authorization_denied', 'invalid_license')
+    return { success: false, status: 403, message: 'Invalid license', reason: 'invalid_license' }
   }
 
   if (licenseRow.expires_at && new Date(licenseRow.expires_at).getTime() <= Date.now()) {
-    return { success: false, status: 403, message: 'Invalid license' }
+    logRuntimeLicenseAudit(licenseRow, null, 'license.authorization_denied', 'expired_license')
+    return { success: false, status: 403, message: 'Invalid license', reason: 'invalid_license' }
   }
 
-  const assignmentIdentifier = typeof customerIdentifier === 'string' && customerIdentifier.trim().length > 0
-    ? customerIdentifier.trim()
-    : rawLicense
-  const customerIdentifierHash = hashLicenseSecret(assignmentIdentifier)
+  const customerIdentifierHash = hashLicenseSecret(normalizedCustomerIdentifier)
   const existingAssignment = await getLicenseAssignmentByCustomerHash(licenseRow.id, customerIdentifierHash)
 
   if (existingAssignment) {
-    return { success: true, license: licenseRow, assignment: existingAssignment }
+    if (existingAssignment.status !== 'active') {
+      logRuntimeLicenseAudit(licenseRow, existingAssignment, 'license.authorization_denied', 'invalid_assignment')
+      return { success: false, status: 403, message: 'Invalid license assignment', reason: 'invalid_assignment' }
+    }
+    logRuntimeLicenseAudit(licenseRow, existingAssignment, 'license.authorization_allowed', 'assignment_reused')
+    return { success: true, license: licenseRow, assignment: existingAssignment, assignmentCreated: false }
   }
 
-  const assignment = await createLicenseAssignment({
+  const authorization = await authorizeLicenseAssignment({
     licenseId: licenseRow.id,
     customerIdentifierHash,
     displayName: null,
   })
 
-  return { success: true, license: licenseRow, assignment }
+  if (!authorization.success) {
+    logRuntimeLicenseAudit(licenseRow, null, 'license.authorization_denied', 'capacity_exhausted')
+    return { success: false, status: 403, message: 'License assignment capacity exceeded', reason: 'capacity_exhausted' }
+  }
+
+  if (authorization.assignment.status !== 'active') {
+    logRuntimeLicenseAudit(licenseRow, authorization.assignment, 'license.authorization_denied', 'invalid_assignment')
+    return { success: false, status: 403, message: 'Invalid license assignment', reason: 'invalid_assignment' }
+  }
+
+  if (authorization.created) {
+    await incrementLicenseActivationCount(licenseRow.id)
+    logRuntimeLicenseAudit(licenseRow, authorization.assignment, 'license.assignment_created', 'runtime_assignment_created')
+  }
+
+  logRuntimeLicenseAudit(licenseRow, authorization.assignment, 'license.authorization_allowed', 'assignment_created')
+
+  return {
+    success: true,
+    license: licenseRow,
+    assignment: authorization.assignment,
+    assignmentCreated: authorization.created,
+  }
+}
+
+export function recordLicenseDelivery(licenseId: string): Promise<void> {
+  return incrementLicenseDeliveryCount(licenseId)
 }
 
 export async function revokeLicense(id: string): Promise<LicenseRow | null> {
   const license = await getLicenseById(id)
   if (!license || license.status !== 'active') return license
-  return revokeLicenseRow(id)
+  const updated = await revokeLicenseRow(id)
+  if (updated) logLicenseLifecycleAudit(updated, 'license.revoked')
+  return updated
 }
 
 export async function disableLicense(id: string): Promise<LicenseRow | null> {
   const license = await getLicenseById(id)
   if (!license || license.status !== 'active') return license
-  return disableLicenseRow(id)
+  const updated = await disableLicenseRow(id)
+  if (updated) logLicenseLifecycleAudit(updated, 'license.disabled')
+  return updated
 }
 
 export async function enableLicense(id: string): Promise<LicenseRow | null> {
   const license = await getLicenseById(id)
   if (!license || license.status !== 'disabled') return license
-  return enableLicenseRow(id)
+  const updated = await enableLicenseRow(id)
+  if (updated) logLicenseLifecycleAudit(updated, 'license.enabled')
+  return updated
 }
 
 export function getAssignments(licenseId: string): Promise<LicenseAssignmentRow[]> {
@@ -152,10 +238,78 @@ export function removeAssignment(id: string): Promise<LicenseAssignmentRow | nul
   return removeLicenseAssignment(id)
 }
 
-export function createAssignment(input: CreateAssignmentInput): Promise<LicenseAssignmentRow> {
-  return createLicenseAssignment({
+export async function createAssignment(input: CreateAssignmentInput): Promise<LicenseAssignmentRow> {
+  const normalizedCustomerIdentifier = normalizeCustomerIdentifier(input.customer_identifier)
+  if (!normalizedCustomerIdentifier) {
+    throw new Error('Customer identifier is required')
+  }
+
+  const license = await getLicenseById(input.license_id)
+  if (!license) {
+    throw new Error('License not found')
+  }
+
+  const activeAssignments = await countActiveLicenseAssignments(input.license_id)
+  if (activeAssignments >= license.max_assignments) {
+    throw new Error('License assignment capacity exceeded')
+  }
+
+  const assignment = await createLicenseAssignment({
     licenseId: input.license_id,
-    customerIdentifierHash: hashLicenseSecret(input.customer_identifier),
+    customerIdentifierHash: hashLicenseSecret(normalizedCustomerIdentifier),
     displayName: input.display_name ?? null,
+  })
+
+  logAuditEvent({
+    actor_id: license.creator_id,
+    actor_role: 'creator',
+    action: 'license.assignment_created',
+    resource_type: 'license_assignment',
+    resource_id: assignment.id,
+    metadata: {
+      license_id: license.id,
+      customer_identifier_hash: assignment.customer_identifier_hash,
+    },
+  })
+
+  return assignment
+}
+
+function logLicenseLifecycleAudit(
+  license: LicenseRow,
+  action: 'license.disabled' | 'license.enabled' | 'license.revoked'
+): void {
+  logAuditEvent({
+    actor_id: license.creator_id,
+    actor_role: 'creator',
+    action,
+    resource_type: 'license',
+    resource_id: license.id,
+    metadata: {
+      script_id: license.script_id,
+      status: license.status,
+    },
+  })
+}
+
+function logRuntimeLicenseAudit(
+  license: LicenseRow,
+  assignment: LicenseAssignmentRow | null,
+  action: 'license.authorization_allowed' | 'license.authorization_denied' | 'license.assignment_created',
+  reason: string
+): void {
+  logAuditEvent({
+    actor_id: license.creator_id,
+    actor_role: 'runtime',
+    action,
+    resource_type: assignment ? 'license_assignment' : 'license',
+    resource_id: assignment?.id ?? license.id,
+    metadata: {
+      script_id: license.script_id,
+      license_id: license.id,
+      assignment_id: assignment?.id ?? null,
+      customer_identifier_hash: assignment?.customer_identifier_hash ?? null,
+      reason,
+    },
   })
 }

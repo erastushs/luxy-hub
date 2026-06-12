@@ -1,6 +1,7 @@
 import type { ScriptAccessMode } from '@/app/lib/repositories/script-repository'
 import { validateKey } from '@/app/lib/services/key-service'
 import { validateLicense } from '@/app/lib/services/license-service'
+import type { LicenseAssignmentRow, LicenseRow } from '@/app/lib/repositories/license-repository'
 
 type DeliveryAuthorizationScript = {
   id: string
@@ -11,6 +12,9 @@ export type DeliveryAuthorizationResult =
   | {
       success: true
       accessMode: 'public' | 'key_required' | 'license_required'
+      license?: LicenseRow
+      assignment?: LicenseAssignmentRow
+      assignmentCreated?: boolean
     }
   | {
       success: false
@@ -53,7 +57,13 @@ export async function authorizeDeliveryAccess({
     if (!licenseResult.success) {
       return { success: false, status: licenseResult.status, message: licenseResult.message }
     }
-    return { success: true, accessMode: 'license_required' }
+    return {
+      success: true,
+      accessMode: 'license_required',
+      license: licenseResult.license,
+      assignment: licenseResult.assignment,
+      assignmentCreated: licenseResult.assignmentCreated,
+    }
   }
 
   return {

@@ -37,7 +37,12 @@ vi.mock('@/app/lib/services/key-service', () => ({
 }))
 
 vi.mock('@/app/lib/services/license-service', () => ({
+  recordLicenseDelivery: vi.fn(),
   validateLicense: vi.fn(),
+}))
+
+vi.mock('@/app/lib/services/audit-service', () => ({
+  logAuditEvent: vi.fn(),
 }))
 
 import {
@@ -56,7 +61,8 @@ import {
 import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { createRuntimePayloadFromBuild } from '@/app/lib/delivery/runtime-payload'
 import { validateKey } from '@/app/lib/services/key-service'
-import { validateLicense } from '@/app/lib/services/license-service'
+import { recordLicenseDelivery, validateLicense } from '@/app/lib/services/license-service'
+import { logAuditEvent } from '@/app/lib/services/audit-service'
 
 const mockedFindScriptForDeliveryBySlug = vi.mocked(findScriptForDeliveryBySlug)
 const mockedGetReadyBuild = vi.mocked(getReadyBuild)
@@ -67,7 +73,9 @@ const mockedConsumeSession = vi.mocked(consumeSession)
 const mockedRecordExecution = vi.mocked(recordExecution)
 const mockedCreateRuntimePayloadFromBuild = vi.mocked(createRuntimePayloadFromBuild)
 const mockedValidateKey = vi.mocked(validateKey)
+const mockedRecordLicenseDelivery = vi.mocked(recordLicenseDelivery)
 const mockedValidateLicense = vi.mocked(validateLicense)
+const mockedLogAuditEvent = vi.mocked(logAuditEvent)
 
 function futureIso(seconds: number = 60): string {
   return new Date(Date.now() + seconds * 1000).toISOString()
@@ -150,6 +158,7 @@ describe('Phase 5C delivery session service', () => {
       session_id: 'session-uuid-1',
       created_at: '2026-01-01T00:00:00.000Z',
     })
+    mockedRecordLicenseDelivery.mockResolvedValue(undefined)
   })
 
   it('creates a short-lived session and stores only a token hash', async () => {
@@ -314,7 +323,7 @@ describe('Phase 5C delivery session service', () => {
 
   it('rejects license-required sessions when no license is provided', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'license_required' }))
-    mockedValidateLicense.mockResolvedValue({ success: false, status: 403, message: 'License is required' })
+    mockedValidateLicense.mockResolvedValue({ success: false, status: 403, message: 'License is required', reason: 'license_required' })
 
     const result = await createDeliverySession('my-script')
 
@@ -335,7 +344,34 @@ describe('Phase 5C delivery session service', () => {
 
   it('creates sessions for license-required scripts with a valid license', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'license_required' }))
-    mockedValidateLicense.mockResolvedValue({ success: true, license: {}, assignment: {} })
+    mockedValidateLicense.mockResolvedValue({
+      success: true,
+      license: {
+        id: 'license-uuid-1',
+        script_id: 'script-uuid-1',
+        creator_id: 'owner-uuid-1',
+        key_hash: 'a'.repeat(64),
+        max_assignments: 1,
+        status: 'active',
+        activation_count: 0,
+        delivery_count: 0,
+        last_activation_at: null,
+        last_delivery_at: null,
+        expires_at: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+      assignment: {
+        id: 'assignment-uuid-1',
+        license_id: 'license-uuid-1',
+        customer_identifier_hash: 'b'.repeat(64),
+        display_name: null,
+        status: 'active',
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+      assignmentCreated: false,
+    })
     mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
     mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
       script_id: params.scriptId,
@@ -364,6 +400,12 @@ describe('Phase 5C delivery session service', () => {
       scriptId: 'script-uuid-1',
       sessionId: 'session-uuid-1',
     })
+    expect(mockedRecordLicenseDelivery).toHaveBeenCalledWith('license-uuid-1')
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'delivery.session_created',
+      resource_type: 'delivery_session',
+      resource_id: 'session-uuid-1',
+    }))
   })
 
   it('rejects expired tokens uniformly', async () => {

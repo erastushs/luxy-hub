@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/app/lib/rate-limiter'
 import { requireAuth, AuthError } from '@/app/lib/auth/session-auth'
-import { getOverview } from '@/app/lib/services/analytics-service'
+import { getAnalyticsV2Overview, getOverview } from '@/app/lib/services/analytics-service'
 
 export async function GET(req: NextRequest) {
   const clientIP = getClientIP(req)
@@ -17,7 +17,10 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const result = await getOverview(actor.id)
+    const url = new URL(req.url)
+    const result = url.searchParams.get('version') === '2'
+      ? await getAnalyticsV2Overview(actor.id)
+      : await getOverview(actor.id)
 
     if (!result.success) {
       return NextResponse.json(
