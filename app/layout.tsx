@@ -4,6 +4,7 @@ import './globals.css'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { getSiteUrl } from '@/app/lib/site-url'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -16,7 +17,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://luxyhub.vercel.app'),
+  metadataBase: new URL(getSiteUrl()),
 
   title: {
     default: 'LuxyHub - Roblox Script Library, Updates, Features & Status',
@@ -57,13 +58,13 @@ export const metadata: Metadata = {
     title: 'LuxyHub - Roblox Script Library, Updates, Features & Status',
     description:
       'Browse supported Roblox games, explore script features, track changelogs, monitor game status, and stay updated with the latest LuxyHub releases.',
-    url: 'https://luxyhub.vercel.app',
+    url: getSiteUrl(),
     siteName: 'LuxyHub',
     locale: 'en_US',
     type: 'website',
     images: [
       {
-        url: 'https://luxyhub.vercel.app/og-image.png',
+        url: '/og-image.png',
         width: 1200,
         height: 630,
         alt: 'LuxyHub Open Graph Image',
@@ -76,7 +77,7 @@ export const metadata: Metadata = {
     title: 'LuxyHub - Roblox Script Library, Updates, Features & Status',
     description:
       'Browse supported Roblox games, explore script features, track changelogs, monitor game status, and stay updated with the latest LuxyHub releases.',
-    images: ['https://luxyhub.vercel.app/og-image.png'],
+    images: ['/og-image.png'],
   },
 
   robots: {

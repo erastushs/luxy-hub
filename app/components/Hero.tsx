@@ -14,6 +14,7 @@ export default function Hero() {
   const y = useTransform(scrollY, [0, 1000], [0, 350])
 
   const script = config.mainScript
+  const previewUrl = script.match(/"([^"]+)"/)?.[1] ?? '/api/...'
 
   const copyScript = async () => {
     try {
@@ -94,7 +95,7 @@ export default function Hero() {
 
                     <span className="text-zinc-300">(</span>
 
-                    <span className="text-zinc-500">{'"https://www.luxyhub.space/api/...'}</span>
+                    <span className="text-zinc-500">{`"${previewUrl.replace('/loader/luxyhub', '/...')}`}</span>
 
                     <span className="mx-1 text-red-500">...</span>
 

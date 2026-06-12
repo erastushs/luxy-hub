@@ -5,11 +5,15 @@ import { ScriptMetadataSummaryCard } from '@/app/dashboard/components/ScriptMeta
 import { Tooltip } from '@/app/dashboard/components/Tooltip'
 import { getLoaderSnippet, getLoaderUrl } from '@/app/dashboard/lib/loader-snippet'
 
+const expectedOrigin = process.env.NEXT_PUBLIC_SITE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SITE_URL).origin
+  : 'https://www.luxyhub.space'
+
 describe('Dashboard UX polish components', () => {
-  it('generates production loader URLs and snippets from the script slug', () => {
-    expect(getLoaderUrl('test123')).toBe('https://www.luxyhub.space/api/loader/test123')
+  it('generates environment loader URLs and snippets from the script slug', () => {
+    expect(getLoaderUrl('test123')).toBe(`${expectedOrigin}/api/loader/test123`)
     expect(getLoaderSnippet('test123')).toBe(
-      'loadstring(game:HttpGet("https://www.luxyhub.space/api/loader/test123"))()'
+      `loadstring(game:HttpGet("${expectedOrigin}/api/loader/test123"))()`
     )
   })
 
@@ -28,8 +32,8 @@ describe('Dashboard UX polish components', () => {
   it('renders loader snippet card with URL, snippet, and copy controls', () => {
     const html = renderToStaticMarkup(<LoaderSnippetCard slug="test123" />)
 
-    expect(html).toContain('https://www.luxyhub.space/api/loader/test123')
-    expect(html).toContain('loadstring(game:HttpGet(&quot;https://www.luxyhub.space/api/loader/test123&quot;))()')
+    expect(html).toContain(`${expectedOrigin}/api/loader/test123`)
+    expect(html).toContain(`loadstring(game:HttpGet(&quot;${expectedOrigin}/api/loader/test123&quot;))()`)
     expect(html).toContain('Copy Loader')
     expect(html).toContain('Copy URL')
     expect(html).toContain('Copy Snippet')

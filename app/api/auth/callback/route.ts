@@ -2,6 +2,16 @@ import { type EmailOtpType } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
+export function getSafeAuthRedirect(next: string | null, requestUrl: string): URL {
+  const requestOrigin = new URL(requestUrl).origin
+
+  if (!next || !next.startsWith('/') || next.startsWith('//')) {
+    return new URL('/dashboard', requestOrigin)
+  }
+
+  return new URL(next, requestOrigin)
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const tokenHash = searchParams.get('token_hash')
@@ -18,7 +28,7 @@ export async function GET(request: NextRequest) {
             return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
-            for (const { name, value, options } of cookiesToSet) {
+            for (const { name, value } of cookiesToSet) {
               request.cookies.set(name, value)
             }
             const response = NextResponse.next({ request })
@@ -36,7 +46,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (!error) {
-      const redirectTo = new URL(next, request.url)
+      const redirectTo = getSafeAuthRedirect(next, request.url)
       return NextResponse.redirect(redirectTo)
     }
   }
