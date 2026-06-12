@@ -11,6 +11,7 @@ export type CreatorAnalyticsOverviewType = {
 }
 
 export type AnalyticsV2OverviewType = CreatorAnalyticsOverviewType & {
+  window_days: number
   authorization: {
     success: number
     failure: number
@@ -89,27 +90,42 @@ export async function getOverview(ownerId: string): Promise<OverviewResult> {
   }
 }
 
-export async function getAnalyticsV2Overview(ownerId: string): Promise<AnalyticsV2OverviewResult> {
+export async function getAnalyticsV2Overview(
+  ownerId: string,
+  options: { windowDays?: number } = {}
+): Promise<AnalyticsV2OverviewResult> {
   const overview = await getOverview(ownerId)
   if (!overview.success) return overview
 
+  const windowDays = normalizeWindowDays(options.windowDays)
+  const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString()
+
   const [licenses, authorization, delivery, runtime] = await Promise.all([
     getLicenseMetrics(ownerId),
-    getAuthorizationMetrics(ownerId),
-    getDeliveryMetrics(ownerId),
-    getRuntimeMetrics(ownerId, overview.overview.total_executions),
+    getAuthorizationMetrics(ownerId, since),
+    getDeliveryMetrics(ownerId, since),
+    getRuntimeMetrics(ownerId, overview.overview.total_executions, since),
   ])
 
   return {
     success: true,
     overview: {
       ...overview.overview,
+      window_days: windowDays,
       authorization,
       licenses,
       delivery,
       runtime,
     },
   }
+}
+
+function normalizeWindowDays(windowDays: number | undefined): number {
+  if (!windowDays || !Number.isFinite(windowDays)) return 30
+  if (windowDays <= 1) return 1
+  if (windowDays <= 7) return 7
+  if (windowDays <= 30) return 30
+  return 90
 }
 
 export async function getScriptStats(ownerId: string, slug: string): Promise<ScriptAnalyticsResult> {
@@ -180,13 +196,14 @@ async function getActiveAssignmentCount(ownerId: string): Promise<number> {
   }, 0)
 }
 
-async function getAuthorizationMetrics(ownerId: string): Promise<AnalyticsV2OverviewType['authorization']> {
+async function getAuthorizationMetrics(ownerId: string, since: string): Promise<AnalyticsV2OverviewType['authorization']> {
   try {
     const { data, error } = await supabaseAdmin
       .from('audit_logs')
       .select('action, metadata')
       .eq('actor_id', ownerId)
       .in('action', ['license.authorization_allowed', 'license.authorization_denied'])
+      .gte('created_at', since)
 
     if (error || !data) throw error
 
@@ -210,13 +227,14 @@ async function getAuthorizationMetrics(ownerId: string): Promise<AnalyticsV2Over
   }
 }
 
-async function getDeliveryMetrics(ownerId: string): Promise<AnalyticsV2OverviewType['delivery']> {
+async function getDeliveryMetrics(ownerId: string, since: string): Promise<AnalyticsV2OverviewType['delivery']> {
   try {
     const { data, error } = await supabaseAdmin
       .from('audit_logs')
       .select('action')
       .eq('actor_id', ownerId)
       .eq('action', 'delivery.session_created')
+      .gte('created_at', since)
 
     if (error || !data) throw error
 
@@ -232,7 +250,8 @@ async function getDeliveryMetrics(ownerId: string): Promise<AnalyticsV2OverviewT
 
 async function getRuntimeMetrics(
   ownerId: string,
-  executionVolume: number
+  executionVolume: number,
+  since: string
 ): Promise<AnalyticsV2OverviewType['runtime']> {
   try {
     const { data: scripts, error: scriptsError } = await supabaseAdmin
@@ -252,6 +271,7 @@ async function getRuntimeMetrics(
       .select('event_type, delivery_status')
       .in('script_id', scriptIds)
       .in('event_type', ['execute', 'error', 'heartbeat'])
+      .gte('received_at', since)
 
     if (error || !data) throw error
 

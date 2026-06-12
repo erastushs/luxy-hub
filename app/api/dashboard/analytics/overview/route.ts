@@ -18,8 +18,9 @@ export async function GET(req: NextRequest) {
     }
 
     const url = new URL(req.url)
+    const windowDays = Number(url.searchParams.get('window_days') ?? url.searchParams.get('window') ?? 30)
     const result = url.searchParams.get('version') === '2'
-      ? await getAnalyticsV2Overview(actor.id)
+      ? await getAnalyticsV2Overview(actor.id, { windowDays })
       : await getOverview(actor.id)
 
     if (!result.success) {

@@ -24,11 +24,34 @@ vi.mock('@/app/lib/repositories/script-execution-repository', () => ({
   getTopScripts: vi.fn(),
 }))
 
+vi.mock('@/app/lib/auth/session-auth', () => ({
+  AuthError: class AuthError extends Error {
+    status: number
+
+    constructor(message: string, status: number = 401) {
+      super(message)
+      this.name = 'AuthError'
+      this.status = status
+    }
+  },
+  requireAuth: vi.fn(),
+}))
+
+vi.mock('@/app/lib/rate-limiter', () => ({
+  checkRateLimit: vi.fn(),
+  getClientIP: vi.fn(() => '127.0.0.1'),
+}))
+
 import { supabaseAdmin } from '@/app/lib/supabase'
+import { requireAuth } from '@/app/lib/auth/session-auth'
+import { checkRateLimit } from '@/app/lib/rate-limiter'
 import { findScriptBySlugForOwner } from '@/app/lib/repositories/script-repository'
 import { getTopScripts as getTopScriptsRepo } from '@/app/lib/repositories/script-execution-repository'
+import { GET as overviewRoute } from '@/app/api/dashboard/analytics/overview/route'
 
 const mockedFrom = vi.mocked(supabaseAdmin.from)
+const mockedRequireAuth = vi.mocked(requireAuth)
+const mockedCheckRateLimit = vi.mocked(checkRateLimit)
 const mockedFindScriptBySlugForOwner = vi.mocked(findScriptBySlugForOwner)
 const mockedGetTopScriptsRepo = vi.mocked(getTopScriptsRepo)
 
@@ -42,6 +65,8 @@ function mockScriptsSelect(data: Array<{ visibility: string; execute_count: numb
 describe('Analytics V1 service', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockedRequireAuth.mockResolvedValue({ id: OWNER_A, email: 'creator@example.test' })
+    mockedCheckRateLimit.mockResolvedValue({ allowed: true })
   })
 
   describe('getOverview', () => {
@@ -128,30 +153,33 @@ describe('Analytics V1 service', () => {
         }
 
         if (table === 'audit_logs') {
-          const inFilter = vi.fn().mockResolvedValue({
+          const inGte = vi.fn().mockResolvedValue({
             data: [
               { action: 'license.authorization_allowed', metadata: { reason: 'assignment_reused' } },
               { action: 'license.authorization_denied', metadata: { reason: 'capacity_exhausted' } },
             ],
             error: null,
           })
-          const actionEq = vi.fn().mockResolvedValue({
+          const actionGte = vi.fn().mockResolvedValue({
             data: [{ action: 'delivery.session_created' }],
             error: null,
           })
+          const actionEq = vi.fn(() => ({ gte: actionGte }))
+          const inFilter = vi.fn(() => ({ gte: inGte }))
           const eqActor = vi.fn(() => ({ in: inFilter, eq: actionEq }))
           return { select: vi.fn(() => ({ eq: eqActor })) } as never
         }
 
         if (table === 'event_logs') {
-          const inFilter = vi.fn().mockResolvedValue({
+          const gte = vi.fn().mockResolvedValue({
             data: [
               { event_type: 'execute', delivery_status: 'delivered' },
               { event_type: 'error', delivery_status: 'dead_letter' },
             ],
             error: null,
           })
-          const firstIn = vi.fn(() => ({ in: inFilter }))
+          const secondIn = vi.fn(() => ({ gte }))
+          const firstIn = vi.fn(() => ({ in: secondIn }))
           return { select: vi.fn(() => ({ in: firstIn })) } as never
         }
 
@@ -185,6 +213,115 @@ describe('Analytics V1 service', () => {
           execution_volume: 17,
         })
       }
+    })
+
+    it('applies the requested time window to audit and runtime event queries', async () => {
+      const gteCalls: Array<[string, string]> = []
+
+      mockedFrom.mockImplementation((table: string) => {
+        if (table === 'scripts') {
+          const select = vi.fn((columns: string) => ({
+            eq: vi.fn().mockResolvedValue({
+              data: columns === 'id' ? [{ id: 'script-uuid-1' }] : scriptRows,
+              error: null,
+            }),
+          }))
+          return { select } as never
+        }
+
+        if (table === 'licenses') {
+          return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) } as never
+        }
+
+        if (table === 'audit_logs') {
+          const gte = vi.fn((column: string, value: string) => {
+            gteCalls.push([column, value])
+            return Promise.resolve({ data: [], error: null })
+          })
+          const eqAction = vi.fn(() => ({ gte }))
+          const inAction = vi.fn(() => ({ gte }))
+          const eqActor = vi.fn(() => ({ in: inAction, eq: eqAction }))
+          return { select: vi.fn(() => ({ eq: eqActor })) } as never
+        }
+
+        if (table === 'event_logs') {
+          const gte = vi.fn((column: string, value: string) => {
+            gteCalls.push([column, value])
+            return Promise.resolve({ data: [], error: null })
+          })
+          const secondIn = vi.fn(() => ({ gte }))
+          const firstIn = vi.fn(() => ({ in: secondIn }))
+          return { select: vi.fn(() => ({ in: firstIn })) } as never
+        }
+
+        return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) } as never
+      })
+
+      const result = await getAnalyticsV2Overview(OWNER_A, { windowDays: 7 })
+
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.overview.window_days).toBe(7)
+      }
+      expect(gteCalls.map(([column]) => column)).toEqual(expect.arrayContaining([
+        'created_at',
+        'received_at',
+      ]))
+    })
+  })
+
+  describe('analytics overview route versioning', () => {
+    it('defaults to the V1 overview shape', async () => {
+      mockScriptsSelect(scriptRows)
+
+      const response = await overviewRoute(new Request('https://example.test/api/dashboard/analytics/overview') as never)
+      const body = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(body.overview).toHaveProperty('total_executions', 17)
+      expect(body.overview).not.toHaveProperty('authorization')
+    })
+
+    it('returns V2 analytics when version=2 and passes window_days', async () => {
+      mockedFrom.mockImplementation((table: string) => {
+        if (table === 'scripts') {
+          const select = vi.fn((columns: string) => ({
+            eq: vi.fn().mockResolvedValue({
+              data: columns === 'id' ? [{ id: 'script-uuid-1' }] : scriptRows,
+              error: null,
+            }),
+          }))
+          return { select } as never
+        }
+
+        if (table === 'licenses') {
+          return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) } as never
+        }
+
+        if (table === 'audit_logs') {
+          const gte = vi.fn().mockResolvedValue({ data: [], error: null })
+          const eqAction = vi.fn(() => ({ gte }))
+          const inAction = vi.fn(() => ({ gte }))
+          const eqActor = vi.fn(() => ({ in: inAction, eq: eqAction }))
+          return { select: vi.fn(() => ({ eq: eqActor })) } as never
+        }
+
+        if (table === 'event_logs') {
+          const gte = vi.fn().mockResolvedValue({ data: [], error: null })
+          const secondIn = vi.fn(() => ({ gte }))
+          const firstIn = vi.fn(() => ({ in: secondIn }))
+          return { select: vi.fn(() => ({ in: firstIn })) } as never
+        }
+
+        return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) } as never
+      })
+
+      const response = await overviewRoute(new Request('https://example.test/api/dashboard/analytics/overview?version=2&window_days=7') as never)
+      const body = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(body.overview).toHaveProperty('authorization')
+      expect(body.overview).toHaveProperty('window_days', 7)
     })
   })
 

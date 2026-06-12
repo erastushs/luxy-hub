@@ -20,7 +20,7 @@ export default function GetKeyPage() {
           </div>
 
           <a
-            href="https://work.ink/2Dlr/luxyhub"
+            href="https://work.ink/2E60/luxydevelop"
             target="_blank"
             rel="noopener noreferrer"
             className="group flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-8 py-4 text-lg font-semibold transition-all hover:bg-red-500 hover:shadow-[0_0_30px_rgba(239,68,68,0.4)] active:scale-[0.98]"
