@@ -202,13 +202,22 @@ Completed after Release V1:
 
 Current active track:
 
-- Phase 7B — Runtime License Enforcement: planned / not started. Design and threat model are documented in `../phases/phase7/PHASE_7B_DESIGN.md` and `../phases/phase7/PHASE_7B_THREAT_MODEL.md`.
+- Production Stabilization Program: active observation window for production behavior, analytics accuracy, event platform stability, secure delivery stability, build stability, bug reports, user feedback, and runtime errors.
+
+Deferred track:
+
+- Phase 7B — Runtime License Enforcement: deferred because of the Production Stabilization Window. Implementation has not started. Design, threat model, and documentation are complete in `../phases/phase7/PHASE_7B_DESIGN.md` and `../phases/phase7/PHASE_7B_THREAT_MODEL.md`.
 
 Future ordering:
 
-1. Phase 7B — Runtime License Enforcement
-2. Phase 9 — Internal Operations & Release Workflow
-3. Phase 10 — Scale & Infrastructure (Optional)
+1. Analytics V2
+2. QA & Test Coverage Expansion
+3. Operational Hardening
+4. Security Review
+5. Phase 7B — Runtime License Enforcement
+6. Final Security Audit
+7. Release Candidate
+8. V1 Release
 
 Deferred Event Platform enhancements:
 

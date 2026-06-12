@@ -1,6 +1,6 @@
 # LuxyHub Roadmap 2026
 
-Last updated: 2026-06-11
+Last updated: 2026-06-12
 
 ---
 
@@ -145,19 +145,42 @@ Last updated: 2026-06-11
 ---
 
 
+### Active 🔄
+
+| # | Program | Task | Purpose |
+|---|---------|------|---------|
+| 1 | Production Stabilization | Monitor production metrics | Confirm production behavior after Phase 7A closeout |
+| 2 | Production Stabilization | Review analytics accuracy | Validate Analytics V1 and license dashboard reporting |
+| 3 | Production Stabilization | Review event worker stability | Confirm event queue, worker, alerts, and Discord delivery remain stable |
+| 4 | Production Stabilization | Review build stability | Monitor build pipeline success/failure behavior |
+| 5 | Production Stabilization | Review delivery stability | Monitor secure delivery success rates and runtime errors |
+| 6 | Production Stabilization | Collect bug reports | Capture production issues before new runtime enforcement work |
+| 7 | Production Stabilization | Review operational alerts | Validate alert usefulness, noise level, and incident response needs |
+
 ### Pending ❌
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 7B.1 | Runtime License Enforcement Design Review | Phase 7A closeout |
-| 2 | Phase 7B.2 | Assignment Capacity Enforcement | Phase 7B.1 |
-| 3 | Phase 7B.3 | Customer Identifier Handling | Phase 7B.1 |
-| 4 | Phase 7B.4 | License Key Contract Alignment | Phase 7B.1 |
-| 5 | Phase 7B.5 | Loader Credential Forwarding | Phase 7B.4 |
-| 6 | Phase 7B.6 | License Counters and Runtime Audit Trail | Phase 7B.2, Phase 7B.3 |
-| 7 | Phase 7C | License Lifecycle Expansion and Assignment Lifecycle | Phase 7B |
-| 8 | Phase 9 | Internal Operations & Release Workflow | Phase 7 |
-| 9 | Phase 10 | Scale & Infrastructure (Optional) | Phase 9 |
+| 1 | Analytics V2 | Analytics V2 | Production Stabilization Program |
+| 2 | QA | QA & Test Coverage Expansion | Analytics V2 |
+| 3 | Operations | Operational Hardening | QA & Test Coverage Expansion |
+| 4 | Security | Security Review | Operational Hardening |
+| 5 | Security | Final Security Audit | Phase 7B |
+| 6 | Release | Release Candidate | Final Security Audit |
+| 7 | Release | V1 Release | Release Candidate |
+
+### Deferred Work
+
+| # | Phase | Task | Reason |
+|---|-------|------|--------|
+| 1 | Phase 7B | Runtime License Enforcement | Production Stabilization Window |
+| 2 | Phase 7B.1 | Runtime License Enforcement Design Review | Production Stabilization Window |
+| 3 | Phase 7B.2 | Assignment Capacity Enforcement | Production Stabilization Window |
+| 4 | Phase 7B.3 | Customer Identifier Handling | Production Stabilization Window |
+| 5 | Phase 7B.4 | License Key Contract Alignment | Production Stabilization Window |
+| 6 | Phase 7B.5 | Loader Credential Forwarding | Production Stabilization Window |
+| 7 | Phase 7B.6 | License Counters and Runtime Audit Trail | Production Stabilization Window |
+| 8 | Phase 7C | License Lifecycle Expansion and Assignment Lifecycle | Deferred until after Phase 7B |
 ---
 ## Overall Completion
 ```text
@@ -226,7 +249,8 @@ Scale (Optional):        0% complete ░░░░░░░░░░░░░░�
 | Phase 7A.7 | License Analytics UI | Complete / Production Ready | 100% |
 | Phase 7A.8 | License UX Polish | Complete / Production Ready | 100% |
 | Phase 7A.9 | UI Remediation | Complete / Production Ready | 100% |
-| Phase 7B | Runtime License Enforcement | Planning / Not Started | 0% |
+| Production Stabilization | Observation and Stabilization Window | Active | 0% |
+| Phase 7B | Runtime License Enforcement | Deferred / Not Started | 0% |
 | Phase 8A | Event Foundation | Complete | 100% |
 | Phase 8B | Secure Event Delivery | Hardened | 100% |
 | Phase 8C | Queue, Worker, Dashboard Operations | Hardened | 100% |
@@ -235,8 +259,44 @@ Scale (Optional):        0% complete ░░░░░░░░░░░░░░�
 | Phase 9 | Internal Operations & Release Workflow | Not Started | 0% |
 | Phase 10 | Scale & Infrastructure (Optional) | Not Started | 0% |
 
-## Current Phase: Phase 7B Runtime License Enforcement Planning
-> Phase 4, Phase 5, Phase 6, Analytics V1, Phase 8 Event Reporting & Webhook Platform, and Phase 7A are complete. Phase 7A is production ready for the implemented license foundation, dashboard, analytics, and UI remediation scope. Phase 7B has not started in code and will address runtime license enforcement, assignment capacity enforcement, customer identifier handling, license key contract alignment, loader credential forwarding, license counters, and runtime audit trail design.
+## Current Focus: Production Stabilization Program
+> Phase 4, Phase 5, Phase 6, Analytics V1, Phase 8 Event Reporting & Webhook Platform, and Phase 7A are complete. Phase 7A is production ready for the implemented license foundation, dashboard, analytics, and UI remediation scope. Production Stabilization is active for the next 2-4 weeks. Phase 7B Runtime License Enforcement is deferred because of the Production Stabilization Window and has not started in code.
+
+### Production Stabilization Program
+
+Status: ACTIVE
+
+Goals:
+
+- Observe production behavior.
+- Validate analytics accuracy.
+- Validate event platform stability.
+- Validate secure delivery stability.
+- Monitor build pipeline.
+- Collect bug reports.
+- Collect user feedback.
+- Monitor runtime errors.
+
+Success Criteria:
+
+- Stable delivery success rates.
+- Stable event processing.
+- Stable analytics reporting.
+- No critical production incidents.
+- No unresolved P0 bugs.
+
+Suggested Duration: 2-4 weeks.
+
+### Future Phase Order
+
+1. Analytics V2
+2. QA & Test Coverage Expansion
+3. Operational Hardening
+4. Security Review
+5. Phase 7B Runtime License Enforcement
+6. Final Security Audit
+7. Release Candidate
+8. V1 Release
 
 # Phase 1 — Infrastructure & Monitoring
 
@@ -621,7 +681,7 @@ Executor compatibility validation is a cross-phase operational task tracked sepa
 
 # Phase 7 — Access Modes, Keys, and License Authorization
 
-Status: Phase 7A complete / production ready. Phase 7B runtime license enforcement is planned and not started.
+Status: Phase 7A complete / production ready. Production Stabilization is active. Phase 7B runtime license enforcement is deferred and not started.
 
 Phase 7 introduces a three-mode access model above the existing Secure Delivery architecture. The build pipeline, encryption, session lifecycle, delivery fetch, runtime execution, and event reporting remain unchanged. Authorization occurs only during `POST /api/delivery/session`.
 
@@ -798,16 +858,16 @@ Enforce `access_mode = license_required` during delivery session creation.
 - [x] Existing assignment allows license validation foundation
 - [x] New assignment creation foundation exists
 - [x] Delivery fetch, payload delivery, runtime execution, and event reporting remain unchanged
-- [ ] Atomic assignment capacity enforcement — moved to Phase 7B
-- [ ] Strict `customer_identifier` handling — moved to Phase 7B
-- [ ] License counters and runtime audit trail — moved to Phase 7B
+- [ ] Atomic assignment capacity enforcement — moved to Deferred Work / Phase 7B
+- [ ] Strict `customer_identifier` handling — moved to Deferred Work / Phase 7B
+- [ ] License counters and runtime audit trail — moved to Deferred Work / Phase 7B
 
 ## Success Criteria
 
 - [x] License validation foundation checks active non-expired licenses
 - [x] Delivery fetch, payload delivery, runtime execution, and event reporting remain unchanged
-- [ ] Device/customer limits are enforced consistently — moved to Phase 7B
-- [ ] Disabled/revoked assignment runtime enforcement — moved to Phase 7B
+- [ ] Device/customer limits are enforced consistently — moved to Deferred Work / Phase 7B
+- [ ] Disabled/revoked assignment runtime enforcement — moved to Deferred Work / Phase 7B
 
 ---
 
@@ -929,14 +989,24 @@ Resolve remaining UI-only audit findings before closing Phase 7A.
 
 # Phase 7B — Runtime License Enforcement
 
-Status: Planned / Not Started
+Status: Deferred
+
+Reason: Production Stabilization Window
+
+Implementation: Not Started
+
+Design: Complete
+
+Threat Model: Complete
+
+Documentation: Complete
 
 Design documents:
 
 - `../phases/phase7/PHASE_7B_DESIGN.md`
 - `../phases/phase7/PHASE_7B_THREAT_MODEL.md`
 
-## Planned Scope
+## Deferred Scope
 
 - [ ] Runtime license enforcement design review
 - [ ] Assignment capacity enforcement
@@ -948,7 +1018,7 @@ Design documents:
 
 ## Success Criteria
 
-- [ ] No Phase 7B item is complete yet
+- [ ] No Phase 7B implementation item is complete yet
 - [ ] Runtime enforcement is implemented only after design/threat model approval
 - [ ] Secure delivery fetch, payload delivery, runtime execution, and event platform boundaries remain protected
 ---
@@ -1102,6 +1172,8 @@ Creator-facing webhook configuration and event visibility.
 
 # Phase 9 — Internal Operations & Release Workflow
 
+Status: Deferred / superseded by the current future phase order. Operational hardening and release workflow work now follows Production Stabilization, Analytics V2, QA expansion, and security review.
+
 ## Goal
 
 Manage script lifecycle.
@@ -1123,6 +1195,8 @@ Success Criteria:
 ---
 
 # Phase 10 — Scale & Infrastructure (Optional)
+
+Status: Deferred optional infrastructure track. Operational hardening remains in the current future phase order; scale work is only considered if production requirements justify it.
 
 ## Goal
 
@@ -1324,30 +1398,33 @@ Grafana
 Current Sprint:
 
 ```text
-1. Phase 7A.1 — Schema Foundation (scripts.access_mode, licenses, license_assignments)
-2. Phase 7A.2 — Authorization Abstraction (authorizeDeliveryAccess())
+1. Production Stabilization — monitor production metrics, delivery stability, event worker stability, analytics accuracy, build stability, runtime errors, bug reports, user feedback, and operational alerts.
 ```
 
 Next Sprint:
 
 ```text
-1. Phase 7A.3 — Key Required Mode (existing Work.ink integration)
-2. Phase 7A.4 — License Services (generate, revoke, assignment management)
+1. Analytics V2
 ```
 
 Following:
 
 ```text
-1. Phase 7A.5 — License Delivery Authorization
-2. Phase 7A.6 — Dashboard & Loader UX
-3. Phase 7A.7 — Hardening & Audit
+1. QA & Test Coverage Expansion
+2. Operational Hardening
+3. Security Review
+4. Phase 7B — Runtime License Enforcement
+5. Final Security Audit
+6. Release Candidate
+7. V1 Release
 ```
 
-Future:
+Deferred:
 
 ```text
-1. Phase 9 — Internal Operations & Release Workflow
-2. Phase 10 — Scale & Infrastructure (Optional)
+1. Phase 7B implementation work until the Production Stabilization Window completes.
+2. Phase 7C license lifecycle expansion until after Phase 7B.
+3. Phase 10 scale infrastructure unless production requirements justify it.
 ```
 
 Long-Term Goal:

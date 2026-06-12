@@ -10,7 +10,16 @@ Phase 7B planning documents:
 - `PHASE_7B_THREAT_MODEL.md`
 
 Current Status:
-Phase 7A complete / production ready. Phase 7B Runtime License Enforcement is the next planning track and has not started in code.
+Phase 7A complete / production ready. Production Stabilization is active. Phase 7B Runtime License Enforcement is deferred because of the Production Stabilization Window and has not started in code.
+
+Phase 7B Status:
+
+- Status: Deferred
+- Reason: Production Stabilization Window
+- Implementation: Not Started
+- Design: Complete
+- Threat Model: Complete
+- Documentation: Complete
 
 Approved access modes:
 
@@ -69,7 +78,7 @@ Completed milestones:
 - License Analytics screen at `/dashboard/licenses/analytics`.
 - Search, filters, sorting, bulk selection UI, confirmation dialogs, loading states, empty states, and mobile remediation are implemented.
 
-## Planned
+## Deferred Work
 
 - Phase 7B Runtime License Enforcement.
 - Assignment capacity enforcement.
@@ -82,6 +91,8 @@ Completed milestones:
 ## Future Work
 
 - Analytics V2.
-- Production hardening.
+- QA and test coverage expansion.
+- Operational hardening.
+- Security review.
 - Final security audit.
 - Optional assignment lifecycle expansion beyond create/remove.

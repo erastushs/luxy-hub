@@ -2,21 +2,22 @@
 
 ## Current Status
 
-- Current Phase: Phase 7B Runtime License Enforcement planning
+- Current Focus: Production Stabilization Program
 - Documentation Status: DOCUMENTATION COMPLETE
 - Phase 8: Complete (100%), production verified, Roblox verified
 - Analytics V1: Complete
 - Phase 7A: Complete / production ready
+- Phase 7B: Deferred because of the Production Stabilization Window
 
-LuxyHub has closed Phase 7A with the license foundation, license management dashboard, and license analytics dashboard production ready for the implemented UI/backend scope. Phase 7B is the next planning track for runtime license enforcement hardening, assignment capacity enforcement, loader credential forwarding, and runtime audit trail design. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
+LuxyHub has closed Phase 7A with the license foundation, license management dashboard, and license analytics dashboard production ready for the implemented UI/backend scope. Production is now in an active stabilization and observation window before any Phase 7B runtime license enforcement work begins. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
 
 ## Source of Truth Documents
 
 - `architecture/ARCHITECTURE.md` — current implementation architecture.
 - `architecture/PHASE7_LICENSE_ARCHITECTURE.md` — Phase 7 access mode, Work.ink key, and premium license architecture.
-- `architecture/decisions/` — accepted Architecture Decision Records required before Phase 7B implementation.
-- `phases/phase7/PHASE_7B_DESIGN.md` — Phase 7B runtime license enforcement design scope.
-- `phases/phase7/PHASE_7B_THREAT_MODEL.md` — Phase 7B license runtime threat model.
+- `architecture/decisions/` — accepted Architecture Decision Records for current production boundaries and deferred Phase 7B implementation.
+- `phases/phase7/PHASE_7B_DESIGN.md` — complete Phase 7B runtime license enforcement design scope; implementation deferred.
+- `phases/phase7/PHASE_7B_THREAT_MODEL.md` — complete Phase 7B license runtime threat model; implementation deferred.
 - `roadmap/TODO.md` — roadmap, active phase, completed phases, and pending work.
 
 ## Production Scheduler
@@ -125,10 +126,24 @@ Scheduler notes:
 
 ### In Progress
 
-- Phase 7B Runtime License Enforcement
+- Production Stabilization Program
 
-### Not Started
+### Deferred / Not Started
 
 - Analytics V2
-- Production Hardening
+- QA & Test Coverage Expansion
+- Operational Hardening
+- Security Review
+- Phase 7B Runtime License Enforcement
 - Final Security Audit
+
+### Future Phase Order
+
+1. Analytics V2
+2. QA & Test Coverage Expansion
+3. Operational Hardening
+4. Security Review
+5. Phase 7B Runtime License Enforcement
+6. Final Security Audit
+7. Release Candidate
+8. V1 Release

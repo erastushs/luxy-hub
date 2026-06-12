@@ -1,7 +1,7 @@
 # LuxyHub Architecture
 
-Last updated: 2026-06-11
-Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, and Phase 7A license foundation closeout. Phase 7B Runtime License Enforcement is the active planning track.
+Last updated: 2026-06-12
+Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, and Phase 7A license foundation closeout. Production Stabilization is the active track. Phase 7B Runtime License Enforcement is deferred because of the Production Stabilization Window.
 
 ## Overview
 
@@ -295,7 +295,7 @@ Approved Phase 7 authorization boundary:
 - `key_required` reuses the existing Work.ink key ecosystem.
 - `license_required` uses premium creator-generated licenses and assignment/device limits.
 
-Phase 7A implemented the license foundation, creator license lifecycle management, assignment create/remove workflows, and dashboard analytics. Phase 7B will harden runtime license enforcement, assignment capacity, customer identifier handling, loader credential forwarding, license counters, and runtime audit trail behavior.
+Phase 7A implemented the license foundation, creator license lifecycle management, assignment create/remove workflows, and dashboard analytics. Phase 7B is deferred during Production Stabilization and will later harden runtime license enforcement, assignment capacity, customer identifier handling, loader credential forwarding, license counters, and runtime audit trail behavior.
 
 ## Analytics Architecture
 
@@ -407,7 +407,8 @@ Current accepted decisions:
 
 Current phase:
 
-- Phase 7B — Runtime License Enforcement: planning / not started in code.
+- Production Stabilization Program: active.
+- Phase 7B — Runtime License Enforcement: deferred / not started in code. Design, threat model, and documentation are complete.
 
 Completed phases:
 
@@ -422,12 +423,17 @@ Completed phases:
 
 Future ordering:
 
-1. Phase 7B — Runtime License Enforcement
-2. Phase 9 — Internal Operations & Release Workflow
-3. Phase 10 — Scale & Infrastructure (Optional)
+1. Analytics V2
+2. QA & Test Coverage Expansion
+3. Operational Hardening
+4. Security Review
+5. Phase 7B — Runtime License Enforcement
+6. Final Security Audit
+7. Release Candidate
+8. V1 Release
 
 Deprecated roadmap assumptions removed from current architecture:
 
 - Separate `dashboard.luxyhub.space`, `api.luxyhub.space`, `cdn.luxyhub.space`, and `vault.luxyhub.space` services are not implemented.
 - Marketplace architecture is not part of the current roadmap.
-- Phase 7A access modes and premium license management foundation are implemented; Phase 7B runtime enforcement hardening is planned — see `PHASE7_LICENSE_ARCHITECTURE.md` and `../phases/phase7/PHASE_7B_DESIGN.md`.
+- Phase 7A access modes and premium license management foundation are implemented; Phase 7B runtime enforcement hardening is deferred during Production Stabilization — see `PHASE7_LICENSE_ARCHITECTURE.md` and `../phases/phase7/PHASE_7B_DESIGN.md`.
