@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/app/lib/utils'
 import {
@@ -17,6 +18,14 @@ import {
 import { logout } from '@/app/actions/auth'
 import { Tooltip } from '@/app/dashboard/components/Tooltip'
 import { useState } from 'react'
+
+function LuxyHubLogo({ className = 'h-8 w-8' }: { className?: string }) {
+  return (
+    <div className={cn('relative overflow-hidden rounded-lg bg-zinc-900 ring-1 ring-red-500/40', className)} aria-hidden="true">
+      <Image src="/LH.webp" alt="" fill sizes="32px" className="object-cover" priority />
+    </div>
+  )
+}
 
 type NavItem = {
   label: string
@@ -41,9 +50,7 @@ export function Sidebar() {
   const navContent = (
     <>
       <div className="flex h-14 items-center gap-2 border-b border-zinc-800 px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-sm font-bold text-white" aria-hidden="true">
-          L
-        </div>
+        <LuxyHubLogo />
         <span className="text-base font-semibold text-white">LuxyHub</span>
       </div>
 
@@ -111,9 +118,7 @@ export function Sidebar() {
             className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
             aria-label="Open navigation menu"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-sm font-bold text-white">
-              L
-            </div>
+            <LuxyHubLogo />
           </button>
         </Tooltip>
         <span className="text-sm font-medium text-zinc-200">LuxyHub</span>

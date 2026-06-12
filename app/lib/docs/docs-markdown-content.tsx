@@ -1,19 +1,45 @@
 'use client'
 
+import { isValidElement } from 'react'
+import type { ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
 import { CopyButton } from '@/app/lib/docs/copy-button'
+
+function getTextContent(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') {
+    return String(node)
+  }
+
+  if (Array.isArray(node)) {
+    return node.map(getTextContent).join('')
+  }
+
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return getTextContent(node.props.children)
+  }
+
+  return ''
+}
+
+function slugify(node: ReactNode) {
+  return getTextContent(node)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+}
 
 const markdownComponents: Partial<Components> = {
   h1: ({ children, ...props }) => (
     <h1 className="text-3xl font-bold text-white mt-10 mb-4 pb-2 border-b border-gray-800" {...props}>{children}</h1>
   ),
   h2: ({ children, ...props }) => (
-    <h2 className="text-2xl font-bold text-white mt-8 mb-3 pb-1 border-b border-gray-800" {...props}>{children}</h2>
+    <h2 id={slugify(children)} className="scroll-mt-24 text-2xl font-bold text-white mt-8 mb-3 pb-1 border-b border-gray-800" {...props}>{children}</h2>
   ),
   h3: ({ children, ...props }) => (
-    <h3 className="text-xl font-semibold text-gray-200 mt-6 mb-2" {...props}>{children}</h3>
+    <h3 id={slugify(children)} className="scroll-mt-24 text-xl font-semibold text-gray-200 mt-6 mb-2" {...props}>{children}</h3>
   ),
   p: ({ children, ...props }) => (
     <p className="text-gray-300 my-3 leading-relaxed" {...props}>{children}</p>

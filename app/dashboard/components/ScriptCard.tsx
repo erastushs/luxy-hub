@@ -151,10 +151,14 @@ export function ScriptCard({
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+      <div className="mt-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-3">
         <div>
           <p className="text-zinc-600">Access Mode</p>
           <p className="mt-1 text-zinc-400">{access.label}</p>
+        </div>
+        <div>
+          <p className="text-zinc-600">Visibility</p>
+          <p className="mt-1 text-zinc-400">{vis.label}</p>
         </div>
         <div>
           <p className="text-zinc-600">Version</p>
@@ -180,12 +184,13 @@ export function ScriptCard({
             {script.last_executed_at ? formatDate(script.last_executed_at) : 'Never'}
           </p>
         </div>
+        <div>
+          <p className="text-zinc-600">Updated</p>
+          <p className="mt-1 text-zinc-400">{formatDate(script.updated_at)}</p>
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-zinc-600">
-        {script.updated_at !== script.created_at && (
-          <span>Updated {formatDate(script.updated_at)}</span>
-        )}
         {script.buildInfo?.lastBuildAt && (
           <span>Built {formatDate(script.buildInfo.lastBuildAt)}</span>
         )}

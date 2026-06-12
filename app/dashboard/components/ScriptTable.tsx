@@ -68,6 +68,27 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
                     {script.name}
                   </Link>
                   <p className="text-xs text-zinc-500">/{script.slug}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5 md:hidden">
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium',
+                        vis.className
+                      )}
+                    >
+                      <VisIcon className="h-3 w-3" aria-hidden="true" />
+                      {vis.label}
+                    </span>
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold tracking-wide',
+                        access.className
+                      )}
+                    >
+                      <AccessIcon className="h-3 w-3" aria-hidden="true" />
+                      {access.label}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-zinc-600 xl:hidden">Updated {formatDate(script.updated_at)}</p>
                 </td>
                 <td className="px-4 py-3">
                   <span

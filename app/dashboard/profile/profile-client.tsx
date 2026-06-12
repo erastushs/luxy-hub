@@ -1,7 +1,7 @@
 'use client'
 
 import { startTransition, useEffect, useRef, useState, useActionState } from 'react'
-import { Lock, UserCircle, Pencil, LogOut } from 'lucide-react'
+import { Lock, UserCircle, Pencil, LogOut, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateProfileAction } from '@/app/actions/profile'
 import { changePasswordAction } from '@/app/actions/security'
@@ -165,104 +165,133 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
       </div>
 
       {editing && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-          <h2 className="text-lg font-semibold text-white">Edit Profile</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Update profile fields already stored on your account.
-          </p>
-
-          <form
-            action={(formData) => {
-              startTransition(() => {
-                formAction(formData)
-                setEditing(false)
-              })
-            }}
-            className="mt-6 space-y-5"
-          >
-            {state.message && !state.success && (
-              <ErrorBanner message={state.message} />
-            )}
-
-            <div>
-              <label
-                htmlFor="display_name"
-                className="block text-sm font-medium text-zinc-300"
-              >
-                Display Name
-              </label>
-              <input
-                id="display_name"
-                name="display_name"
-                type="text"
-                required
-                defaultValue={user.profile.display_name}
-                maxLength={80}
-                className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium text-zinc-300"
-              >
-                Username
-              </label>
-              <p className="mt-1 text-xs text-zinc-500">
-                3-30 characters. Lowercase letters, digits, and hyphens.
-                Leave empty to clear.
-              </p>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                defaultValue={user.profile.username ?? ''}
-                maxLength={30}
-                pattern="^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$"
-                className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
-                placeholder="my-username"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="avatar_url"
-                className="block text-sm font-medium text-zinc-300"
-              >
-                Avatar URL
-              </label>
-              <p className="mt-1 text-xs text-zinc-500">
-                Optional image URL stored on your existing profile. Leave empty to clear.
-              </p>
-              <input
-                id="avatar_url"
-                name="avatar_url"
-                type="url"
-                defaultValue={user.profile.avatar_url ?? ''}
-                className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
-                placeholder="https://example.com/avatar.png"
-              />
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="submit"
-                disabled={isPending}
-                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-              >
-                {isPending ? 'Saving...' : 'Save Changes'}
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title">
+          <div className="max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl shadow-black/60">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="edit-profile-title" className="text-lg font-semibold text-white">Edit Profile</h2>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Update display name, username, and avatar URL without leaving this profile summary.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setEditing(false)}
                 disabled={isPending}
-                className="rounded-lg border border-zinc-800 px-4 py-2.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                aria-label="Close edit profile"
               >
-                Cancel
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
-          </form>
+
+            <div className="mt-5 flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3">
+              <div
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-600/20 bg-cover bg-center text-red-400 ring-1 ring-zinc-800"
+                style={avatarStyle}
+                aria-hidden="true"
+              >
+                {!user.profile.avatar_url && <UserCircle className="h-6 w-6" />}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-white">Avatar preview</p>
+                <p className="truncate text-xs text-zinc-500">{user.profile.avatar_url ?? 'No avatar URL set'}</p>
+              </div>
+            </div>
+
+            <form
+              action={(formData) => {
+                startTransition(() => {
+                  formAction(formData)
+                  setEditing(false)
+                })
+              }}
+              className="mt-5 space-y-5"
+            >
+              {state.message && !state.success && (
+                <ErrorBanner message={state.message} />
+              )}
+
+              <div>
+                <label
+                  htmlFor="display_name"
+                  className="block text-sm font-medium text-zinc-300"
+                >
+                  Display Name
+                </label>
+                <input
+                  id="display_name"
+                  name="display_name"
+                  type="text"
+                  required
+                  defaultValue={user.profile.display_name}
+                  maxLength={80}
+                  className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="username"
+                  className="block text-sm font-medium text-zinc-300"
+                >
+                  Username
+                </label>
+                <p className="mt-1 text-xs text-zinc-500">
+                  3-30 characters. Lowercase letters, digits, and hyphens.
+                  Leave empty to clear.
+                </p>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  defaultValue={user.profile.username ?? ''}
+                  maxLength={30}
+                  pattern="^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$"
+                  className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                  placeholder="my-username"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="avatar_url"
+                  className="block text-sm font-medium text-zinc-300"
+                >
+                  Avatar URL
+                </label>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Optional image URL stored on your existing profile. Leave empty to clear.
+                </p>
+                <input
+                  id="avatar_url"
+                  name="avatar_url"
+                  type="url"
+                  defaultValue={user.profile.avatar_url ?? ''}
+                  className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                  placeholder="https://example.com/avatar.png"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                >
+                  {isPending ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  disabled={isPending}
+                  className="rounded-lg border border-zinc-800 px-4 py-2.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
