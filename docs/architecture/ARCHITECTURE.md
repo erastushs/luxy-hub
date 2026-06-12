@@ -401,13 +401,13 @@ Current accepted decisions:
 - `decisions/ADR-006-verification-logs-as-monitoring-counters.md` — monitoring counters originate from `verification_logs` and runtime event tables until a dedicated metrics system is justified.
 - `decisions/ADR-007-webhook-credential-storage-risk.md` — current webhook credential storage risks are accepted with operational mitigations and rotation processes.
 - `decisions/ADR-008-payload-secret-fallback-policy.md` — payload encryption prefers `DELIVERY_PAYLOAD_SECRET` with documented fallback and rotation implications.
-- `decisions/ADR-009-license-authorization-model.md` — `scripts.access_mode` is the accepted license/key/public delivery authorization model, with Phase 7B hardening planned but not implemented.
+- `decisions/ADR-009-license-authorization-model.md` — `scripts.access_mode` is the accepted license/key/public delivery authorization model; Phase 7B implementation and hardening are complete.
 
 ## Roadmap Alignment
 
-Current phase:
+Current program:
 
-- Phase 7B — Runtime License Enforcement: planning / not started in code.
+- Release Candidate Program: active.
 
 Completed phases:
 
@@ -417,17 +417,22 @@ Completed phases:
 - Phase 4.4 — Production Hardening: complete
 - Phase 5 — Secure Script Delivery: complete
 - Phase 6 — Loader Integration: complete
-- Phase 7A — License Foundation and Dashboard: complete / production ready
+- Phase 7A — License Foundation and Dashboard: complete
+- Phase 7B — Runtime License Enforcement: complete
+- Analytics V2 — complete
+- Testing Expansion — complete
+- Operational Hardening — complete
 - Phase 8 — Event Reporting & Webhook Platform: complete / 100%, production verified, and Roblox verified (database foundation, HMAC reporting API, replay and timestamp validation, queue worker with claim leases, dead-letter handling, Discord provider, dashboard webhook management, event operations, analytics dashboard, security dashboard, internal alerts, GitHub Actions scheduler, event retention cleanup, monitoring counters, and RLS hardening). Telegram and Slack providers, webhook encryption at rest, nonce atomicity improvements, and durable audit event stream expansion are deferred future enhancements and accepted risks, not Phase 8 blockers.
 
 Future ordering:
 
-1. Phase 7B — Runtime License Enforcement
-2. Phase 9 — Internal Operations & Release Workflow
-3. Phase 10 — Scale & Infrastructure (Optional)
+1. Release Candidate Validation
+2. Production rollout review
+3. Phase 9 — Internal Operations & Release Workflow
+4. Phase 10 — Scale & Infrastructure (Optional)
 
 Deprecated roadmap assumptions removed from current architecture:
 
 - Separate `dashboard.luxyhub.space`, `api.luxyhub.space`, `cdn.luxyhub.space`, and `vault.luxyhub.space` services are not implemented.
 - Marketplace architecture is not part of the current roadmap.
-- Phase 7A access modes and premium license management foundation are implemented; Phase 7B runtime enforcement hardening is planned — see `PHASE7_LICENSE_ARCHITECTURE.md` and `../phases/phase7/PHASE_7B_DESIGN.md`.
+- Phase 7A access modes and premium license management foundation are implemented; Phase 7B runtime enforcement and hardening are complete — see `PHASE7_LICENSE_ARCHITECTURE.md` and `../phases/phase7/PHASE_7B_DESIGN.md`.

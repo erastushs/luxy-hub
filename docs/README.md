@@ -119,16 +119,20 @@ Scheduler notes:
 - Scripts
 - Secure Delivery
 - Analytics V1
+- Analytics V2
 - Event Platform
 - License Foundation
 - License Dashboard
+- Phase 7B Runtime License Enforcement
+- Testing Expansion
+- Operational Hardening
 
 ### In Progress
 
-- Phase 7B Runtime License Enforcement
+- Release Candidate Program
 
-### Not Started
+### Remaining Before Production Rollout
 
-- Analytics V2
-- Production Hardening
-- Final Security Audit
+- Soak testing
+- Rollback drill
+- Production rollout review

@@ -1,7 +1,7 @@
 # LuxyHub Creator Dashboard — Release V1
 
 Release date: 2026-06-08
-Status: Phase 3 Complete snapshot — current project has completed Phase 4, Phase 5, Phase 6, Analytics V1, Phase 8 Event Platform, and Phase 7A
+Status: Phase 3 Complete snapshot — current project has completed Phase 4, Phase 5, Phase 6, Analytics V1, Phase 8 Event Platform, Phase 7A, Phase 7B, Analytics V2, Testing Expansion, and Operational Hardening
 Note: This is a Phase 3 release snapshot. Current architecture docs have been updated in ARCHITECTURE.md.
 
 ## Overview
@@ -198,17 +198,38 @@ Completed after Release V1:
 - Phase 6 — Loader Integration: complete
 - Analytics V1 — complete
 - Phase 7A — Access Modes, Keys, and License Foundation: complete / production ready
+- Phase 7B — Runtime License Enforcement: complete
+- Analytics V2 — complete
+- Testing Expansion — complete
+- Operational Hardening — complete
 - Phase 8 — Event Reporting & Webhook Platform: complete / 100% for Discord-backed production scope
 
-Current active track:
+## Release Candidate Program
 
-- Phase 7B — Runtime License Enforcement: planned / not started. Design and threat model are documented in `../phases/phase7/PHASE_7B_DESIGN.md` and `../phases/phase7/PHASE_7B_THREAT_MODEL.md`.
+Status: ACTIVE
+
+Goals:
+
+- Soak Testing
+- Runtime Validation
+- Analytics Validation
+- Audit Validation
+- Delivery Validation
+- License Validation
+- Rollback Readiness
+- Production Rollout Review
+
+Current environment status:
+
+- Production: Stable
+- Develop: Production Ready Candidate
 
 Future ordering:
 
-1. Phase 7B — Runtime License Enforcement
-2. Phase 9 — Internal Operations & Release Workflow
-3. Phase 10 — Scale & Infrastructure (Optional)
+1. Release Candidate Program
+2. Production rollout review
+3. Phase 9 — Internal Operations & Release Workflow
+4. Phase 10 — Scale & Infrastructure (Optional)
 
 Deferred Event Platform enhancements:
 
