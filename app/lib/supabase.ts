@@ -1,11 +1,16 @@
 import { cookies } from 'next/headers'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import {
+  getOptionalEnv,
+  getPublicSupabaseUrl,
+  isProduction,
+} from '@/app/config/env'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseUrl = getPublicSupabaseUrl()
+const serviceRoleKey = getOptionalEnv('SUPABASE_SERVICE_ROLE_KEY')
 
 if (!serviceRoleKey) {
-  if (process.env.NODE_ENV === 'production') {
+  if (isProduction) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY is required in production')
   }
   console.warn('SUPABASE_SERVICE_ROLE_KEY not set — RLS will block all queries')
@@ -13,7 +18,7 @@ if (!serviceRoleKey) {
 
 export const supabaseAdmin = createClient(
   supabaseUrl,
-  serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  serviceRoleKey || getOptionalEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY') || ''
 )
 
 type AuthenticatedSupabaseClient = SupabaseClient
@@ -41,7 +46,7 @@ export async function createSupabaseServerClient(): Promise<AuthenticatedSupabas
 
   return createClient(
     supabaseUrl,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+    getOptionalEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY') || '',
     {
       global: {
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},

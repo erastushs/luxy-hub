@@ -4,6 +4,7 @@ import { cn } from '@/app/lib/utils'
 import Link from 'next/link'
 import { Activity, BarChart3, Edit, Hammer, History, Trash2, Webhook } from 'lucide-react'
 import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
+import { getAccessModeBadge } from '@/app/dashboard/lib/access-mode'
 import { formatDate } from '@/app/dashboard/lib/format-date'
 import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
 import { CopyLoaderButton } from '@/app/dashboard/components/CopyLoaderButton'
@@ -26,6 +27,9 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
               Visibility
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              Access Mode
             </th>
             <th className="hidden px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider md:table-cell">
               Current Version
@@ -51,6 +55,8 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
           {scripts.map((script) => {
             const vis = getVisibilityBadge(script.visibility)
             const VisIcon = vis.icon
+            const access = getAccessModeBadge(script.access_mode)
+            const AccessIcon = access.icon
 
             return (
               <tr key={script.id} className="transition hover:bg-zinc-900/30">
@@ -72,6 +78,17 @@ export function ScriptTable({ scripts, onDeleteClick }: ScriptTableProps) {
                   >
                     <VisIcon className="h-3 w-3" aria-hidden="true" />
                     {vis.label}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold tracking-wide',
+                      access.className
+                    )}
+                  >
+                    <AccessIcon className="h-3 w-3" aria-hidden="true" />
+                    {access.label}
                   </span>
                 </td>
                 <td className="hidden px-4 py-3 md:table-cell">

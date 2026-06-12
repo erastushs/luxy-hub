@@ -7,6 +7,7 @@ import { cn } from '@/app/lib/utils'
 import { Activity, BarChart3, Trash2, Edit, Hammer, History, Webhook } from 'lucide-react'
 import { deleteScriptAction } from '@/app/actions/scripts'
 import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
+import { getAccessModeBadge } from '@/app/dashboard/lib/access-mode'
 import { formatDate } from '@/app/dashboard/lib/format-date'
 import { useState } from 'react'
 import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
@@ -26,6 +27,8 @@ export function ScriptCard({
 
   const vis = getVisibilityBadge(script.visibility)
   const VisIcon = vis.icon
+  const access = getAccessModeBadge(script.access_mode)
+  const AccessIcon = access.icon
 
   async function handleDelete() {
     setDeleting(true)
@@ -55,16 +58,27 @@ export function ScriptCard({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
-        <span
-          className={cn(
-            'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium',
-            vis.className
-          )}
-        >
-          <VisIcon className="h-3 w-3" aria-hidden="true" />
-          {vis.label}
-        </span>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium',
+              vis.className
+            )}
+          >
+            <VisIcon className="h-3 w-3" aria-hidden="true" />
+            {vis.label}
+          </span>
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold tracking-wide',
+              access.className
+            )}
+          >
+            <AccessIcon className="h-3 w-3" aria-hidden="true" />
+            {access.label}
+          </span>
+        </div>
 
         <div className="flex items-center gap-1">
           <Tooltip text="Edit">
@@ -138,6 +152,10 @@ export function ScriptCard({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+        <div>
+          <p className="text-zinc-600">Access Mode</p>
+          <p className="mt-1 text-zinc-400">{access.label}</p>
+        </div>
         <div>
           <p className="text-zinc-600">Version</p>
           <p className="mt-1 font-mono text-zinc-400">

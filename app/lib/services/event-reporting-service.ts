@@ -4,6 +4,7 @@ import { hashDeliverySessionToken } from '@/app/lib/services/delivery-session-se
 import { getSessionByTokenHash } from '@/app/lib/repositories/delivery-session-repository'
 import { createEventLog, findEventByNonce, isValidEventType, type EventType } from '@/app/lib/repositories/event-repository'
 import { recordSecurityCounter } from '@/app/lib/services/event-monitoring-service'
+import { runtimeConfig } from '@/app/config/runtime'
 
 const EVENT_REJECTED_MESSAGE = 'Event rejected'
 const INVALID_SESSION_MESSAGE = 'Invalid event session'
@@ -13,10 +14,10 @@ const UNKNOWN_EVENT_MESSAGE = 'Unknown event type'
 const TOO_MANY_EVENTS_MESSAGE = 'Too many events'
 const PAYLOAD_TOO_LARGE_MESSAGE = 'Payload too large'
 
-const MAX_PAYLOAD_BYTES = 4096
-const MAX_TIMESTAMP_SKEW_SECONDS = 300
-const MAX_EVENTS_PER_SESSION_PER_MINUTE = 10
-const RATE_LIMIT_WINDOW_MS = 60_000
+const MAX_PAYLOAD_BYTES = runtimeConfig.eventReporting.maxPayloadBytes
+const MAX_TIMESTAMP_SKEW_SECONDS = runtimeConfig.eventReporting.maxTimestampSkewSeconds
+const MAX_EVENTS_PER_SESSION_PER_MINUTE = runtimeConfig.eventReporting.maxEventsPerSessionPerMinute
+const RATE_LIMIT_WINDOW_MS = runtimeConfig.eventReporting.rateLimitWindowMs
 
 export type EventReportInput = Readonly<{
   sessionId: string
@@ -61,7 +62,9 @@ function isValidSignature(value: unknown): value is string {
 }
 
 function isValidSessionId(value: unknown): value is string {
-  return typeof value === 'string' && value.length >= 43 && value.length <= 256
+  return typeof value === 'string'
+    && value.length >= runtimeConfig.eventReporting.minSessionIdLength
+    && value.length <= runtimeConfig.eventReporting.maxSessionIdLength
 }
 
 function isValidTimestamp(value: unknown): value is number {

@@ -5,7 +5,7 @@ const loaderUrl = `${getSiteUrl()}/api/loader/luxyhub`
 export const config = {
   discord: 'https://discord.gg/Gr5UQUKp7',
 
-  scriptUrl: 'https://raw.githubusercontent.com/Omnie7/Luxy-Hub/refs/heads/main/main.lua',
+  scriptUrl: 'https://www.luxyhub.space/api/loader/luxyhub',
   typewriterMessages: [
     'Discover supported games.',
     'Track latest updates.',

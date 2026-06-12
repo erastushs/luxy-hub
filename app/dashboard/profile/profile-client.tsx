@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useActionState } from 'react'
+import { startTransition, useEffect, useRef, useState, useActionState } from 'react'
 import { Lock, UserCircle, Pencil, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateProfileAction } from '@/app/actions/profile'
@@ -48,12 +48,17 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
     toast.success(securityState.message ?? 'Password updated')
   }, [securityState.success, securityState.message])
 
-  if (state.success) {
-    if (editing) {
-      setEditing(false)
-      toast.success(state.message ?? 'Profile updated')
+  useEffect(() => {
+    if (!state.success) {
+      return
     }
-  }
+
+    toast.success(state.message ?? 'Profile updated')
+  }, [state.success, state.message])
+
+  const avatarStyle = user.profile.avatar_url
+    ? { backgroundImage: `url(${user.profile.avatar_url})` }
+    : undefined
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -75,8 +80,12 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
 
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600/20 text-red-400" aria-hidden="true">
-            <UserCircle className="h-7 w-7" />
+          <div
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600/20 bg-cover bg-center text-red-400 ring-1 ring-zinc-800"
+            style={avatarStyle}
+            aria-hidden="true"
+          >
+            {!user.profile.avatar_url && <UserCircle className="h-7 w-7" />}
           </div>
           <div>
             <h2 className="text-lg font-semibold text-white">
@@ -109,6 +118,15 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
 
           <ProfileField label="Email">
             <p className="truncate text-sm text-white">{user.email}</p>
+            <p className="mt-1 text-xs text-zinc-600">Managed by Supabase Auth</p>
+          </ProfileField>
+
+          <ProfileField label="Avatar URL">
+            <p className="truncate text-sm text-white">
+              {user.profile.avatar_url ?? (
+                <span className="text-zinc-600">Not set</span>
+              )}
+            </p>
           </ProfileField>
 
           <ProfileField
@@ -123,6 +141,12 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
           <ProfileField label="Member since">
             <p className="text-sm text-white">
               {formatDateLong(user.profile.created_at)}
+            </p>
+          </ProfileField>
+
+          <ProfileField label="Last updated">
+            <p className="text-sm text-white">
+              {formatDateLong(user.profile.updated_at)}
             </p>
           </ProfileField>
         </div>
@@ -144,10 +168,18 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
           <h2 className="text-lg font-semibold text-white">Edit Profile</h2>
           <p className="mt-1 text-sm text-zinc-400">
-            Update your display name and username.
+            Update profile fields already stored on your account.
           </p>
 
-          <form action={formAction} className="mt-6 space-y-5">
+          <form
+            action={(formData) => {
+              startTransition(() => {
+                formAction(formData)
+                setEditing(false)
+              })
+            }}
+            className="mt-6 space-y-5"
+          >
             {state.message && !state.success && (
               <ErrorBanner message={state.message} />
             )}
@@ -190,6 +222,26 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
                 pattern="^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$"
                 className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
                 placeholder="my-username"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="avatar_url"
+                className="block text-sm font-medium text-zinc-300"
+              >
+                Avatar URL
+              </label>
+              <p className="mt-1 text-xs text-zinc-500">
+                Optional image URL stored on your existing profile. Leave empty to clear.
+              </p>
+              <input
+                id="avatar_url"
+                name="avatar_url"
+                type="url"
+                defaultValue={user.profile.avatar_url ?? ''}
+                className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                placeholder="https://example.com/avatar.png"
               />
             </div>
 

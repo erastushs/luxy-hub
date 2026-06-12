@@ -17,6 +17,7 @@ export async function updateProfileAction(
 
   const displayName = formData.get('display_name')
   const username = formData.get('username')
+  const avatarUrl = formData.get('avatar_url')
 
   const result = await ensureProfile({
     id: user.id,
@@ -28,6 +29,10 @@ export async function updateProfileAction(
     username:
       typeof username === 'string' && username.trim()
         ? username.trim()
+        : null,
+    avatarUrl:
+      typeof avatarUrl === 'string' && avatarUrl.trim()
+        ? avatarUrl.trim()
         : null,
   })
 

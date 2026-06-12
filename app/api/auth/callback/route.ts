@@ -1,6 +1,7 @@
 import { type EmailOtpType } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { getPublicSupabaseAnonKey, getPublicSupabaseUrl } from '@/app/config/env'
 
 export function getSafeAuthRedirect(next: string | null, requestUrl: string): URL {
   const requestOrigin = new URL(requestUrl).origin
@@ -20,8 +21,8 @@ export async function GET(request: NextRequest) {
 
   if (tokenHash && type) {
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      getPublicSupabaseUrl(),
+      getPublicSupabaseAnonKey(),
       {
         cookies: {
           getAll() {

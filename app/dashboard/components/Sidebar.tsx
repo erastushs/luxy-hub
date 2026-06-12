@@ -8,6 +8,7 @@ import {
   FileCode,
   BarChart3,
   History,
+  BookOpen,
   KeyRound,
   UserCircle,
   LogOut,
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { label: 'Licenses', href: '/dashboard/licenses', icon: KeyRound },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { label: 'Versions', href: '/dashboard/versions', icon: History },
+  { label: 'Documentation', href: '/docs', icon: BookOpen },
   { label: 'Profile', href: '/dashboard/profile', icon: UserCircle },
 ]
 

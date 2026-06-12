@@ -17,8 +17,9 @@ import { recordExecution } from '@/app/lib/repositories/script-execution-reposit
 import { authorizeDeliveryAccess } from '@/app/lib/services/delivery-authorization-service'
 import { recordLicenseDelivery } from '@/app/lib/services/license-service'
 import { logAuditEvent } from '@/app/lib/services/audit-service'
+import { deliveryConfig } from '@/app/config/delivery'
 
-export const DELIVERY_SESSION_TTL_SECONDS = 60
+export const DELIVERY_SESSION_TTL_SECONDS = deliveryConfig.sessionTtlSeconds
 const UNAVAILABLE_MESSAGE = 'Delivery unavailable'
 const INVALID_SESSION_MESSAGE = 'Invalid delivery session'
 
@@ -44,11 +45,11 @@ export type ConsumeDeliverySessionResult =
   | { success: false; message: string; status: number }
 
 function createRawSessionToken(): string {
-  return randomBytes(32).toString('base64url')
+  return randomBytes(deliveryConfig.sessionTokenBytes).toString('base64url')
 }
 
 function createEventSecret(): string {
-  return randomBytes(32).toString('base64url')
+  return randomBytes(deliveryConfig.eventSecretBytes).toString('base64url')
 }
 
 export function hashDeliverySessionToken(sessionToken: string): string {

@@ -123,11 +123,12 @@ npm run build
 ## Documentation
 
 - `docs/README.md` — documentation index and source-of-truth map
+- `docs/GETTING_STARTED.md` — quick navigation and popular tasks
 - `docs/architecture/ARCHITECTURE.md` — current system architecture
-- `docs/archive/integration/API_SPEC.md` — API reference and response shapes
+- `docs/api/REFERENCE.md` — API reference and response shapes
+- `docs/dashboard/DASHBOARD_WORKFLOWS.md` — creator dashboard usage
+- `docs/runtime/SECURE_DELIVERY.md` — secure delivery implementation notes
 - `docs/deployment/DEPLOYMENT_CHECKLIST.md` — deployment and production validation
-- `docs/archive/architecture/SECURE_DELIVERY_ARCHITECTURE.md` — secure delivery design and implementation notes
-- `docs/archive/integration/DASHBOARD_USER_GUIDE.md` — creator dashboard usage
 
 ## License
 

@@ -16,6 +16,7 @@ import {
   type LicenseRow,
 } from '@/app/lib/repositories/license-repository'
 import { logAuditEvent } from '@/app/lib/services/audit-service'
+import { licenseConfig } from '@/app/config/licenses'
 
 const LICENSE_KEY_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
@@ -48,8 +49,8 @@ export type LicenseValidationFailureReason =
   | 'invalid_assignment'
   | 'capacity_exhausted'
 
-export const CUSTOMER_IDENTIFIER_MIN_LENGTH = 3
-export const CUSTOMER_IDENTIFIER_MAX_LENGTH = 128
+export const CUSTOMER_IDENTIFIER_MIN_LENGTH = licenseConfig.customerIdentifierMinLength
+export const CUSTOMER_IDENTIFIER_MAX_LENGTH = licenseConfig.customerIdentifierMaxLength
 
 function randomLicenseSegment(length: number): string {
   const bytes = randomBytes(length)
