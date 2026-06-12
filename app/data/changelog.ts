@@ -8,6 +8,21 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: 'v4.5',
+    date: '12 Jun 2026',
+    game: '+1 Speed Keyboard Escape',
+    summary: 'Added New Script Support',
+    changes: [
+      'Added Wins 4M - 40M World 2.',
+      'Added Wins 2.5k - 150K World 1.',
+      'Added Anti Hit/GodMod (Only World 2).',
+      'Fixed Auto Treadmill.',
+      'Fixed Auto Equip Best.',
+      'Fixed Vibration When Tween.',
+    ],
+  },
+
+  {
     version: 'v4.4',
     date: '9 Jun 2026',
     game: '+1 Speed Keyboard Escape',
