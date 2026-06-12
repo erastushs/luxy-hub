@@ -8,9 +8,6 @@ import {
 export type LoaderBootstrapParams = {
   baseUrl: string
   slug: string
-  key?: string | null
-  licenseKey?: string | null
-  customerIdentifier?: string | null
 }
 
 function luaString(value: string): string {
@@ -26,10 +23,6 @@ function normalizeBaseUrl(baseUrl: string): string {
   return parsed.origin.replace(/\/$/, '')
 }
 
-function optionalLuaString(value: string | null | undefined): string {
-  return typeof value === 'string' && value.length > 0 ? luaString(value) : 'nil'
-}
-
 export function createLoaderBootstrapLua(params: LoaderBootstrapParams): string {
   if (!isValidSlug(params.slug)) {
     throw new Error('Invalid loader slug')
@@ -43,9 +36,6 @@ export function createLoaderBootstrapLua(params: LoaderBootstrapParams): string 
 
 local LUXY_BASE_URL = ${luaString(baseUrl)}
 local LUXY_SLUG = ${luaString(params.slug)}
-local LUXY_KEY = ${optionalLuaString(params.key)}
-local LUXY_LICENSE_KEY = ${optionalLuaString(params.licenseKey)}
-local LUXY_CUSTOMER_IDENTIFIER = ${optionalLuaString(params.customerIdentifier)}
 local RUNTIME_VERSION = ${luaString(LOADER_RUNTIME_VERSION)}
 local SUPPORTED_RUNTIME_FORMAT_VERSION = ${luaString(LOADER_RUNTIME_FORMAT_VERSION)}
 local SUPPORTED_BUILD_VERSION = ${luaString(LOADER_SUPPORTED_BUILD_VERSION)}
@@ -155,23 +145,11 @@ if type(Runtime) ~= "table" or Runtime.version ~= RUNTIME_VERSION or type(Runtim
   fail()
 end
 
-local sessionRequest = {
+-- Credentialed access should create a delivery session directly via POST /api/delivery/session.
+-- Loader URLs intentionally do not carry key, license_key, or customer_identifier values.
+local session = postJson("/api/delivery/session", {
   slug = LUXY_SLUG,
-}
-
-if type(LUXY_KEY) == "string" and #LUXY_KEY > 0 then
-  sessionRequest.key = LUXY_KEY
-end
-
-if type(LUXY_LICENSE_KEY) == "string" and #LUXY_LICENSE_KEY > 0 then
-  sessionRequest.license_key = LUXY_LICENSE_KEY
-end
-
-if type(LUXY_CUSTOMER_IDENTIFIER) == "string" and #LUXY_CUSTOMER_IDENTIFIER > 0 then
-  sessionRequest.customer_identifier = LUXY_CUSTOMER_IDENTIFIER
-end
-
-local session = postJson("/api/delivery/session", sessionRequest)
+})
 
 if type(session.session_token) ~= "string" or #session.session_token == 0 then
   fail()

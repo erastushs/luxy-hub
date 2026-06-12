@@ -1,9 +1,9 @@
 # Phase 7B Threat Model — Runtime License Enforcement
 
-Status: Planned / Not Started
-Date: 2026-06-11
+Status: Hardening / Production Candidate Review
+Date: 2026-06-12
 
-This document records the intended threat model for Phase 7B. It does not implement controls.
+This document records the Phase 7B threat model and hardening notes for develop. It does not authorize production deployment.
 
 ## Threat: License Sharing
 
@@ -38,6 +38,9 @@ Assignment limits become ineffective and license-required access becomes equival
 Mitigation Strategy:
 Use atomic authorization and assignment creation. Enforce capacity in both runtime-created and creator-created assignments.
 
+Hardening Note:
+The assignment RPC must be executable by `service_role` only. `PUBLIC`, `anon`, and `authenticated` execution must be revoked because the function bypasses RLS by design.
+
 ## Threat: Replay Attacks
 
 Description:
@@ -71,6 +74,9 @@ Leaked credentials can be reused, brute-forced, shared, or correlated with users
 Mitigation Strategy:
 Never store raw license keys. Avoid logging raw credentials. Store hashed customer identifiers for enforcement. Return generic authorization errors where practical. Keep dashboard assignment views limited to safe display labels and record IDs.
 
+Hardening Note:
+Do not transport license credentials through loader GET URLs. Credentialed access must use JSON POST to the delivery session endpoint so raw `license_key` and `customer_identifier` values are not captured in URL logs, browser history, referrers, or reusable snippets.
+
 ## Threat: Brute Force Attempts
 
 Description:
@@ -84,4 +90,4 @@ Preserve delivery session rate limiting, use generic failures, monitor repeated 
 
 ## Review Notes
 
-Phase 7B implementation should be reviewed against this threat model before code changes begin and again before production rollout.
+Phase 7B implementation should be reviewed against this threat model before production rollout. Rollout requires successful validation of RPC privilege restrictions, runtime audit persistence, POST-only credential transport, and capacity enforcement across runtime and manual assignment paths.

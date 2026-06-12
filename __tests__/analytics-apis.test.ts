@@ -93,8 +93,15 @@ describe('Analytics V1 service', () => {
     it('returns authorization, license, delivery, and runtime metrics', async () => {
       mockedFrom.mockImplementation((table: string) => {
         if (table === 'scripts') {
-          const eq = vi.fn().mockResolvedValue({ data: scriptRows, error: null })
-          return { select: vi.fn(() => ({ eq })) } as never
+          const select = vi.fn((columns: string) => ({
+            eq: vi.fn().mockResolvedValue({
+              data: columns === 'id'
+                ? [{ id: 'script-uuid-1' }, { id: 'script-uuid-2' }]
+                : scriptRows,
+              error: null,
+            }),
+          }))
+          return { select } as never
         }
 
         if (table === 'licenses') {
@@ -139,13 +146,13 @@ describe('Analytics V1 service', () => {
         if (table === 'event_logs') {
           const inFilter = vi.fn().mockResolvedValue({
             data: [
-              { type: 'execute', status: 'delivered' },
-              { type: 'error', status: 'dead_letter' },
+              { event_type: 'execute', delivery_status: 'delivered' },
+              { event_type: 'error', delivery_status: 'dead_letter' },
             ],
             error: null,
           })
-          const eq = vi.fn(() => ({ in: inFilter }))
-          return { select: vi.fn(() => ({ eq })) } as never
+          const firstIn = vi.fn(() => ({ in: inFilter }))
+          return { select: vi.fn(() => ({ in: firstIn })) } as never
         }
 
         return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) } as never
@@ -169,8 +176,8 @@ describe('Analytics V1 service', () => {
         })
         expect(result.overview.delivery).toEqual({
           session_creation: 1,
-          payload_fetch: 1,
-          fetch_failures: 0,
+          payload_fetch: null,
+          fetch_failures: null,
         })
         expect(result.overview.runtime).toEqual({
           starts: 1,

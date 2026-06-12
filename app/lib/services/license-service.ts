@@ -1,9 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import {
   authorizeLicenseAssignment,
-  countActiveLicenseAssignments,
   createLicense as createLicenseRow,
-  createLicenseAssignment,
   disableLicense as disableLicenseRow,
   enableLicense as enableLicenseRow,
   getLicenseAssignmentByCustomerHash,
@@ -11,7 +9,6 @@ import {
   getLicenseById,
   getLicenseForScriptByKeyHash,
   getLicensesForScript as getLicenseRowsForScript,
-  incrementLicenseActivationCount,
   incrementLicenseDeliveryCount,
   removeLicenseAssignment,
   revokeLicense as revokeLicenseRow,
@@ -178,8 +175,11 @@ export async function validateLicense({
   })
 
   if (!authorization.success) {
-    logRuntimeLicenseAudit(licenseRow, null, 'license.authorization_denied', 'capacity_exhausted')
-    return { success: false, status: 403, message: 'License assignment capacity exceeded', reason: 'capacity_exhausted' }
+    const reason = authorization.reason === 'invalid_assignment' ? 'invalid_assignment' : 'capacity_exhausted'
+    logRuntimeLicenseAudit(licenseRow, null, 'license.authorization_denied', reason)
+    return reason === 'invalid_assignment'
+      ? { success: false, status: 403, message: 'Invalid license assignment', reason }
+      : { success: false, status: 403, message: 'License assignment capacity exceeded', reason }
   }
 
   if (authorization.assignment.status !== 'active') {
@@ -188,7 +188,6 @@ export async function validateLicense({
   }
 
   if (authorization.created) {
-    await incrementLicenseActivationCount(licenseRow.id)
     logRuntimeLicenseAudit(licenseRow, authorization.assignment, 'license.assignment_created', 'runtime_assignment_created')
   }
 
@@ -249,16 +248,21 @@ export async function createAssignment(input: CreateAssignmentInput): Promise<Li
     throw new Error('License not found')
   }
 
-  const activeAssignments = await countActiveLicenseAssignments(input.license_id)
-  if (activeAssignments >= license.max_assignments) {
-    throw new Error('License assignment capacity exceeded')
-  }
-
-  const assignment = await createLicenseAssignment({
+  const authorization = await authorizeLicenseAssignment({
     licenseId: input.license_id,
     customerIdentifierHash: hashLicenseSecret(normalizedCustomerIdentifier),
     displayName: input.display_name ?? null,
   })
+
+  if (!authorization.success) {
+    throw new Error(
+      authorization.reason === 'invalid_assignment'
+        ? 'Invalid license assignment'
+        : 'License assignment capacity exceeded'
+    )
+  }
+
+  const assignment = authorization.assignment
 
   logAuditEvent({
     actor_id: license.creator_id,

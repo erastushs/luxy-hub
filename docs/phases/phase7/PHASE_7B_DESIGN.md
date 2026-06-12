@@ -1,9 +1,9 @@
 # Phase 7B Design — Runtime License Enforcement
 
-Status: Planned / Not Started
-Date: 2026-06-11
+Status: Hardening / Production Candidate Review
+Date: 2026-06-12
 
-This document describes intended Phase 7B scope only. It is not an implementation record. No Phase 7B code, schema, API, runtime, loader, service, repository, delivery, or authorization changes have started.
+This document records the Phase 7B runtime license enforcement design and hardening decisions for develop. It is not a production deployment record.
 
 ## 1. Runtime License Enforcement
 
@@ -70,7 +70,10 @@ Current State:
 Phase 7A dashboard and license foundation are complete. Loader credential forwarding is intentionally deferred to Phase 7B planning and implementation.
 
 Target State:
-The loader should forward key, license key, and customer identifier values only when present and only to the delivery session endpoint. Runtime payload delivery and event reporting should remain unchanged.
+Credentialed runtime access should POST credentials directly to `/api/delivery/session`. Loader bootstrap URLs must not carry `key`, `license_key`, or `customer_identifier` values, and generated loader code must not embed those credentials as URL-derived literals. Runtime payload delivery and event reporting remain unchanged.
+
+Migration Path:
+Existing non-credentialed loader URLs remain valid for public scripts. Key-required and license-required consumers must migrate to direct session creation with a JSON POST body containing `slug`, `key` or `license_key`, and `customer_identifier`; the returned one-time session token is then used for payload fetch. The `license` request body alias remains as a temporary compatibility path for session creation only.
 
 Risks:
 Credential forwarding can leak secrets if logged, embedded unsafely, exposed in errors, or passed to unrelated runtime/event surfaces.
@@ -84,10 +87,13 @@ Current State:
 Phase 7A schema and dashboard expose activation and delivery counters. Phase 7A UI displays existing data from current APIs.
 
 Target State:
-`activation_count` should increment only when a new assignment is created. `delivery_count` should increment when a license-authorized delivery session is successfully created. Timestamps should update with the same events.
+`activation_count` increments inside the atomic assignment authorization function only when a new active assignment is created. `delivery_count` increments after a license-authorized delivery session is successfully created, but delivery must not fail if telemetry updates fail.
 
 Risks:
 Counters can become misleading if updated outside the same authorization transaction or if retries double-count activity.
+
+Security Review Notes:
+Runtime assignment authorization is implemented as a service-role-only RPC. The function must revoke execution from `PUBLIC`, `anon`, and `authenticated`, use a safe `search_path`, and fully qualify table references. Runtime audit events use `actor_role = runtime`, which requires the audit role constraint to include `runtime`.
 
 ## 7. Runtime Audit Trail
 

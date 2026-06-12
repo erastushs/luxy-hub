@@ -6,7 +6,6 @@ import type {
 
 vi.mock('@/app/lib/repositories/license-repository', () => ({
   authorizeLicenseAssignment: vi.fn(),
-  countActiveLicenseAssignments: vi.fn(),
   createLicense: vi.fn(),
   createLicenseAssignment: vi.fn(),
   disableLicense: vi.fn(),
@@ -16,7 +15,6 @@ vi.mock('@/app/lib/repositories/license-repository', () => ({
   getLicenseById: vi.fn(),
   getLicenseForScriptByKeyHash: vi.fn(),
   getLicensesForScript: vi.fn(),
-  incrementLicenseActivationCount: vi.fn(),
   incrementLicenseDeliveryCount: vi.fn(),
   removeLicenseAssignment: vi.fn(),
   revokeLicense: vi.fn(),
@@ -44,7 +42,6 @@ import {
 } from '@/app/lib/services/license-service'
 import {
   authorizeLicenseAssignment,
-  countActiveLicenseAssignments,
   createLicense as createLicenseRow,
   createLicenseAssignment,
   disableLicense as disableLicenseRow,
@@ -54,7 +51,6 @@ import {
   getLicenseById,
   getLicenseForScriptByKeyHash,
   getLicensesForScript as getLicenseRowsForScript,
-  incrementLicenseActivationCount,
   incrementLicenseDeliveryCount,
   removeLicenseAssignment,
   revokeLicense as revokeLicenseRow,
@@ -62,7 +58,6 @@ import {
 import { logAuditEvent } from '@/app/lib/services/audit-service'
 
 const mockedAuthorizeLicenseAssignment = vi.mocked(authorizeLicenseAssignment)
-const mockedCountActiveLicenseAssignments = vi.mocked(countActiveLicenseAssignments)
 const mockedCreateLicenseRow = vi.mocked(createLicenseRow)
 const mockedCreateLicenseAssignment = vi.mocked(createLicenseAssignment)
 const mockedDisableLicenseRow = vi.mocked(disableLicenseRow)
@@ -72,7 +67,6 @@ const mockedGetLicenseAssignments = vi.mocked(getLicenseAssignments)
 const mockedGetLicenseById = vi.mocked(getLicenseById)
 const mockedGetLicenseForScriptByKeyHash = vi.mocked(getLicenseForScriptByKeyHash)
 const mockedGetLicenseRowsForScript = vi.mocked(getLicenseRowsForScript)
-const mockedIncrementLicenseActivationCount = vi.mocked(incrementLicenseActivationCount)
 const mockedIncrementLicenseDeliveryCount = vi.mocked(incrementLicenseDeliveryCount)
 const mockedLogAuditEvent = vi.mocked(logAuditEvent)
 const mockedRemoveLicenseAssignment = vi.mocked(removeLicenseAssignment)
@@ -233,8 +227,7 @@ describe('license service', () => {
   it('creates assignments with hash-only customer identifier storage', async () => {
     const row = mockAssignmentRow()
     mockedGetLicenseById.mockResolvedValue(mockLicenseRow())
-    mockedCountActiveLicenseAssignments.mockResolvedValue(0)
-    mockedCreateLicenseAssignment.mockResolvedValue(row)
+    mockedAuthorizeLicenseAssignment.mockResolvedValue({ success: true, assignment: row, created: true })
 
     const result = await createAssignment({
       license_id: 'license-uuid-1',
@@ -243,7 +236,7 @@ describe('license service', () => {
     })
 
     expect(result).toEqual(row)
-    const createParams = mockedCreateLicenseAssignment.mock.calls[0][0]
+    const createParams = mockedAuthorizeLicenseAssignment.mock.calls[0][0]
     expect(createParams).toEqual({
       licenseId: 'license-uuid-1',
       customerIdentifierHash: hashLicenseSecret('customer@example.com'),
@@ -376,7 +369,6 @@ describe('license service', () => {
     mockedGetLicenseForScriptByKeyHash.mockResolvedValue(license)
     mockedGetLicenseAssignmentByCustomerHash.mockResolvedValue(null)
     mockedAuthorizeLicenseAssignment.mockResolvedValue({ success: true, assignment, created: true })
-    mockedIncrementLicenseActivationCount.mockResolvedValue(undefined)
 
     await expect(validateLicense({
       scriptId: 'script-uuid-1',
@@ -388,7 +380,6 @@ describe('license service', () => {
       customerIdentifierHash: hashLicenseSecret('customer-1'),
       displayName: null,
     })
-    expect(mockedIncrementLicenseActivationCount).toHaveBeenCalledWith('license-uuid-1')
   })
 
   it('rejects missing assignment when capacity is exhausted', async () => {
@@ -409,9 +400,9 @@ describe('license service', () => {
     })
   })
 
-  it('enforces manual assignment capacity before creator assignment creation', async () => {
+  it('enforces manual assignment capacity through the atomic authorization RPC', async () => {
     mockedGetLicenseById.mockResolvedValue(mockLicenseRow({ max_assignments: 1 }))
-    mockedCountActiveLicenseAssignments.mockResolvedValue(1)
+    mockedAuthorizeLicenseAssignment.mockResolvedValue({ success: false, reason: 'capacity_exhausted' })
 
     await expect(createAssignment({
       license_id: 'license-uuid-1',

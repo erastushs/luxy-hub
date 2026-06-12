@@ -24,8 +24,8 @@ export type AnalyticsV2OverviewType = CreatorAnalyticsOverviewType & {
   }
   delivery: {
     session_creation: number
-    payload_fetch: number
-    fetch_failures: number
+    payload_fetch: number | null
+    fetch_failures: number | null
   }
   runtime: {
     starts: number
@@ -222,11 +222,11 @@ async function getDeliveryMetrics(ownerId: string): Promise<AnalyticsV2OverviewT
 
     return {
       session_creation: data.length,
-      payload_fetch: data.length,
-      fetch_failures: 0,
+      payload_fetch: null,
+      fetch_failures: null,
     }
   } catch {
-    return { session_creation: 0, payload_fetch: 0, fetch_failures: 0 }
+    return { session_creation: 0, payload_fetch: null, fetch_failures: null }
   }
 }
 
@@ -235,17 +235,29 @@ async function getRuntimeMetrics(
   executionVolume: number
 ): Promise<AnalyticsV2OverviewType['runtime']> {
   try {
+    const { data: scripts, error: scriptsError } = await supabaseAdmin
+      .from('scripts')
+      .select('id')
+      .eq('creator_id', ownerId)
+
+    if (scriptsError || !scripts) throw scriptsError
+
+    const scriptIds = scripts.map((script) => script.id).filter(Boolean)
+    if (scriptIds.length === 0) {
+      return { starts: 0, failures: 0, execution_volume: executionVolume }
+    }
+
     const { data, error } = await supabaseAdmin
       .from('event_logs')
-      .select('type, status')
-      .eq('creator_id', ownerId)
-      .in('type', ['execute', 'error', 'heartbeat'])
+      .select('event_type, delivery_status')
+      .in('script_id', scriptIds)
+      .in('event_type', ['execute', 'error', 'heartbeat'])
 
     if (error || !data) throw error
 
     return {
-      starts: data.filter((event) => event.type === 'execute' || event.type === 'heartbeat').length,
-      failures: data.filter((event) => event.type === 'error' || event.status === 'dead_letter').length,
+      starts: data.filter((event) => event.event_type === 'execute' || event.event_type === 'heartbeat').length,
+      failures: data.filter((event) => event.event_type === 'error' || event.delivery_status === 'dead_letter').length,
       execution_volume: executionVolume,
     }
   } catch {

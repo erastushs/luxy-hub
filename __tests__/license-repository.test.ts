@@ -16,7 +16,6 @@ import {
   createLicense,
   createLicenseAssignment,
   authorizeLicenseAssignment,
-  countActiveLicenseAssignments,
   disableLicense,
   enableLicense,
   getLicenseAssignments,
@@ -24,7 +23,6 @@ import {
   getLicensesForScript,
   removeLicenseAssignment,
   revokeLicense,
-  incrementLicenseActivationCount,
   incrementLicenseDeliveryCount,
 } from '@/app/lib/repositories/license-repository'
 
@@ -230,6 +228,15 @@ describe('license repository', () => {
     })).resolves.toEqual({ success: false, reason: 'capacity_exhausted' })
   })
 
+  it('returns invalid assignment when atomic assignment RPC denies an inactive assignment', async () => {
+    mockedRpc.mockResolvedValue({ data: [{ success: false, status: 'disabled' }], error: null })
+
+    await expect(authorizeLicenseAssignment({
+      licenseId: 'license-uuid-1',
+      customerIdentifierHash: 'c'.repeat(64),
+    })).resolves.toEqual({ success: false, reason: 'invalid_assignment' })
+  })
+
   it('lists assignments for a license', async () => {
     const row = mockAssignmentRow()
     const chain = createQueryChain([row])
@@ -240,30 +247,11 @@ describe('license repository', () => {
     expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false })
   })
 
-  it('counts active assignments for capacity validation', async () => {
-    const chain = createQueryChain(null)
-    chain.select = vi.fn(() => chain)
-    chain.eq = vi.fn(() => chain)
-    chain.then = (resolve) => {
-      resolve({ count: 2, error: null } as never)
-    }
-    mockedFrom.mockReturnValue(chain)
-
-    await expect(countActiveLicenseAssignments('license-uuid-1')).resolves.toBe(2)
-    expect(chain.select).toHaveBeenCalledWith('id', { count: 'exact', head: true })
-    expect(chain.eq).toHaveBeenCalledWith('license_id', 'license-uuid-1')
-    expect(chain.eq).toHaveBeenCalledWith('status', 'active')
-  })
-
-  it('increments runtime license counters through RPC helpers', async () => {
+  it('increments delivery counters through service-role RPC helper', async () => {
     mockedRpc.mockResolvedValue({ data: null, error: null })
 
-    await expect(incrementLicenseActivationCount('license-uuid-1')).resolves.toBeUndefined()
     await expect(incrementLicenseDeliveryCount('license-uuid-1')).resolves.toBeUndefined()
 
-    expect(mockedRpc).toHaveBeenCalledWith('increment_license_activation_count', {
-      p_license_id: 'license-uuid-1',
-    })
     expect(mockedRpc).toHaveBeenCalledWith('increment_license_delivery_count', {
       p_license_id: 'license-uuid-1',
     })

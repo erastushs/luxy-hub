@@ -18,13 +18,9 @@ export async function GET(
     }
 
     const { slug } = await params
-    const url = new URL(req.url)
     const bootstrap = createLoaderBootstrapLua({
-      baseUrl: url.origin,
+      baseUrl: new URL(req.url).origin,
       slug,
-      key: url.searchParams.get('key'),
-      licenseKey: url.searchParams.get('license_key') ?? url.searchParams.get('license'),
-      customerIdentifier: url.searchParams.get('customer_identifier'),
     })
 
     return new NextResponse(bootstrap, {

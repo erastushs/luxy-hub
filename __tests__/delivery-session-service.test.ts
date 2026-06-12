@@ -225,12 +225,18 @@ describe('Phase 5C delivery session service', () => {
   })
 
   it('rejects session creation when the current ready build is missing', async () => {
-    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow())
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'license_required' }))
     mockedGetReadyBuild.mockResolvedValue(null)
 
-    const result = await createDeliverySession('my-script')
+    const result = await createDeliverySession(
+      'my-script',
+      undefined,
+      'LUXY-PREM-XXXX-XXXX-XXXX',
+      'customer-1'
+    )
 
     expect(result.success).toBe(false)
+    expect(mockedValidateLicense).not.toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
     if (!result.success) {
       expect(result.status).toBe(404)
@@ -290,6 +296,7 @@ describe('Phase 5C delivery session service', () => {
 
   it('rejects key-required sessions when no key is provided', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'key_required' }))
+    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
 
     const result = await createDeliverySession('my-script')
 
@@ -299,13 +306,14 @@ describe('Phase 5C delivery session service', () => {
       message: 'Key is required',
     })
     expect(mockedValidateKey).not.toHaveBeenCalled()
-    expect(mockedGetReadyBuild).not.toHaveBeenCalled()
+    expect(mockedGetReadyBuild).toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
     expect(mockedRecordExecution).not.toHaveBeenCalled()
   })
 
   it('rejects key-required sessions with an invalid key', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'key_required' }))
+    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
     mockedValidateKey.mockResolvedValue({ valid: false, message: 'Invalid key', status: 403 })
 
     const result = await createDeliverySession('my-script', 'BAD-KEY-XXXX-YYYY')
@@ -316,13 +324,14 @@ describe('Phase 5C delivery session service', () => {
       message: 'Invalid key',
     })
     expect(mockedValidateKey).toHaveBeenCalledWith('BAD-KEY-XXXX-YYYY')
-    expect(mockedGetReadyBuild).not.toHaveBeenCalled()
+    expect(mockedGetReadyBuild).toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
     expect(mockedRecordExecution).not.toHaveBeenCalled()
   })
 
   it('rejects license-required sessions when no license is provided', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'license_required' }))
+    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
     mockedValidateLicense.mockResolvedValue({ success: false, status: 403, message: 'License is required', reason: 'license_required' })
 
     const result = await createDeliverySession('my-script')
@@ -337,7 +346,7 @@ describe('Phase 5C delivery session service', () => {
       license: undefined,
       customerIdentifier: undefined,
     })
-    expect(mockedGetReadyBuild).not.toHaveBeenCalled()
+    expect(mockedGetReadyBuild).toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
     expect(mockedRecordExecution).not.toHaveBeenCalled()
   })
@@ -406,6 +415,66 @@ describe('Phase 5C delivery session service', () => {
       resource_type: 'delivery_session',
       resource_id: 'session-uuid-1',
     }))
+  })
+
+  it('continues premium delivery when license delivery counter telemetry fails', async () => {
+    mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'license_required' }))
+    mockedValidateLicense.mockResolvedValue({
+      success: true,
+      license: {
+        id: 'license-uuid-1',
+        script_id: 'script-uuid-1',
+        creator_id: 'owner-uuid-1',
+        key_hash: 'a'.repeat(64),
+        max_assignments: 1,
+        status: 'active',
+        activation_count: 0,
+        delivery_count: 0,
+        last_activation_at: null,
+        last_delivery_at: null,
+        expires_at: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+      assignment: {
+        id: 'assignment-uuid-1',
+        license_id: 'license-uuid-1',
+        customer_identifier_hash: 'b'.repeat(64),
+        display_name: null,
+        status: 'active',
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+      assignmentCreated: false,
+    })
+    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
+    mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
+      script_id: params.scriptId,
+      build_id: params.buildId,
+      session_token_hash: params.tokenHash,
+      expires_at: params.expiresAt,
+      event_secret: params.eventSecret ?? null,
+    }))
+    mockedRecordLicenseDelivery.mockRejectedValue(new Error('counter down'))
+
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await createDeliverySession(
+      'my-script',
+      undefined,
+      'LUXY-PREM-XXXX-XXXX-XXXX',
+      'customer-1'
+    )
+    await Promise.resolve()
+
+    expect(result.success).toBe(true)
+    expect(mockedRecordLicenseDelivery).toHaveBeenCalledWith('license-uuid-1')
+    expect(consoleError).toHaveBeenCalledWith(
+      '[delivery] Failed to record license delivery counter:',
+      expect.any(Error)
+    )
+
+    consoleError.mockRestore()
   })
 
   it('rejects expired tokens uniformly', async () => {

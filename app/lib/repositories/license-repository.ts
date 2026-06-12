@@ -48,7 +48,7 @@ export type CreateLicenseAssignmentParams = {
 
 export type LicenseAssignmentAuthorizationResult =
   | { success: true; assignment: LicenseAssignmentRow; created: boolean }
-  | { success: false; reason: 'capacity_exhausted' }
+  | { success: false; reason: 'capacity_exhausted' | 'invalid_assignment' }
 
 const LICENSE_SELECT = [
   'id',
@@ -195,7 +195,10 @@ export async function authorizeLicenseAssignment(
 
   const row = Array.isArray(data) ? data[0] : data
   if (!row || row.success === false) {
-    return { success: false, reason: 'capacity_exhausted' }
+    return {
+      success: false,
+      reason: row?.status && row.status !== 'active' ? 'invalid_assignment' : 'capacity_exhausted',
+    }
   }
 
   return {
@@ -211,25 +214,6 @@ export async function authorizeLicenseAssignment(
       updated_at: row.updated_at,
     } as LicenseAssignmentRow,
   }
-}
-
-export async function countActiveLicenseAssignments(licenseId: string): Promise<number> {
-  const { count, error } = await supabaseAdmin
-    .from('license_assignments')
-    .select('id', { count: 'exact', head: true })
-    .eq('license_id', licenseId)
-    .eq('status', 'active')
-
-  if (error) throw error
-  return count ?? 0
-}
-
-export async function incrementLicenseActivationCount(id: string): Promise<void> {
-  const { error } = await supabaseAdmin.rpc('increment_license_activation_count', {
-    p_license_id: id,
-  })
-
-  if (error) throw error
 }
 
 export async function incrementLicenseDeliveryCount(id: string): Promise<void> {

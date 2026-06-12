@@ -46,7 +46,7 @@ describe('Phase 6D loader API route', () => {
     expect(body).not.toContain('encrypted-payload')
   })
 
-  it('forwards runtime credentials only to delivery session creation', async () => {
+  it('does not embed runtime credentials from loader URLs', async () => {
     const response = await loaderRoute(
       getRequest('https://luxy.example/api/loader/my-script?license_key=LUXY-PREM-XXXX-XXXX-XXXX&customer_identifier=Customer-1&key=LUXY-KEY') as NextRequest,
       { params: Promise.resolve({ slug: 'my-script' }) }
@@ -54,11 +54,14 @@ describe('Phase 6D loader API route', () => {
     const body = await response.text()
 
     expect(response.status).toBe(200)
-    expect(body).toContain('local LUXY_KEY = "LUXY-KEY"')
-    expect(body).toContain('local LUXY_LICENSE_KEY = "LUXY-PREM-XXXX-XXXX-XXXX"')
-    expect(body).toContain('local LUXY_CUSTOMER_IDENTIFIER = "Customer-1"')
-    expect(body).toContain('sessionRequest.license_key = LUXY_LICENSE_KEY')
-    expect(body).toContain('sessionRequest.customer_identifier = LUXY_CUSTOMER_IDENTIFIER')
+    expect(body).not.toContain('LUXY-PREM-XXXX-XXXX-XXXX')
+    expect(body).not.toContain('Customer-1')
+    expect(body).not.toContain('LUXY-KEY')
+    expect(body).not.toContain('LUXY_LICENSE_KEY')
+    expect(body).not.toContain('LUXY_CUSTOMER_IDENTIFIER')
+    expect(body).not.toContain('sessionRequest.license_key')
+    expect(body).not.toContain('sessionRequest.customer_identifier')
+    expect(body).not.toContain('sessionRequest')
     expect(body).toContain('postJson("/api/delivery/fetch", {\n  session_token = session.session_token,\n})')
   })
 

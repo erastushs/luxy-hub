@@ -92,11 +92,6 @@ export async function createDeliverySession(
       return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
     }
 
-    const authorization = await authorizeDeliveryAccess({ script, key, license: licenseKey, customerIdentifier })
-    if (!authorization.success) {
-      return authorization
-    }
-
     const build = await getReadyBuild(script.current_version_id, {
       buildVersion: DELIVERY_BUILD_VERSION,
       payloadFormatVersion: PAYLOAD_FORMAT_VERSION,
@@ -104,6 +99,11 @@ export async function createDeliverySession(
 
     if (!build || !isReadyBuildDeliverable(build)) {
       return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
+    }
+
+    const authorization = await authorizeDeliveryAccess({ script, key, license: licenseKey, customerIdentifier })
+    if (!authorization.success) {
+      return authorization
     }
 
     const sessionToken = createRawSessionToken()
@@ -117,7 +117,9 @@ export async function createDeliverySession(
     })
     await recordExecution({ scriptId: script.id, sessionId: session.id })
     if (authorization.accessMode === 'license_required' && authorization.license) {
-      await recordLicenseDelivery(authorization.license.id)
+      recordLicenseDelivery(authorization.license.id).catch((error: unknown) => {
+        console.error('[delivery] Failed to record license delivery counter:', error)
+      })
       logAuditEvent({
         actor_id: authorization.license.creator_id,
         actor_role: 'runtime',
