@@ -192,6 +192,13 @@ describe('license service', () => {
 
     await expect(revokeLicense('license-uuid-1')).resolves.toEqual(revoked)
     expect(mockedRevokeLicenseRow).toHaveBeenCalledWith('license-uuid-1')
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_id: 'creator-uuid-1',
+      actor_role: 'creator',
+      action: 'license.revoked',
+      resource_type: 'license',
+      resource_id: 'license-uuid-1',
+    }))
   })
 
   it('does not reactivate or revoke already revoked licenses', async () => {
@@ -212,6 +219,12 @@ describe('license service', () => {
 
     await expect(disableLicense('license-uuid-1')).resolves.toEqual(disabled)
     expect(mockedDisableLicenseRow).toHaveBeenCalledWith('license-uuid-1')
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_id: 'creator-uuid-1',
+      actor_role: 'creator',
+      action: 'license.disabled',
+      resource_type: 'license',
+    }))
   })
 
   it('enables a disabled license', async () => {
@@ -222,6 +235,12 @@ describe('license service', () => {
 
     await expect(enableLicense('license-uuid-1')).resolves.toEqual(active)
     expect(mockedEnableLicenseRow).toHaveBeenCalledWith('license-uuid-1')
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_id: 'creator-uuid-1',
+      actor_role: 'creator',
+      action: 'license.enabled',
+      resource_type: 'license',
+    }))
   })
 
   it('creates assignments with hash-only customer identifier storage', async () => {
@@ -244,6 +263,17 @@ describe('license service', () => {
     })
     expect(createParams.customerIdentifierHash).toMatch(/^[a-f0-9]{64}$/)
     expect(JSON.stringify(createParams)).not.toContain('customer@example.com')
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_id: 'creator-uuid-1',
+      actor_role: 'creator',
+      action: 'license.assignment_created',
+      resource_type: 'license_assignment',
+      resource_id: 'assignment-uuid-1',
+      metadata: expect.objectContaining({
+        license_id: 'license-uuid-1',
+        customer_identifier_hash: 'b'.repeat(64),
+      }),
+    }))
   })
 
   it('supports assignment listing and removal', async () => {
@@ -280,6 +310,7 @@ describe('license service', () => {
       'script-uuid-1',
       hashLicenseSecret('LUXY-PREM-XXXX-XXXX-XXXX')
     )
+    expect(mockedLogAuditEvent).not.toHaveBeenCalled()
   })
 
   it('rejects revoked licenses', async () => {
@@ -291,6 +322,14 @@ describe('license service', () => {
       customerIdentifier: 'customer-1',
     })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license', reason: 'invalid_license' })
     expect(mockedGetLicenseAssignmentByCustomerHash).not.toHaveBeenCalled()
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_id: 'creator-uuid-1',
+      actor_role: 'runtime',
+      action: 'license.authorization_denied',
+      resource_type: 'license',
+      resource_id: 'license-uuid-1',
+      metadata: expect.objectContaining({ reason: 'invalid_license' }),
+    }))
   })
 
   it('rejects disabled licenses', async () => {
@@ -313,6 +352,11 @@ describe('license service', () => {
       customerIdentifier: 'customer-1',
     })).resolves.toEqual({ success: false, status: 403, message: 'Invalid license', reason: 'invalid_license' })
     expect(mockedGetLicenseAssignmentByCustomerHash).not.toHaveBeenCalled()
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_role: 'runtime',
+      action: 'license.authorization_denied',
+      metadata: expect.objectContaining({ reason: 'expired_license' }),
+    }))
   })
 
   it('allows valid licenses when an assignment already exists', async () => {
@@ -331,6 +375,20 @@ describe('license service', () => {
       hashLicenseSecret('customer-1')
     )
     expect(mockedCreateLicenseAssignment).not.toHaveBeenCalled()
+    expect(mockedAuthorizeLicenseAssignment).not.toHaveBeenCalled()
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_id: 'creator-uuid-1',
+      actor_role: 'runtime',
+      action: 'license.authorization_allowed',
+      resource_type: 'license_assignment',
+      resource_id: 'assignment-uuid-1',
+      metadata: expect.objectContaining({
+        license_id: 'license-uuid-1',
+        assignment_id: 'assignment-uuid-1',
+        customer_identifier_hash: 'b'.repeat(64),
+        reason: 'assignment_reused',
+      }),
+    }))
   })
 
   it('rejects license validation when customer identifier is missing', async () => {
@@ -361,6 +419,13 @@ describe('license service', () => {
       message: 'Invalid license assignment',
       reason: 'invalid_assignment',
     })
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_role: 'runtime',
+      action: 'license.authorization_denied',
+      resource_type: 'license_assignment',
+      resource_id: 'assignment-uuid-1',
+      metadata: expect.objectContaining({ reason: 'invalid_assignment' }),
+    }))
   })
 
   it('creates a missing assignment atomically for valid licenses', async () => {
@@ -380,6 +445,40 @@ describe('license service', () => {
       customerIdentifierHash: hashLicenseSecret('customer-1'),
       displayName: null,
     })
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_role: 'runtime',
+      action: 'license.assignment_created',
+      resource_type: 'license_assignment',
+      resource_id: 'assignment-uuid-1',
+      metadata: expect.objectContaining({ reason: 'runtime_assignment_created' }),
+    }))
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_role: 'runtime',
+      action: 'license.authorization_allowed',
+      metadata: expect.objectContaining({ reason: 'assignment_created' }),
+    }))
+  })
+
+  it('hashes trimmed license keys and normalized customer identifiers for runtime authorization', async () => {
+    const license = mockLicenseRow()
+    const assignment = mockAssignmentRow()
+    mockedGetLicenseForScriptByKeyHash.mockResolvedValue(license)
+    mockedGetLicenseAssignmentByCustomerHash.mockResolvedValue(assignment)
+
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: '  LUXY-PREM-XXXX-XXXX-XXXX  ',
+      customerIdentifier: '  Customer@Example.COM  ',
+    })).resolves.toEqual({ success: true, license, assignment, assignmentCreated: false })
+
+    expect(mockedGetLicenseForScriptByKeyHash).toHaveBeenCalledWith(
+      'script-uuid-1',
+      hashLicenseSecret('LUXY-PREM-XXXX-XXXX-XXXX')
+    )
+    expect(mockedGetLicenseAssignmentByCustomerHash).toHaveBeenCalledWith(
+      'license-uuid-1',
+      hashLicenseSecret('customer@example.com')
+    )
   })
 
   it('rejects missing assignment when capacity is exhausted', async () => {
@@ -398,6 +497,13 @@ describe('license service', () => {
       message: 'License assignment capacity exceeded',
       reason: 'capacity_exhausted',
     })
+    expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actor_role: 'runtime',
+      action: 'license.authorization_denied',
+      resource_type: 'license',
+      resource_id: 'license-uuid-1',
+      metadata: expect.objectContaining({ reason: 'capacity_exhausted' }),
+    }))
   })
 
   it('enforces manual assignment capacity through the atomic authorization RPC', async () => {
@@ -416,6 +522,13 @@ describe('license service', () => {
     mockedIncrementLicenseDeliveryCount.mockResolvedValue(undefined)
 
     await expect(recordLicenseDelivery('license-uuid-1')).resolves.toBeUndefined()
+    expect(mockedIncrementLicenseDeliveryCount).toHaveBeenCalledWith('license-uuid-1')
+  })
+
+  it('surfaces delivery counter failures to callers for graceful delivery degradation handling', async () => {
+    mockedIncrementLicenseDeliveryCount.mockRejectedValue(new Error('rpc unavailable'))
+
+    await expect(recordLicenseDelivery('license-uuid-1')).rejects.toThrow('rpc unavailable')
     expect(mockedIncrementLicenseDeliveryCount).toHaveBeenCalledWith('license-uuid-1')
   })
 })

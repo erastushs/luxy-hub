@@ -23,6 +23,25 @@ const mockedCheckRateLimit = vi.mocked(checkRateLimit)
 const mockedCreateDeliverySession = vi.mocked(createDeliverySession)
 const mockedConsumeDeliverySession = vi.mocked(consumeDeliverySession)
 
+function successfulSessionResult() {
+  return {
+    success: true as const,
+    session_token: 'raw-session-token',
+    event_secret: 'event-secret',
+    expires_in: 60,
+    session: {
+      id: 'session-uuid-1',
+      script_id: 'script-uuid-1',
+      build_id: 'build-uuid-1',
+      session_token_hash: '0'.repeat(64),
+      expires_at: '2026-01-01T00:01:00.000Z',
+      consumed_at: null,
+      event_secret: 'event-secret',
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  }
+}
+
 function jsonRequest(url: string, body: Record<string, unknown>): NextRequest {
   return new Request(url, {
     method: 'POST',
@@ -38,49 +57,21 @@ describe('Phase 5C delivery API routes', () => {
   })
 
   it('POST /api/delivery/session returns a session token', async () => {
-    mockedCreateDeliverySession.mockResolvedValue({
-      success: true,
-      session_token: 'raw-session-token',
-      event_secret: 'event-secret',
-      expires_in: 60,
-      session: {
-        id: 'session-uuid-1',
-        script_id: 'script-uuid-1',
-        build_id: 'build-uuid-1',
-        session_token_hash: '0'.repeat(64),
-        expires_at: '2026-01-01T00:01:00.000Z',
-        consumed_at: null,
-        event_secret: 'event-secret',
-        created_at: '2026-01-01T00:00:00.000Z',
-      },
-    })
+    mockedCreateDeliverySession.mockResolvedValue(successfulSessionResult())
 
     const response = await createSessionRoute(jsonRequest('https://example.test/api/delivery/session', { slug: 'my-script' }))
     const body = await response.json()
 
     expect(response.status).toBe(200)
     expect(body).toEqual({ session_token: 'raw-session-token', event_secret: 'event-secret', expires_in: 60 })
+    expect(body).not.toHaveProperty('session')
+    expect(body).not.toHaveProperty('session_token_hash')
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     expect(mockedCreateDeliverySession).toHaveBeenCalledWith('my-script', undefined, undefined, undefined)
   })
 
   it('POST /api/delivery/session forwards key to service layer', async () => {
-    mockedCreateDeliverySession.mockResolvedValue({
-      success: true,
-      session_token: 'raw-session-token',
-      event_secret: 'event-secret',
-      expires_in: 60,
-      session: {
-        id: 'session-uuid-1',
-        script_id: 'script-uuid-1',
-        build_id: 'build-uuid-1',
-        session_token_hash: '0'.repeat(64),
-        expires_at: '2026-01-01T00:01:00.000Z',
-        consumed_at: null,
-        event_secret: 'event-secret',
-        created_at: '2026-01-01T00:00:00.000Z',
-      },
-    })
+    mockedCreateDeliverySession.mockResolvedValue(successfulSessionResult())
 
     const response = await createSessionRoute(jsonRequest('https://example.test/api/delivery/session', {
       slug: 'my-script',
@@ -94,22 +85,7 @@ describe('Phase 5C delivery API routes', () => {
   })
 
   it('POST /api/delivery/session forwards license to service layer', async () => {
-    mockedCreateDeliverySession.mockResolvedValue({
-      success: true,
-      session_token: 'raw-session-token',
-      event_secret: 'event-secret',
-      expires_in: 60,
-      session: {
-        id: 'session-uuid-1',
-        script_id: 'script-uuid-1',
-        build_id: 'build-uuid-1',
-        session_token_hash: '0'.repeat(64),
-        expires_at: '2026-01-01T00:01:00.000Z',
-        consumed_at: null,
-        event_secret: 'event-secret',
-        created_at: '2026-01-01T00:00:00.000Z',
-      },
-    })
+    mockedCreateDeliverySession.mockResolvedValue(successfulSessionResult())
 
     const response = await createSessionRoute(jsonRequest('https://example.test/api/delivery/session', {
       slug: 'premium-script',
@@ -125,6 +101,54 @@ describe('Phase 5C delivery API routes', () => {
       'LUXY-PREM-XXXX-XXXX-XXXX',
       undefined
     )
+  })
+
+  it('POST /api/delivery/session supports license_key alias and customer_identifier forwarding', async () => {
+    mockedCreateDeliverySession.mockResolvedValue(successfulSessionResult())
+
+    const response = await createSessionRoute(jsonRequest('https://example.test/api/delivery/session', {
+      slug: 'premium-script',
+      license_key: 'LUXY-PREM-XXXX-XXXX-XXXX',
+      customer_identifier: ' Customer@Example.COM ',
+    }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toEqual({ session_token: 'raw-session-token', event_secret: 'event-secret', expires_in: 60 })
+    expect(mockedCreateDeliverySession).toHaveBeenCalledWith(
+      'premium-script',
+      undefined,
+      'LUXY-PREM-XXXX-XXXX-XXXX',
+      ' Customer@Example.COM '
+    )
+  })
+
+  it('POST /api/delivery/session rate limits before creating sessions', async () => {
+    mockedCheckRateLimit.mockResolvedValue({ allowed: false, retryAfter: 30 })
+
+    const response = await createSessionRoute(jsonRequest('https://example.test/api/delivery/session', { slug: 'my-script' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get('Retry-After')).toBe('30')
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(body).toEqual({ success: false, message: 'Too many requests. Please try again later.' })
+    expect(mockedCreateDeliverySession).not.toHaveBeenCalled()
+  })
+
+  it('POST /api/delivery/session treats invalid JSON as unavailable without leaking internals', async () => {
+    mockedCreateDeliverySession.mockResolvedValue({ success: false, status: 404, message: 'Delivery unavailable' })
+
+    const response = await createSessionRoute(new Request('https://example.test/api/delivery/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{bad-json',
+    }) as NextRequest)
+    const body = await response.json()
+
+    expect(response.status).toBe(404)
+    expect(body).toEqual({ success: false, message: 'Delivery unavailable' })
+    expect(mockedCreateDeliverySession).toHaveBeenCalledWith(undefined, undefined, undefined, undefined)
   })
 
   it('POST /api/delivery/fetch returns runtime payload and consumes token', async () => {
@@ -202,5 +226,18 @@ describe('Phase 5C delivery API routes', () => {
 
     expect(response.status).toBe(403)
     expect(body).toEqual({ success: false, message: 'Invalid delivery session' })
+  })
+
+  it('POST /api/delivery/fetch rate limits before consuming sessions', async () => {
+    mockedCheckRateLimit.mockResolvedValue({ allowed: false, retryAfter: 45 })
+
+    const response = await fetchDeliveryRoute(jsonRequest('https://example.test/api/delivery/fetch', { session_token: 'raw-session-token' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get('Retry-After')).toBe('45')
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(body).toEqual({ success: false, message: 'Too many requests. Please try again later.' })
+    expect(mockedConsumeDeliverySession).not.toHaveBeenCalled()
   })
 })

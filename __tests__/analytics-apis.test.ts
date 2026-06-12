@@ -43,7 +43,7 @@ vi.mock('@/app/lib/rate-limiter', () => ({
 }))
 
 import { supabaseAdmin } from '@/app/lib/supabase'
-import { requireAuth } from '@/app/lib/auth/session-auth'
+import { AuthError, requireAuth } from '@/app/lib/auth/session-auth'
 import { checkRateLimit } from '@/app/lib/rate-limiter'
 import { findScriptBySlugForOwner } from '@/app/lib/repositories/script-repository'
 import { getTopScripts as getTopScriptsRepo } from '@/app/lib/repositories/script-execution-repository'
@@ -268,6 +268,198 @@ describe('Analytics V1 service', () => {
         'received_at',
       ]))
     })
+
+    it.each([
+      [7, 7],
+      [30, 30],
+      [90, 90],
+      [45, 90],
+    ])('normalizes Analytics V2 window_days=%s to %s', async (requested, expected) => {
+      mockedFrom.mockImplementation((table: string) => {
+        if (table === 'scripts') {
+          const select = vi.fn((columns: string) => ({
+            eq: vi.fn().mockResolvedValue({
+              data: columns === 'id' ? [{ id: 'script-uuid-1' }] : scriptRows,
+              error: null,
+            }),
+          }))
+          return { select } as never
+        }
+
+        if (table === 'licenses') {
+          return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) } as never
+        }
+
+        if (table === 'audit_logs') {
+          const gte = vi.fn().mockResolvedValue({ data: [], error: null })
+          const eqAction = vi.fn(() => ({ gte }))
+          const inAction = vi.fn(() => ({ gte }))
+          const eqActor = vi.fn(() => ({ in: inAction, eq: eqAction }))
+          return { select: vi.fn(() => ({ eq: eqActor })) } as never
+        }
+
+        if (table === 'event_logs') {
+          const gte = vi.fn().mockResolvedValue({ data: [], error: null })
+          const secondIn = vi.fn(() => ({ gte }))
+          const firstIn = vi.fn(() => ({ in: secondIn }))
+          return { select: vi.fn(() => ({ in: firstIn })) } as never
+        }
+
+        return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) } as never
+      })
+
+      const result = await getAnalyticsV2Overview(OWNER_A, { windowDays: requested })
+
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.overview.window_days).toBe(expected)
+      }
+    })
+
+    it('derives V2 metrics from real audit, license, and runtime event rows', async () => {
+      mockedFrom.mockImplementation((table: string) => {
+        if (table === 'scripts') {
+          const select = vi.fn((columns: string) => ({
+            eq: vi.fn().mockResolvedValue({
+              data: columns === 'id'
+                ? [{ id: 'script-uuid-1' }, { id: 'script-uuid-2' }]
+                : scriptRows,
+              error: null,
+            }),
+          }))
+          return { select } as never
+        }
+
+        if (table === 'licenses') {
+          const select = vi.fn((columns: string) => {
+            if (columns.includes('license_assignments')) {
+              return { eq: vi.fn().mockResolvedValue({
+                data: [
+                  { id: 'license-1', license_assignments: [{ status: 'active' }, { status: 'disabled' }] },
+                  { id: 'license-2', license_assignments: [{ status: 'active' }] },
+                ],
+                error: null,
+              }) }
+            }
+
+            return { eq: vi.fn().mockResolvedValue({
+              data: [
+                { status: 'active', max_assignments: 2 },
+                { status: 'disabled', max_assignments: 2 },
+                { status: 'revoked', max_assignments: 1 },
+              ],
+              error: null,
+            }) }
+          })
+          return { select } as never
+        }
+
+        if (table === 'audit_logs') {
+          const authRows = [
+            { action: 'license.authorization_allowed', metadata: { reason: 'assignment_reused' } },
+            { action: 'license.authorization_allowed', metadata: { reason: 'assignment_created' } },
+            { action: 'license.authorization_denied', metadata: { reason: 'capacity_exhausted' } },
+            { action: 'license.authorization_denied', metadata: null },
+          ]
+          const deliveryRows = [
+            { action: 'delivery.session_created' },
+            { action: 'delivery.session_created' },
+            { action: 'delivery.session_created' },
+          ]
+          const inGte = vi.fn().mockResolvedValue({ data: authRows, error: null })
+          const actionGte = vi.fn().mockResolvedValue({ data: deliveryRows, error: null })
+          const actionEq = vi.fn(() => ({ gte: actionGte }))
+          const inFilter = vi.fn(() => ({ gte: inGte }))
+          const eqActor = vi.fn(() => ({ in: inFilter, eq: actionEq }))
+          return { select: vi.fn(() => ({ eq: eqActor })) } as never
+        }
+
+        if (table === 'event_logs') {
+          const gte = vi.fn().mockResolvedValue({
+            data: [
+              { event_type: 'execute', delivery_status: 'delivered' },
+              { event_type: 'heartbeat', delivery_status: 'pending' },
+              { event_type: 'error', delivery_status: 'pending' },
+              { event_type: 'execute', delivery_status: 'dead_letter' },
+            ],
+            error: null,
+          })
+          const secondIn = vi.fn(() => ({ gte }))
+          const firstIn = vi.fn(() => ({ in: secondIn }))
+          return { select: vi.fn(() => ({ in: firstIn })) } as never
+        }
+
+        return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) } as never
+      })
+
+      const result = await getAnalyticsV2Overview(OWNER_A, { windowDays: 30 })
+
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.overview.authorization).toEqual({
+          success: 2,
+          failure: 2,
+          denial_reasons: { capacity_exhausted: 1, unknown: 1 },
+        })
+        expect(result.overview.licenses).toEqual({
+          active: 1,
+          revoked: 1,
+          disabled: 1,
+          assignment_utilization: 2 / 5,
+        })
+        expect(result.overview.delivery.session_creation).toBe(3)
+        expect(result.overview.runtime).toEqual({
+          starts: 3,
+          failures: 2,
+          execution_volume: 17,
+        })
+      }
+    })
+
+    it('falls back to zeroed derived metrics when event or audit queries fail', async () => {
+      mockedFrom.mockImplementation((table: string) => {
+        if (table === 'scripts') {
+          const select = vi.fn((columns: string) => ({
+            eq: vi.fn().mockResolvedValue({
+              data: columns === 'id' ? [{ id: 'script-uuid-1' }] : scriptRows,
+              error: null,
+            }),
+          }))
+          return { select } as never
+        }
+
+        if (table === 'licenses') {
+          return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: null, error: { message: 'license query failed' } }) })) } as never
+        }
+
+        if (table === 'audit_logs') {
+          const gte = vi.fn().mockResolvedValue({ data: null, error: { message: 'audit query failed' } })
+          const eqAction = vi.fn(() => ({ gte }))
+          const inAction = vi.fn(() => ({ gte }))
+          const eqActor = vi.fn(() => ({ in: inAction, eq: eqAction }))
+          return { select: vi.fn(() => ({ eq: eqActor })) } as never
+        }
+
+        if (table === 'event_logs') {
+          const gte = vi.fn().mockResolvedValue({ data: null, error: { message: 'event query failed' } })
+          const secondIn = vi.fn(() => ({ gte }))
+          const firstIn = vi.fn(() => ({ in: secondIn }))
+          return { select: vi.fn(() => ({ in: firstIn })) } as never
+        }
+
+        return { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) } as never
+      })
+
+      const result = await getAnalyticsV2Overview(OWNER_A, { windowDays: 30 })
+
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.overview.authorization).toEqual({ success: 0, failure: 0, denial_reasons: {} })
+        expect(result.overview.licenses).toEqual({ active: 0, revoked: 0, disabled: 0, assignment_utilization: 0 })
+        expect(result.overview.delivery).toEqual({ session_creation: 0, payload_fetch: null, fetch_failures: null })
+        expect(result.overview.runtime).toEqual({ starts: 0, failures: 0, execution_volume: 17 })
+      }
+    })
   })
 
   describe('analytics overview route versioning', () => {
@@ -322,6 +514,29 @@ describe('Analytics V1 service', () => {
       expect(response.status).toBe(200)
       expect(body.overview).toHaveProperty('authorization')
       expect(body.overview).toHaveProperty('window_days', 7)
+    })
+
+    it('rejects unauthenticated analytics overview access', async () => {
+      mockedRequireAuth.mockRejectedValue(new AuthError('Authentication required', 401))
+
+      const response = await overviewRoute(new Request('https://example.test/api/dashboard/analytics/overview?version=2') as never)
+      const body = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(body).toEqual({ success: false, message: 'Authentication required' })
+      expect(mockedFrom).not.toHaveBeenCalled()
+    })
+
+    it('rate limits authenticated analytics overview access before querying data', async () => {
+      mockedCheckRateLimit.mockResolvedValue({ allowed: false, retryAfter: 60 })
+
+      const response = await overviewRoute(new Request('https://example.test/api/dashboard/analytics/overview?version=2') as never)
+      const body = await response.json()
+
+      expect(response.status).toBe(429)
+      expect(response.headers.get('Retry-After')).toBe('60')
+      expect(body).toEqual({ success: false, message: 'Too many requests. Please try again later.' })
+      expect(mockedFrom).not.toHaveBeenCalled()
     })
   })
 
