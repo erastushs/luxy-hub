@@ -93,6 +93,14 @@ function canApplyBulkAction(status: LicenseStatus, action: BulkAction) {
   return status !== 'revoked'
 }
 
+function getActiveAssignmentCount(assignments?: AssignmentItem[]) {
+  return assignments?.length ?? 0
+}
+
+function formatUtilization(used: number, maxAssignments: number) {
+  return `${used} / ${maxAssignments > 0 ? maxAssignments : 'Unlimited'}`
+}
+
 async function readApiError(response: Response, fallback: string) {
   const body = await response.json().catch(() => null) as { message?: unknown } | null
   return typeof body?.message === 'string' ? body.message : fallback
@@ -369,7 +377,7 @@ export function LicensesClient({
   }, [selectedScriptId])
 
   useEffect(() => {
-    if (!needsAssignmentData) return
+    if (licenses.length === 0) return
 
     const requestId = assignmentMetadataRequestId.current
 
@@ -406,7 +414,7 @@ export function LicensesClient({
           }))
         })
     })
-  }, [needsAssignmentData, licenses, assignmentsByLicense])
+  }, [licenses, assignmentsByLicense])
 
   function toggleFilter(filter: LicenseFilter) {
     setSelectedLicenseIds([])
@@ -587,6 +595,96 @@ export function LicensesClient({
     })
   }
 
+  async function createAssignment(licenseId: string, formData: FormData) {
+    const customerIdentifier = String(formData.get('customer_identifier') ?? '').trim()
+    const displayName = String(formData.get('display_name') ?? '').trim()
+    let assignmentAlreadyExists = false
+
+    if (!customerIdentifier) {
+      setAssignmentsByLicense((state) => ({
+        ...state,
+        [licenseId]: {
+          loading: false,
+          items: state[licenseId]?.items ?? [],
+          error: 'Customer identifier is required',
+          visible: true,
+        },
+      }))
+      return
+    }
+
+    startTransition(async () => {
+      setError(null)
+      setAssignmentsByLicense((state) => ({
+        ...state,
+        [licenseId]: {
+          loading: true,
+          items: state[licenseId]?.items ?? [],
+          error: null,
+          visible: true,
+        },
+      }))
+
+      try {
+        const response = await fetch(`/api/licenses/${licenseId}/assignments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer_identifier: customerIdentifier,
+            display_name: displayName || null,
+          }),
+        })
+
+        if (!response.ok) {
+          const message = await readApiError(response, 'Failed to create assignment')
+          setAssignmentsByLicense((state) => ({
+            ...state,
+            [licenseId]: {
+              loading: false,
+              items: state[licenseId]?.items ?? [],
+              error: message,
+              visible: true,
+            },
+          }))
+          return
+        }
+
+        const body = await response.json() as { assignment?: AssignmentItem }
+        setAssignmentsByLicense((state) => {
+          const current = state[licenseId]
+          const existingItems = current?.items ?? []
+          assignmentAlreadyExists = body.assignment
+            ? existingItems.some((assignment) => assignment.id === body.assignment?.id)
+            : false
+          const nextItems = body.assignment && !assignmentAlreadyExists
+            ? [body.assignment, ...existingItems]
+            : existingItems
+
+          return {
+            ...state,
+            [licenseId]: {
+              loading: false,
+              items: nextItems,
+              error: null,
+              visible: true,
+            },
+          }
+        })
+        toast.success(assignmentAlreadyExists ? 'Assignment already exists' : 'Assignment created')
+      } catch {
+        setAssignmentsByLicense((state) => ({
+          ...state,
+          [licenseId]: {
+            loading: false,
+            items: state[licenseId]?.items ?? [],
+            error: 'Failed to create assignment',
+            visible: true,
+          },
+        }))
+      }
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -703,7 +801,7 @@ export function LicensesClient({
                   <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
                     {assignmentMetadataLoading && (
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-800 px-2.5 py-1">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Loading filters
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Loading assignments
                       </span>
                     )}
                     {isPending && <Loader2 className="h-5 w-5 animate-spin text-zinc-500" aria-label="Loading" />}
@@ -833,6 +931,10 @@ export function LicensesClient({
                 <div className="divide-y divide-zinc-800">
                   {visibleLicenses.map((license) => {
                     const assignments = assignmentsByLicense[license.id]
+                    const activeAssignmentCount = getActiveAssignmentCount(assignments?.items)
+                    const utilizationPercent = license.max_assignments > 0
+                      ? Math.min(100, Math.round((activeAssignmentCount / license.max_assignments) * 100))
+                      : 0
                     const isSelected = selectedLicenseIds.includes(license.id)
                     return (
                       <article key={license.id} className={cn('p-5 transition', isSelected && 'bg-red-950/10')}>
@@ -861,6 +963,10 @@ export function LicensesClient({
                               <div>
                                 <dt className="text-xs text-zinc-500">Max</dt>
                                 <dd className="mt-1 text-zinc-200">{license.max_assignments}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-xs text-zinc-500">Assignments Used</dt>
+                                <dd className="mt-1 text-zinc-200">{!assignments || assignments.loading ? 'Loading...' : formatUtilization(activeAssignmentCount, license.max_assignments)}</dd>
                               </div>
                               <div>
                                 <dt className="text-xs text-zinc-500">Activations</dt>
@@ -895,6 +1001,12 @@ export function LicensesClient({
                           </div>
                         </div>
 
+                        {assignments && !assignments.loading && !assignments.error && (
+                          <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-800" aria-label={`Assignment utilization ${formatUtilization(activeAssignmentCount, license.max_assignments)}`}>
+                            <div className="h-full rounded-full bg-red-500 transition-all" style={{ width: `${utilizationPercent}%` }} />
+                          </div>
+                        )}
+
                         {assignments?.visible && (
                           <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950 p-4">
                             {assignments.loading ? (
@@ -903,13 +1015,36 @@ export function LicensesClient({
                                 <div className="h-14 rounded-lg bg-zinc-800/70" />
                                 <div className="h-14 rounded-lg bg-zinc-800/70" />
                               </div>
-                            ) : assignments.error ? (
-                              <ErrorBanner message={assignments.error} />
-                            ) : assignments.items.length === 0 ? (
-                              <EmptyState title="No assignments" description="This license has no assignment targets yet." />
                             ) : (
                               <div className="space-y-2">
-                                {assignments.items.map((assignment) => (
+                                {assignments.error && <ErrorBanner message={assignments.error} />}
+                                <form action={createAssignment.bind(null, license.id)} className="grid grid-cols-1 gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+                                  <div>
+                                    <label htmlFor={`customer_identifier_${license.id}`} className="block text-xs font-medium text-zinc-400">Customer identifier</label>
+                                    <input
+                                      id={`customer_identifier_${license.id}`}
+                                      name="customer_identifier"
+                                      required
+                                      className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                                      placeholder="customer@example.com or device id"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label htmlFor={`display_name_${license.id}`} className="block text-xs font-medium text-zinc-400">Display name optional</label>
+                                    <input
+                                      id={`display_name_${license.id}`}
+                                      name="display_name"
+                                      className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                                      placeholder="Customer label"
+                                    />
+                                  </div>
+                                  <button type="submit" disabled={isPending} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600">
+                                    <Users className="h-3.5 w-3.5" aria-hidden="true" /> Create Assignment
+                                  </button>
+                                </form>
+                                {assignments.items.length === 0 ? (
+                                  <EmptyState title="No assignments" description="This license has no assignment targets yet." />
+                                ) : assignments.items.map((assignment) => (
                                   <div key={assignment.id} className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                       <p className="text-sm font-medium text-white">{assignment.display_name ?? 'Unnamed assignment'}</p>

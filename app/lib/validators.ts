@@ -26,6 +26,8 @@ const MAX_CONTENT_LENGTH = MAX_SCRIPT_SIZE_BYTES
 const MAX_DISPLAY_NAME_LENGTH = 80
 export const VALID_VISIBILITIES = ['public', 'private', 'unlisted'] as const
 export type Visibility = (typeof VALID_VISIBILITIES)[number]
+export const VALID_SCRIPT_ACCESS_MODES = ['public', 'key_required', 'license_required'] as const
+export type ScriptAccessMode = (typeof VALID_SCRIPT_ACCESS_MODES)[number]
 export const VALID_PROFILE_ROLES = ['creator', 'admin'] as const
 export type ProfileRole = (typeof VALID_PROFILE_ROLES)[number]
 
@@ -44,6 +46,10 @@ export function isValidScriptName(value: unknown): value is string {
 
 export function isValidVisibility(value: unknown): value is Visibility {
   return typeof value === 'string' && VALID_VISIBILITIES.includes(value as Visibility)
+}
+
+export function isValidScriptAccessMode(value: unknown): value is ScriptAccessMode {
+  return typeof value === 'string' && VALID_SCRIPT_ACCESS_MODES.includes(value as ScriptAccessMode)
 }
 
 export function isValidScriptContent(value: unknown): value is string {

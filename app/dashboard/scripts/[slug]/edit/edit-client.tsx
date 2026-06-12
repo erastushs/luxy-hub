@@ -134,6 +134,36 @@ export default function EditScriptClient({
           </select>
         </div>
 
+        <div>
+          <label htmlFor="access_mode" className="block text-sm font-medium text-zinc-300">
+            Access Mode
+          </label>
+          <select
+            id="access_mode"
+            name="access_mode"
+            defaultValue={script.access_mode}
+            className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+          >
+            <option value="public">public</option>
+            <option value="key_required">key_required</option>
+            <option value="license_required">license_required</option>
+          </select>
+          <dl className="mt-2 space-y-1 text-xs text-zinc-500">
+            <div>
+              <dt className="inline font-medium text-zinc-400">public</dt>
+              <dd className="inline"> Anyone with access can use the script.</dd>
+            </div>
+            <div>
+              <dt className="inline font-medium text-zinc-400">key_required</dt>
+              <dd className="inline"> Requires a valid key.</dd>
+            </div>
+            <div>
+              <dt className="inline font-medium text-zinc-400">license_required</dt>
+              <dd className="inline"> Requires a valid license assignment.</dd>
+            </div>
+          </dl>
+        </div>
+
         <div className="space-y-3">
           <div>
             <h2 className="text-sm font-medium text-zinc-300">Replace Lua File</h2>

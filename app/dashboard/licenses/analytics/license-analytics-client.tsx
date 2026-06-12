@@ -150,6 +150,10 @@ function sortNewest<T extends { created_at: string }>(items: T[]) {
   return [...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 }
 
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`
+}
+
 async function fetchAnalyticsData(selectedScripts: ScriptOption[]): Promise<AnalyticsData> {
   const licenseResults = await Promise.all(selectedScripts.map(async (script) => {
     const response = await fetch(`/api/licenses?script_id=${encodeURIComponent(script.id)}`)
@@ -210,6 +214,12 @@ export function LicenseAnalyticsClient({ scripts, initialError }: LicenseAnalyti
   const recentAssignments = sortNewest(assignments).slice(0, 8)
   const totalLicenses = licenses.length
   const assignmentCount = assignments.length
+  const totalCapacity = licenses.reduce((total, license) => total + license.max_assignments, 0)
+  const assignmentUtilization = totalCapacity > 0 ? Math.min(1, assignmentCount / totalCapacity) : 0
+  const assignmentCountsByLicense = assignments.reduce<Record<string, number>>((counts, assignment) => {
+    counts[assignment.license_id] = (counts[assignment.license_id] ?? 0) + 1
+    return counts
+  }, {})
 
   function loadAnalytics() {
     const requestId = ++analyticsRequestId.current
@@ -393,7 +403,7 @@ export function LicenseAnalyticsClient({ scripts, initialError }: LicenseAnalyti
                   <p className="text-sm text-zinc-400">Aggregated counters already exposed by license records.</p>
                 </div>
               </div>
-              <dl className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <dl className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-4">
                 <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
                   <dt className="text-xs text-zinc-500">Activations</dt>
                   <dd className="mt-2 text-2xl font-semibold text-white">{licenses.reduce((total, license) => total + license.activation_count, 0)}</dd>
@@ -404,7 +414,12 @@ export function LicenseAnalyticsClient({ scripts, initialError }: LicenseAnalyti
                 </div>
                 <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
                   <dt className="text-xs text-zinc-500">Capacity</dt>
-                  <dd className="mt-2 text-2xl font-semibold text-white">{licenses.reduce((total, license) => total + license.max_assignments, 0)}</dd>
+                  <dd className="mt-2 text-2xl font-semibold text-white">{totalCapacity}</dd>
+                </div>
+                <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+                  <dt className="text-xs text-zinc-500">Utilization</dt>
+                  <dd className="mt-2 text-2xl font-semibold text-white">{formatPercent(assignmentUtilization)}</dd>
+                  <p className="mt-1 text-xs text-zinc-500">{assignmentCount} / {totalCapacity}</p>
                 </div>
               </dl>
             </section>
@@ -445,7 +460,12 @@ export function LicenseAnalyticsClient({ scripts, initialError }: LicenseAnalyti
                           </td>
                           <td className="px-5 py-4"><StatusBadge status={license.status} /></td>
                           <td className="px-5 py-4 text-zinc-300">{formatDateTime(license.created_at)}</td>
-                          <td className="px-5 py-4 text-zinc-400">{license.activation_count} activations / {license.delivery_count} deliveries</td>
+                          <td className="px-5 py-4 text-zinc-400">
+                            <div>{license.activation_count} activations / {license.delivery_count} deliveries</div>
+                            <div className="mt-1 text-xs text-zinc-500">
+                              {assignmentCountsByLicense[license.id] ?? 0} / {license.max_assignments} assignments used
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
