@@ -1,5 +1,43 @@
 export const games = [
   {
+    slug: 'grow-a-garden-2',
+    title: 'Grow A Garden 2',
+    image: '/GaG2.webp',
+    status: 'Working',
+    features: 24,
+
+    lastUpdate: '13 Jun 2026',
+    description:
+      'Complete automation suite for planting, watering, sprinklers, shop purchases, and configuration management.',
+
+    featureList: [
+      'Auto Plant Seed',
+      'Auto Plant All Seeds',
+      'Seed & Rarity Filter',
+      'Custom Plant Speed',
+      'Auto Shovel Seed',
+      'Auto Collect Seeds',
+      'Inventory Full Protection',
+      'Auto Watering Can',
+      'Watering Amount Control',
+      'Watering Delay Control',
+      'Auto Sprinkler',
+      'Sprinkler Variant Selection',
+      'Sprinkler Amount Control',
+      'Sprinkler Delay Control',
+      'Auto Buy Seeds',
+      'Seed Purchase Filter',
+      'Auto Buy Crates',
+      'Crate Purchase Filter',
+      'Auto Buy Gear',
+      'Gear Purchase Filter',
+      'Anti AFK',
+      'Config Save & Load',
+      'Multiple Config Profiles',
+      'Config Delete System',
+    ],
+  },
+  {
     slug: 'kick-a-lucky-block',
     title: 'Kick A Lucky Block',
     image: '/KALB.webp',

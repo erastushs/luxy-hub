@@ -8,6 +8,38 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: 'v4.6',
+    date: '13 Jun 2026',
+    game: 'Grow A Garden 2',
+    summary: 'Added New Script Support & Full Farming Automation',
+    changes: [
+      'Added Auto Plant Seed',
+      'Added Auto Plant All Seeds',
+      'Added Seed & Rarity Filter Dropdown',
+      'Added Custom Plant Speed',
+      'Added Auto Shovel Seed',
+      'Added Auto Collect Seeds',
+      'Added Stop Collect When Inventory Is Full',
+      'Added Auto Watering Can',
+      'Added Watering Can Amount Setting',
+      'Added Watering Can Delay Setting',
+      'Added Auto Sprinkler System',
+      'Added Seed Selection For Sprinkler',
+      'Added Sprinkler Variant Selection',
+      'Added Sprinkler Amount Setting',
+      'Added Sprinkler Delay Setting',
+      'Added Auto Buy Seed Shop',
+      'Added Target Seed Purchase Filter',
+      'Added Auto Buy Crate',
+      'Added Target Crate Purchase Filter',
+      'Added Auto Buy Gear Shop',
+      'Added Target Gear Purchase Filter',
+      'Added Anti AFK',
+      'Added Config Save, Load & Delete System',
+    ],
+  },
+
+  {
     version: 'v4.5',
     date: '12 Jun 2026',
     game: '+1 Speed Keyboard Escape',
