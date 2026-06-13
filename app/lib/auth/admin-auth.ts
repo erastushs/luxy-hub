@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { getAdminApiKey } from '@/app/config/env'
 
 /**
  * Phase 2: ADMIN_API_KEY
@@ -15,7 +16,7 @@ import type { NextRequest } from 'next/server'
  */
 
 export function verifyAdminAuth(request: NextRequest): boolean {
-  const adminKey = process.env.ADMIN_API_KEY
+  const adminKey = getAdminApiKey()
 
   if (!adminKey) {
     return false

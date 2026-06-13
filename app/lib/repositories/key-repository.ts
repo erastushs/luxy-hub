@@ -11,17 +11,25 @@ export async function findKey(key: string) {
   return data
 }
 
-export async function insertKey(key: string, expiresAt: string) {
+export async function insertKey(key: string, expiresAt: string): Promise<boolean> {
   const { error } = await supabaseAdmin.from('keys').insert({
     key,
     expires_at: expiresAt,
   })
 
-  if (error && error.code !== '23505') {
+  if (!error) {
+    return true
+  }
+
+  if (error.code === '23505') {
+    return false
+  }
+
+  if (error) {
     throw error
   }
 
-  return !error || error.code === '23505'
+  return false
 }
 
 export async function deactivateExpiredKeys() {

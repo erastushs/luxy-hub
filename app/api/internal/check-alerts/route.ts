@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkAlerts } from '@/app/lib/services/internal-alert-service'
+import { getCronSecret } from '@/app/config/env'
 
 /**
  * Internal alert check — evaluates all alert thresholds and creates/resolves
@@ -13,7 +14,7 @@ import { checkAlerts } from '@/app/lib/services/internal-alert-service'
  */
 
 export async function POST(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
+  const cronSecret = getCronSecret()
 
   if (!cronSecret) {
     return NextResponse.json(

@@ -1,7 +1,7 @@
 import { KeyRound, AlertTriangle, RefreshCw, ArrowLeft } from 'lucide-react'
 import CopyKeyButton from '@/app/components/CopyKeyButton'
-import { verifyWorkinkToken } from '@/app/lib/services/workink-service'
-import { createKey } from '@/app/lib/services/key-service'
+import { getClientIPFromHeaders } from '@/app/lib/rate-limiter'
+import { generateVerifiedFreeKey } from '@/app/lib/services/free-key-generation-service'
 import Navbar from '@/app/components/Navbar'
 import Footer from '@/app/components/Footer'
 import { headers } from 'next/headers'
@@ -53,25 +53,19 @@ export default async function VerifyTokenPage({
 
   let status: TokenStatus
   const headersList = await headers()
-  const forwarded = headersList.get('x-forwarded-for')
-  const clientIP = forwarded ? forwarded.split(',')[0].trim() : '127.0.0.1'
+  const clientIP = getClientIPFromHeaders(headersList)
 
   try {
-    const workinkResult = await verifyWorkinkToken(token, clientIP)
-
-    if (!workinkResult.success) {
-      status = { success: false, message: workinkResult.message }
-    } else {
-      const key = await createKey()
-      const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + 1)
-
+    const result = await generateVerifiedFreeKey(token, clientIP, 'verify-token page')
+    if (result.success) {
       status = {
         success: true,
         message: 'Key generated successfully',
-        key,
-        expires_at: expiresAt.toISOString(),
+        key: result.key,
+        expires_at: result.expires_at,
       }
+    } else {
+      status = { success: false, message: result.message }
     }
   } catch {
     status = { success: false, message: 'Verification service unavailable' }

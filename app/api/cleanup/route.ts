@@ -5,9 +5,11 @@ import {
   deleteDeliveredEventsBefore,
   deletePendingEventsBefore,
 } from '@/app/lib/repositories/event-repository'
+import { cleanupConfig } from '@/app/config/cleanup'
+import { getCronSecret } from '@/app/config/env'
 
 export async function POST(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
+  const cronSecret = getCronSecret()
 
   if (!cronSecret) {
     return NextResponse.json(
@@ -38,15 +40,13 @@ export async function POST(req: NextRequest) {
       console.error('Cleanup keys error')
     }
 
-    const threeDaysAgo = new Date(
-      Date.now() - 3 * 24 * 60 * 60 * 1000
-    ).toISOString()
+    const threeDaysAgo = daysAgo(cleanupConfig.retentionDays.usedWorkinkTokens).toISOString()
 
     const { error: tokensError } = await supabaseAdmin
       .from('used_workink_tokens')
       .delete()
       .lt('used_at', threeDaysAgo)
-      .limit(5000)
+      .limit(cleanupConfig.batchSizes.usedWorkinkTokens)
 
     if (tokensError) {
       console.error('Cleanup tokens error')
@@ -55,48 +55,42 @@ export async function POST(req: NextRequest) {
     const { error: rateLimitError } = await supabaseAdmin
       .from('rate_limits')
       .delete()
-      .lt('created_at', threeDaysAgo)
-      .limit(10000)
+      .lt('created_at', daysAgo(cleanupConfig.retentionDays.rateLimits).toISOString())
+      .limit(cleanupConfig.batchSizes.rateLimits)
 
     if (rateLimitError) {
       console.error('Cleanup rate_limits error')
     }
 
-    const thirtyDaysAgo = new Date(
-      Date.now() - 30 * 24 * 60 * 60 * 1000
-    ).toISOString()
+    const thirtyDaysAgo = daysAgo(cleanupConfig.retentionDays.verificationLogs).toISOString()
 
     const { error: logsError } = await supabaseAdmin
       .from('verification_logs')
       .delete()
       .lt('created_at', thirtyDaysAgo)
-      .limit(5000)
+      .limit(cleanupConfig.batchSizes.verificationLogs)
 
     if (logsError) {
       console.error('Cleanup logs error')
     }
 
-    const ninetyDaysAgo = new Date(
-      Date.now() - 90 * 24 * 60 * 60 * 1000
-    ).toISOString()
+    const ninetyDaysAgo = daysAgo(cleanupConfig.retentionDays.scriptDownloads).toISOString()
 
     const { error: downloadsError } = await supabaseAdmin
       .from('script_downloads')
       .delete()
       .lt('created_at', ninetyDaysAgo)
-      .limit(10000)
+      .limit(cleanupConfig.batchSizes.scriptDownloads)
 
     if (downloadsError) {
       console.error('Cleanup script_downloads error')
     }
 
-    const sevenDaysAgo = new Date(
-      Date.now() - 7 * 24 * 60 * 60 * 1000
-    )
+    const sevenDaysAgo = daysAgo(cleanupConfig.retentionDays.pendingEvents)
 
     const eventCleanup = {
-      delivered: await deleteDeliveredEventsBefore(new Date(thirtyDaysAgo)),
-      deadLetter: await deleteDeadLetterEventsBefore(new Date(ninetyDaysAgo)),
+      delivered: await deleteDeliveredEventsBefore(daysAgo(cleanupConfig.retentionDays.deliveredEvents)),
+      deadLetter: await deleteDeadLetterEventsBefore(daysAgo(cleanupConfig.retentionDays.deadLetterEvents)),
       pending: await deletePendingEventsBefore(sevenDaysAgo),
     }
 
@@ -112,4 +106,8 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+function daysAgo(days: number): Date {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 }

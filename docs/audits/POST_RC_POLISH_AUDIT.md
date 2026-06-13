@@ -14,8 +14,8 @@ LUXY-FREE-XXXX-XXXX-XXXX
 
 Current implementation:
 
-- Generator emits `LUXY-XXXX-XXXX-XXXX`.
-- Validator accepts `^LUXY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$`.
+- Generator emits `LUXY-FREE-XXXX-XXXX-XXXX` for new free keys.
+- Validator accepts centralized current and legacy free-key regex constants.
 - Free keys are stored raw in `keys.key`.
 - Premium licenses use a separate `LUXY-PREM-XXXX-XXXX-XXXX` format and hashed storage path.
 - Current UI labels the flow as free key generation but does not show the target `LUXY-FREE` format.
@@ -38,8 +38,8 @@ Compatibility plan:
 
 Risk assessment:
 
-- P0: Target format is not implemented and changing it without dual validation can break active keys.
-- P0: Free-key generation paths are not uniformly protected.
+- P0: Target format migration requires continued dual validation until legacy traffic reaches zero.
+- P0: Free-key generation paths must remain uniformly protected through the shared generation service.
 - P1: Raw free-key storage should be replaced with a hashed lookup design for new keys.
 - P2: UI copy should explain shown-once behavior and the active format after migration.
 
@@ -55,11 +55,27 @@ Current protections:
 
 Missing protections:
 
-- `/verify-token` directly verifies Work.ink and creates keys without reusing the API rate-limit path.
-- `/verify-token` does not log the same key-generation analytics/security events as API routes.
-- IP extraction is inconsistent between `/verify-token` and the rate-limiter helper.
+- `/verify-token` previously directly verified Work.ink and created keys without reusing the API rate-limit path. RC-FINAL routes it through the shared protected generation service.
+- `/verify-token` now logs the same key-generation analytics/security events as API routes.
+- IP extraction now uses the same rate-limiter helper path.
 - Malformed JSON handling in key-generation API routes can return generic 500 behavior.
-- Key usage is not recorded on successful key-required delivery authorization.
+- Key usage is recorded as a safe best-effort verification log on successful key-required delivery authorization.
+
+## Free Key Analytics Review
+
+Tracked after RC-FINAL:
+
+- Generation: `KEY_GENERATED` with client IP, key snippet, generation source, and current free-key format.
+- Generation rate limits: `RATE_LIMITED` with client IP and route/source context.
+- Work.ink rejection: `VERIFY_WORKINK_FAILED` or `TOKEN_ALREADY_USED` with client IP and token snippet.
+- Verification success/failure: `VALIDATE_SUCCESS` and `VALIDATE_FAILED` include legacy/current format telemetry when the submitted key matches a free-key format.
+- Key usage: `KEY_USED` is logged after successful key-required delivery authorization, with format telemetry only.
+
+Still missing or deferred:
+
+- Raw free-key storage remains unchanged; hashed lookup design is deferred to a schema-backed migration.
+- Key usage logs do not attach script/session identifiers to avoid delivery behavior changes in RC-FINAL.
+- Expiry-specific analytics are inferred from validation failure and cleanup, not emitted as a dedicated lifecycle event.
 
 Recommendations:
 
@@ -94,12 +110,20 @@ Centralized config added under `app/config/`:
 
 Remaining config consolidation:
 
-- P1: Rate limit windows and request quotas.
-- P1: Cron secret bearer validation helper.
-- P1: Analytics pepper and delivery payload secret use in all call sites.
-- P2: Cleanup retention windows and delete batch sizes.
+- P1: Rate limit windows and request quotas moved to `app/config/rate-limits.ts`.
+- P1: Analytics pepper and delivery payload secret use moved to `app/config/env.ts` for server-side app call sites.
+- P2: Cleanup retention windows and delete batch sizes moved to `app/config/cleanup.ts`.
+- P2: Cron secret bearer validation helper remains a candidate for shared helper extraction.
 - P2: Internal alert thresholds.
 - P2: UI validation length constants.
+
+Remaining env migration candidates after RC-FINAL:
+
+- `app/config/env.ts` remains the canonical `process.env` entry point.
+- `app/login/page.tsx` still reads `NEXT_PUBLIC_TURNSTILE_SITE_KEY` directly because it is a Client Component and should use a future public-client config boundary.
+- `proxy.ts` still reads `NEXT_PUBLIC_SITE_URL` directly because middleware/proxy runtime safety should be validated separately.
+- Test files continue to mutate `process.env` for scenario isolation.
+- Standalone scripts under `scripts/` keep direct env access outside the app runtime.
 
 ## Repository Cleanup Audit
 
@@ -127,8 +151,8 @@ Do not remove archived API, dashboard, or secure delivery docs until inbound cur
 
 P0:
 
-- Implement protected `/verify-token` generation path parity.
-- Implement free-key target format with dual-format compatibility and tests.
+- Implement protected `/verify-token` generation path parity. Completed in RC-FINAL.
+- Implement free-key target format with dual-format compatibility and tests. Completed in RC-FINAL.
 
 P1:
 

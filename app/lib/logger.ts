@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabase'
+import { isProduction } from '@/app/config/env'
 
 type LogEvent =
   | 'VERIFY_WORKINK_FAILED'
@@ -8,6 +9,7 @@ type LogEvent =
   | 'RATE_LIMITED'
   | 'VALIDATE_SUCCESS'
   | 'VALIDATE_FAILED'
+  | 'KEY_USED'
 
 type LogData = {
   event: LogEvent
@@ -20,7 +22,7 @@ type LogData = {
 export async function logEvent(data: LogData) {
   const timestamp = new Date().toISOString()
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProduction) {
     console.log(`[${timestamp}] [${data.event}] ${data.message || ''}`)
   }
 
@@ -38,13 +40,13 @@ export async function logEvent(data: LogData) {
       .then(
         () => {},
         () => {
-          if (process.env.NODE_ENV !== 'production') {
+          if (!isProduction) {
             console.error('Failed to persist log')
           }
         }
       )
   } catch {
-    if (process.env.NODE_ENV !== 'production') {
+    if (!isProduction) {
       console.error('Failed to queue log')
     }
   }

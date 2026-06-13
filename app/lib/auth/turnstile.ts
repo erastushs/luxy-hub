@@ -1,3 +1,5 @@
+import { getTurnstileSecretKey } from '@/app/config/env'
+
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
 const TURNSTILE_ACTION = 'login'
 
@@ -15,7 +17,7 @@ export async function verifyTurnstileToken(token: FormDataEntryValue | null): Pr
     return { success: false, message: 'Security verification required' }
   }
 
-  const secret = process.env.TURNSTILE_SECRET_KEY
+  const secret = getTurnstileSecretKey()
   if (!secret) {
     return { success: false, message: 'Security verification unavailable' }
   }

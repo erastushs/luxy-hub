@@ -45,6 +45,10 @@ vi.mock('@/app/lib/services/audit-service', () => ({
   logAuditEvent: vi.fn(),
 }))
 
+vi.mock('@/app/lib/logger', () => ({
+  logEvent: vi.fn(),
+}))
+
 import {
   consumeDeliverySession,
   createDeliverySession,

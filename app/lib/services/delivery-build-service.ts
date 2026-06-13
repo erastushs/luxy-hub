@@ -10,6 +10,7 @@ import {
   markBuildReady,
   type DeliveryBuildRow,
 } from '@/app/lib/repositories/delivery-build-repository'
+import { getDeliveryPayloadKeyId, getDeliveryPayloadSecretOrDevDefault } from '@/app/config/env'
 
 export const DELIVERY_BUILD_VERSION = 'delivery-build-v1'
 export const PAYLOAD_FORMAT_VERSION = 'inline-json-v1'
@@ -36,20 +37,15 @@ class BuildInputError extends Error {
 }
 
 function getPayloadSecret(): string {
-  const secret = process.env.DELIVERY_PAYLOAD_SECRET
-    || process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (secret) return secret
-
-  if (process.env.NODE_ENV === 'production') {
+  try {
+    return getDeliveryPayloadSecretOrDevDefault()
+  } catch {
     throw new BuildInputError('missing_payload_secret', 'Payload encryption secret is not configured', 500)
   }
-
-  return 'dev-delivery-payload-secret'
 }
 
 function getEncryptionKeyId(): string {
-  return process.env.DELIVERY_PAYLOAD_KEY_ID || 'default'
+  return getDeliveryPayloadKeyId()
 }
 
 function sha256Hex(value: string | Buffer): string {

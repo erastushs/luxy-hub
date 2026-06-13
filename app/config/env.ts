@@ -56,8 +56,19 @@ export function getDeliveryPayloadSecret(): string | undefined {
   return getOptionalEnv('DELIVERY_PAYLOAD_SECRET') ?? getOptionalEnv('SUPABASE_SERVICE_ROLE_KEY')
 }
 
+export function getDeliveryPayloadSecretOrDevDefault(): string {
+  const secret = getDeliveryPayloadSecret()
+  if (secret) return secret
+
+  if (isProduction) {
+    throw new Error('Payload secret is not configured')
+  }
+
+  return 'dev-delivery-payload-secret'
+}
+
 export function getDeliveryPayloadKeyId(): string {
-  return getOptionalEnv('DELIVERY_PAYLOAD_KEY_ID') ?? 'primary'
+  return getOptionalEnv('DELIVERY_PAYLOAD_KEY_ID') ?? 'default'
 }
 
 export function getInternalAlertDiscordWebhook(): string | undefined {

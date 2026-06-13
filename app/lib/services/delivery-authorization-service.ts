@@ -2,6 +2,8 @@ import type { ScriptAccessMode } from '@/app/lib/repositories/script-repository'
 import { validateKey } from '@/app/lib/services/key-service'
 import { validateLicense } from '@/app/lib/services/license-service'
 import type { LicenseAssignmentRow, LicenseRow } from '@/app/lib/repositories/license-repository'
+import { logEvent } from '@/app/lib/logger'
+import { getFreeKeyFormat } from '@/app/lib/validators'
 
 type DeliveryAuthorizationScript = {
   id: string
@@ -45,6 +47,10 @@ export async function authorizeDeliveryAccess({
     if (!keyResult.valid) {
       return { success: false, status: keyResult.status, message: keyResult.message }
     }
+    await logEvent({
+      event: 'KEY_USED',
+      message: `Key authorized delivery access (format: ${getFreeKeyFormat(key)})`,
+    })
     return { success: true, accessMode: 'key_required' }
   }
 

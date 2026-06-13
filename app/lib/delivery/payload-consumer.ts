@@ -1,5 +1,6 @@
 import { createDecipheriv, createHash } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
+import { getDeliveryPayloadSecretOrDevDefault } from '@/app/config/env'
 
 export const SUPPORTED_PAYLOAD_FORMAT_VERSION = 'inline-json-v1'
 export const SUPPORTED_ENCRYPTION_SCHEME = 'aes-256-gcm:v1'
@@ -33,17 +34,13 @@ export class PayloadConsumerError extends Error {
 }
 
 function getPayloadSecret(explicitSecret?: string): string {
-  const secret = explicitSecret
-    || process.env.DELIVERY_PAYLOAD_SECRET
-    || process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (explicitSecret) return explicitSecret
 
-  if (secret) return secret
-
-  if (process.env.NODE_ENV === 'production') {
+  try {
+    return getDeliveryPayloadSecretOrDevDefault()
+  } catch {
     throw new PayloadConsumerError('missing_payload_secret', 'Payload decryption secret is not configured')
   }
-
-  return 'dev-delivery-payload-secret'
 }
 
 function assertStringField(value: unknown, field: string): string {

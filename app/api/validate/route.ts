@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/app/lib/rate-limiter'
 import { logEvent } from '@/app/lib/logger'
 import { validateKey } from '@/app/lib/services/key-service'
+import { getFreeKeyFormat } from '@/app/lib/validators'
 
 export async function POST(req: NextRequest) {
   const clientIP = getClientIP(req)
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => null)
     const { key } = body || {}
+    const keyFormat = getFreeKeyFormat(key)
 
     if (!body || typeof body !== 'object') {
       return NextResponse.json(
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
       await logEvent({
         event: 'VALIDATE_FAILED',
         ip: clientIP,
-        message: result.message,
+        message: `${result.message}${keyFormat ? ` (format: ${keyFormat})` : ''}`,
       })
 
       return NextResponse.json(
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest) {
     await logEvent({
       event: 'VALIDATE_SUCCESS',
       ip: clientIP,
-      message: 'Key validated',
+      message: `Key validated (format: ${keyFormat})`,
     })
 
     return NextResponse.json({ success: true })

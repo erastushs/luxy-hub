@@ -1,6 +1,7 @@
 import { findKey, insertKey, deactivateExpiredKeys } from '@/app/lib/repositories/key-repository'
 import { generateKey } from '@/app/lib/key-generator'
 import { isValidKeyFormat } from '@/app/lib/validators'
+import { freeKeyConfig } from '@/app/config/free-keys'
 
 export type KeyStatus =
   | { valid: true }
@@ -34,17 +35,17 @@ export async function validateKey(key: unknown): Promise<KeyStatus> {
 
 export async function createKey(): Promise<string> {
   const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + 1)
+  expiresAt.setDate(expiresAt.getDate() + freeKeyConfig.expiresInDays)
 
   let attempts = 0
-  while (attempts < 5) {
+  while (attempts < freeKeyConfig.maxGenerationAttempts) {
     const key = generateKey()
     const inserted = await insertKey(key, expiresAt.toISOString())
     if (inserted) return key
     attempts++
   }
 
-  throw new Error('Failed to generate unique key after 5 attempts')
+  throw new Error(`Failed to generate unique key after ${freeKeyConfig.maxGenerationAttempts} attempts`)
 }
 
 export async function runKeyCleanup() {

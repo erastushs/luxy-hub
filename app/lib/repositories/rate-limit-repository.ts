@@ -1,65 +1,11 @@
 import { createHash } from 'node:crypto'
 import { supabaseAdmin } from '@/app/lib/supabase'
+import { getAnalyticsPepper } from '@/app/config/env'
+import { rateLimitConfig, type RateLimitKey } from '@/app/config/rate-limits'
 
-const WINDOW_MS: Record<string, number> = {
-  VERIFY_WORKINK: 60_000,
-  VALIDATE: 60_000,
-  GENERATE: 86_400_000,
-  SCRIPT_UPLOAD: 3_600_000,
-  SCRIPT_UPDATE: 3_600_000,
-  SCRIPT_DELETE: 3_600_000,
-  SCRIPT_LIST: 60_000,
-  SCRIPT_GET: 60_000,
-  SCRIPT_RAW: 60_000,
-  SCRIPT_STATS: 60_000,
-  DASHBOARD_SCRIPTS_LIST: 60_000,
-  DASHBOARD_SCRIPTS_CREATE: 3_600_000,
-  DASHBOARD_SCRIPTS_UPDATE: 3_600_000,
-  DASHBOARD_SCRIPTS_DELETE: 3_600_000,
-  DASHBOARD_SCRIPTS_GET: 60_000,
-  DASHBOARD_ANALYTICS_OVERVIEW: 60_000,
-  DASHBOARD_ANALYTICS_STATS: 60_000,
-  DASHBOARD_ANALYTICS_DOWNLOADS: 60_000,
-  DASHBOARD_VERSIONS_LIST: 60_000,
-  DASHBOARD_VERSIONS_GET: 60_000,
-  DELIVERY_SESSION: 60_000,
-  DELIVERY_FETCH: 60_000,
-  LOADER_BOOTSTRAP: 60_000,
-}
-
-const MAX_REQUESTS: Record<string, number> = {
-  VERIFY_WORKINK: 10,
-  VALIDATE: 30,
-  GENERATE: 5,
-  SCRIPT_UPLOAD: 30,
-  SCRIPT_UPDATE: 60,
-  SCRIPT_DELETE: 30,
-  SCRIPT_LIST: 30,
-  SCRIPT_GET: 60,
-  SCRIPT_RAW: 100,
-  SCRIPT_STATS: 30,
-  DASHBOARD_SCRIPTS_LIST: 60,
-  DASHBOARD_SCRIPTS_CREATE: 30,
-  DASHBOARD_SCRIPTS_UPDATE: 60,
-  DASHBOARD_SCRIPTS_DELETE: 30,
-  DASHBOARD_SCRIPTS_GET: 60,
-  DASHBOARD_ANALYTICS_OVERVIEW: 30,
-  DASHBOARD_ANALYTICS_STATS: 30,
-  DASHBOARD_ANALYTICS_DOWNLOADS: 30,
-  DASHBOARD_VERSIONS_LIST: 60,
-  DASHBOARD_VERSIONS_GET: 60,
-  DELIVERY_SESSION: 20,
-  DELIVERY_FETCH: 40,
-  LOADER_BOOTSTRAP: 60,
-}
-
-export type LimitKey = keyof typeof WINDOW_MS
-const LOGIN_FAILED_IP = 'LOGIN_FAILED_IP'
-const LOGIN_FAILED_EMAIL = 'LOGIN_FAILED_EMAIL'
-const LOGIN_FAILED_IP_WINDOW_MS = 5 * 60 * 1000
-const LOGIN_FAILED_EMAIL_WINDOW_MS = 15 * 60 * 1000
-const LOGIN_FAILED_IP_MAX = 5
-const LOGIN_FAILED_EMAIL_MAX = 10
+export type LimitKey = RateLimitKey
+const LOGIN_FAILED_IP: 'LOGIN_FAILED_IP' = rateLimitConfig.loginFailure.ipEndpoint
+const LOGIN_FAILED_EMAIL: 'LOGIN_FAILED_EMAIL' = rateLimitConfig.loginFailure.emailEndpoint
 
 type LoginFailureEndpoint = typeof LOGIN_FAILED_IP | typeof LOGIN_FAILED_EMAIL
 type LoginFailureLimitResult =
@@ -89,8 +35,8 @@ export function getClientIPFromHeaders(headers: Headers): string {
 }
 
 export async function checkRateLimit(ip: string, limitKey: LimitKey) {
-  const windowMs = WINDOW_MS[limitKey]
-  const maxRequests = MAX_REQUESTS[limitKey]
+  const windowMs = rateLimitConfig.windowsMs[limitKey]
+  const maxRequests = rateLimitConfig.maxRequests[limitKey]
   const now = new Date()
   const windowStart = new Date(now.getTime() - windowMs)
 
@@ -135,8 +81,8 @@ export async function checkLoginFailureLimit(
   const ipLimit = await checkLoginFailureBucket({
     identifier: ip,
     endpoint: LOGIN_FAILED_IP,
-    windowMs: LOGIN_FAILED_IP_WINDOW_MS,
-    maxFailures: LOGIN_FAILED_IP_MAX,
+    windowMs: rateLimitConfig.loginFailure.ipWindowMs,
+    maxFailures: rateLimitConfig.loginFailure.ipMaxFailures,
     now,
   })
 
@@ -152,15 +98,15 @@ export async function checkLoginFailureLimit(
   return checkLoginFailureBucket({
     identifier: emailIdentifier,
     endpoint: LOGIN_FAILED_EMAIL,
-    windowMs: LOGIN_FAILED_EMAIL_WINDOW_MS,
-    maxFailures: LOGIN_FAILED_EMAIL_MAX,
+    windowMs: rateLimitConfig.loginFailure.emailWindowMs,
+    maxFailures: rateLimitConfig.loginFailure.emailMaxFailures,
     now,
   })
 }
 
 export async function recordLoginFailure(ip: string, email: unknown): Promise<void> {
   const now = new Date().toISOString()
-  const rows = [
+  const rows: { ip: string; endpoint: string; created_at: string }[] = [
     {
       ip,
       endpoint: LOGIN_FAILED_IP,
@@ -237,7 +183,7 @@ function getLoginEmailIdentifier(email: unknown): string | null {
   }
 
   const normalizedEmail = email.trim().toLowerCase()
-  const pepper = process.env.ANALYTICS_PEPPER || 'dev-pepper'
+  const pepper = getAnalyticsPepper()
   const hash = createHash('sha256')
     .update(`${normalizedEmail}:${pepper}`)
     .digest('hex')

@@ -1,11 +1,23 @@
 import { MAX_SCRIPT_REQUEST_BODY_BYTES, MAX_SCRIPT_SIZE_BYTES } from '@/app/lib/constants/size-limits'
+import {
+  FREE_KEY_CURRENT_REGEX,
+  FREE_KEY_LEGACY_REGEX,
+  freeKeyConfig,
+  type FreeKeyFormat,
+} from '@/app/config/free-keys'
 
-const KEY_REGEX = /^LUXY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
 const MAX_TOKEN_LENGTH = 256
 const MAX_BODY_SIZE = MAX_SCRIPT_REQUEST_BODY_BYTES
 
 export function isValidKeyFormat(key: unknown): key is string {
-  return typeof key === 'string' && KEY_REGEX.test(key)
+  return getFreeKeyFormat(key) !== null
+}
+
+export function getFreeKeyFormat(key: unknown): FreeKeyFormat | null {
+  if (typeof key !== 'string') return null
+  if (FREE_KEY_CURRENT_REGEX.test(key)) return freeKeyConfig.formats.current
+  if (FREE_KEY_LEGACY_REGEX.test(key)) return freeKeyConfig.formats.legacy
+  return null
 }
 
 export function isValidToken(token: unknown): token is string {

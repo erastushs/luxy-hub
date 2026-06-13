@@ -1,20 +1,49 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { LoaderSnippetCard } from '@/app/dashboard/components/LoaderSnippetCard'
 import { ScriptMetadataSummaryCard } from '@/app/dashboard/components/ScriptMetadataSummaryCard'
 import { Tooltip } from '@/app/dashboard/components/Tooltip'
-import { getLoaderSnippet, getLoaderUrl } from '@/app/dashboard/lib/loader-snippet'
+import { DEFAULT_SITE_URL } from '@/app/config/platform'
+import { getPublicSiteUrl } from '@/app/config/env'
 
-const expectedOrigin = process.env.NEXT_PUBLIC_SITE_URL
-  ? new URL(process.env.NEXT_PUBLIC_SITE_URL).origin
-  : 'https://www.luxyhub.space'
+async function loadLoaderSnippetModule() {
+  vi.resetModules()
+  return import('@/app/dashboard/lib/loader-snippet')
+}
 
 describe('Dashboard UX polish components', () => {
-  it('generates environment loader URLs and snippets from the script slug', () => {
+  it('generates environment loader URLs and snippets from the script slug', async () => {
+    const { getLoaderSnippet, getLoaderUrl } = await loadLoaderSnippetModule()
+    const expectedOrigin = getPublicSiteUrl()
+
     expect(getLoaderUrl('test123')).toBe(`${expectedOrigin}/api/loader/test123`)
     expect(getLoaderSnippet('test123')).toBe(
       `loadstring(game:HttpGet("${expectedOrigin}/api/loader/test123"))()`
     )
+  })
+
+  it.each([
+    ['develop', 'https://www.luxyhub.dev'],
+    ['production', 'https://www.luxyhub.space'],
+  ])('supports %s site URL configuration', async (_environment, siteUrl) => {
+    const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    process.env.NEXT_PUBLIC_SITE_URL = siteUrl
+
+    try {
+      const { getLoaderSnippet, getLoaderUrl } = await loadLoaderSnippetModule()
+      expect(getPublicSiteUrl()).toBe(siteUrl)
+      expect(getLoaderUrl('test123')).toBe(`${siteUrl}/api/loader/test123`)
+      expect(getLoaderSnippet('test123')).toBe(
+        `loadstring(game:HttpGet("${siteUrl}/api/loader/test123"))()`
+      )
+    } finally {
+      if (originalSiteUrl === undefined) {
+        delete process.env.NEXT_PUBLIC_SITE_URL
+      } else {
+        process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl
+      }
+      vi.resetModules()
+    }
   })
 
   it('renders tooltip text for icon-only actions', () => {
@@ -30,6 +59,7 @@ describe('Dashboard UX polish components', () => {
   })
 
   it('renders loader snippet card with URL, snippet, and copy controls', () => {
+    const expectedOrigin = getPublicSiteUrl()
     const html = renderToStaticMarkup(<LoaderSnippetCard slug="test123" />)
 
     expect(html).toContain(`${expectedOrigin}/api/loader/test123`)
@@ -75,5 +105,9 @@ describe('Dashboard UX polish components', () => {
     expect(html).toContain('Build Status')
     expect(html).toContain('Ready')
     expect(html).toContain('Loader URL')
+  })
+
+  it('defaults to configured develop site URL when env is unset', () => {
+    expect(DEFAULT_SITE_URL).toBe('https://www.luxyhub.dev')
   })
 })

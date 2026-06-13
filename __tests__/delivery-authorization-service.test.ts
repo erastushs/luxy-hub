@@ -9,6 +9,10 @@ vi.mock('@/app/lib/services/license-service', () => ({
   validateLicense: vi.fn(),
 }))
 
+vi.mock('@/app/lib/logger', () => ({
+  logEvent: vi.fn(),
+}))
+
 import { authorizeDeliveryAccess } from '@/app/lib/services/delivery-authorization-service'
 import { validateKey } from '@/app/lib/services/key-service'
 import { validateLicense } from '@/app/lib/services/license-service'

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { processEventQueue, type DeliveryProvider } from '@/app/lib/services/event-queue-service'
 import { discordProvider } from '@/app/lib/providers/discord-provider'
 import { checkAlerts } from '@/app/lib/services/internal-alert-service'
+import { getCronSecret } from '@/app/config/env'
 
 /**
  * Internal event queue worker — polls pending events and hands them
@@ -19,7 +20,7 @@ import { checkAlerts } from '@/app/lib/services/internal-alert-service'
  */
 
 export async function POST(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
+  const cronSecret = getCronSecret()
 
   if (!cronSecret) {
     return NextResponse.json(

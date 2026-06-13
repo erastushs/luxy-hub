@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/app/lib/supabase'
+import { getAnalyticsPepper } from '@/app/config/env'
 
 export type ScriptRow = {
   id: string
@@ -87,7 +88,7 @@ export type ListScriptsResult = {
 }
 
 function getPepper(): string {
-  return process.env.ANALYTICS_PEPPER || 'dev-pepper'
+  return getAnalyticsPepper()
 }
 
 export async function hashIdentifier(value: string): Promise<string> {

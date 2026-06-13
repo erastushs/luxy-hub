@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/app/lib/supabase'
 import { getQueueSnapshot } from '@/app/lib/services/event-monitoring-service'
+import { getInternalAlertDiscordWebhook } from '@/app/config/env'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -210,7 +211,7 @@ async function getActiveAlertOfType(alertType: AlertType): Promise<{ id: string 
 // ---------------------------------------------------------------------------
 
 async function notifyDiscord(alert: ThresholdEvaluation, alertId: string): Promise<void> {
-  const webhookUrl = process.env.INTERNAL_ALERT_DISCORD_WEBHOOK
+  const webhookUrl = getInternalAlertDiscordWebhook()
   if (!webhookUrl) return
 
   const label = ALERT_LABELS[alert.alertType]
