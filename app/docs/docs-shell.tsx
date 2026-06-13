@@ -1,14 +1,22 @@
 import Link from 'next/link'
-import { ArrowLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { cn } from '@/app/lib/utils'
-import { docsSections, getRelatedDocs, type DocsSection } from './docs-data'
+import { docsSections, docsGroups, getRelatedDocs, getChildSections, type DocsSection, type DocsGroup } from './docs-data'
+import { DocsSearch } from './docs-search'
 
 type DocsShellProps = {
   activeSection?: DocsSection
   children: React.ReactNode
 }
 
-const groups = ['Start', 'Build', 'Operate', 'Reference'] as const
+const groupLabels: Record<DocsGroup, string> = {
+  Start: 'Start',
+  Build: 'Build',
+  Operate: 'Operate',
+  Reference: 'Reference',
+  Architecture: 'Architecture',
+  Releases: 'Releases',
+}
 
 function slugify(text: string) {
   return text
@@ -16,6 +24,47 @@ function slugify(text: string) {
     .replace(/[^a-z0-9\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-')
+}
+
+function SidebarSectionLink({ section, activeSection, depth = 0 }: { section: DocsSection; activeSection?: DocsSection; depth?: number }) {
+  const active = section.href === activeSection?.href
+  const children = getChildSections(section.href)
+  const hasChildren = children.length > 0
+  const isParentOfActive = activeSection?.href.startsWith(section.href + '/')
+
+  return (
+    <div>
+      <Link
+        href={section.href}
+        className={cn(
+          'flex items-center gap-1 rounded-lg px-2 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600',
+          depth > 0 && 'ml-3',
+          active
+            ? 'bg-red-600/10 text-red-300'
+            : (isParentOfActive ? 'text-gray-300' : 'text-gray-400 hover:bg-gray-900 hover:text-white')
+        )}
+        aria-current={active ? 'page' : undefined}
+      >
+        {(hasChildren || (depth === 0 && isParentOfActive)) && (
+          <ChevronDown className={cn('h-3 w-3 shrink-0', isParentOfActive && !active ? 'text-gray-500' : 'text-gray-600')} />
+        )}
+        {!(hasChildren || (depth === 0 && isParentOfActive)) && <span className="w-3 shrink-0" />}
+        <span className="truncate">{section.title}</span>
+      </Link>
+      {hasChildren && (active || isParentOfActive) && (
+        <div className="mt-0.5">
+          {children.map((child) => (
+            <SidebarSectionLink
+              key={child.href}
+              section={child}
+              activeSection={activeSection}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function DocsShell({ activeSection, children }: DocsShellProps) {
@@ -40,41 +89,40 @@ export function DocsShell({ activeSection, children }: DocsShellProps) {
 
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 lg:grid-cols-[17rem_minmax(0,1fr)_15rem]">
         <aside className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+          <div className="mb-4">
+            <DocsSearch />
+          </div>
           <nav className="rounded-xl border border-gray-800 bg-gray-950/60 p-3" aria-label="Documentation navigation">
-            {groups.map((group) => (
-              <div key={group} className="mb-4 last:mb-0">
-                <p className="px-2 text-xs font-semibold uppercase tracking-wider text-gray-500">{group}</p>
-                <div className="mt-1 space-y-1">
-                  {docsSections
-                    .filter((section) => section.group === group)
-                    .map((section) => {
-                      const active = section.href === activeSection?.href
-
-                      return (
-                        <Link
+            {docsGroups.map((group) => {
+              const groupSections = docsSections.filter((section) => section.group === group)
+              if (groupSections.length === 0) return null
+              return (
+                <div key={group} className="mb-4 last:mb-0">
+                  <p className="px-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    {groupLabels[group]}
+                  </p>
+                  <div className="mt-1 space-y-0.5">
+                    {groupSections
+                      .filter((s) => !s.parent)
+                      .map((section) => (
+                        <SidebarSectionLink
                           key={section.href}
-                          href={section.href}
-                          className={cn(
-                            'block rounded-lg px-2 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600',
-                            active
-                              ? 'bg-red-600/10 text-red-300'
-                              : 'text-gray-400 hover:bg-gray-900 hover:text-white'
-                          )}
-                          aria-current={active ? 'page' : undefined}
-                        >
-                          {section.title}
-                        </Link>
-                      )
-                    })}
+                          section={section}
+                          activeSection={activeSection}
+                        />
+                      ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </nav>
         </aside>
 
         <main className="min-w-0">
           <nav className="mb-6 flex flex-wrap items-center gap-1 text-sm text-gray-500" aria-label="Breadcrumbs">
-            <Link href="/docs" className="hover:text-gray-300">Docs</Link>
+            <Link href="/docs" className="hover:text-gray-300">
+              Docs
+            </Link>
             {activeSection && (
               <>
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />

@@ -44,9 +44,19 @@ const markdownComponents: Partial<Components> = {
   p: ({ children, ...props }) => (
     <p className="text-gray-300 my-3 leading-relaxed" {...props}>{children}</p>
   ),
-  a: ({ children, href, ...props }) => (
-    <a href={href} className="text-gray-300 hover:text-white underline" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
-  ),
+  a: ({ children, href, ...props }) => {
+    const isInternal = href && (href.startsWith('/') || href.startsWith('#'))
+    return (
+      <a
+        href={href}
+        className="text-gray-300 hover:text-white underline"
+        {...(isInternal ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+        {...props}
+      >
+        {children}
+      </a>
+    )
+  },
   code: ({ className, children, ...props }: React.ComponentProps<'code'> & { className?: string }) => {
     const isInline = !className
     if (isInline) {
