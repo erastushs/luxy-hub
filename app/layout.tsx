@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://luxyhub.vercel.app'),
+  metadataBase: new URL('https://www.luxyhub.space'),
 
   title: {
     default: 'LuxyHub - Roblox Script Library, Updates, Features & Status',
@@ -57,13 +57,13 @@ export const metadata: Metadata = {
     title: 'LuxyHub - Roblox Script Library, Updates, Features & Status',
     description:
       'Browse supported Roblox games, explore script features, track changelogs, monitor game status, and stay updated with the latest LuxyHub releases.',
-    url: 'https://luxyhub.vercel.app',
+    url: 'https://www.luxyhub.space',
     siteName: 'LuxyHub',
     locale: 'en_US',
     type: 'website',
     images: [
       {
-        url: 'https://luxyhub.vercel.app/og-image.png',
+        url: 'https://www.luxyhub.space/og-image.png',
         width: 1200,
         height: 630,
         alt: 'LuxyHub Open Graph Image',
@@ -76,7 +76,7 @@ export const metadata: Metadata = {
     title: 'LuxyHub - Roblox Script Library, Updates, Features & Status',
     description:
       'Browse supported Roblox games, explore script features, track changelogs, monitor game status, and stay updated with the latest LuxyHub releases.',
-    images: ['https://luxyhub.vercel.app/og-image.png'],
+    images: ['https://www.luxyhub.space/og-image.png'],
   },
 
   robots: {

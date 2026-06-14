@@ -1,5 +1,43 @@
 export const games = [
   {
+    slug: 'sell-lemons',
+    title: 'Sell Lemons',
+    image: '/SL.webp',
+    status: 'Working',
+    features: 24,
+
+    lastUpdate: '13 Jun 2026',
+    description:
+      'Complete automation suite for farming, rebirths, evolution, trading, events, and progression management.',
+
+    featureList: [
+      'Auto Collect Lemon',
+      'Auto Collect Cash Drops',
+      'Auto Collect Cash Vine',
+      'Auto Wake Income',
+      'Auto Accept Offer',
+      'Haggle Before Accepting',
+      'Auto Buy Button',
+      'Auto Upgrade Manage',
+      'Manage Selection Dropdown',
+      'Rebirth Delay Setting',
+      'Auto Rebirth',
+      'Auto Evolve',
+      'Max Evolution Level Setting',
+      'Auto Ascend',
+      'Auto Upgrade Power',
+      'Auto Solve Sewer',
+      'Auto Claim Void Altar',
+      'Auto Lemon Dash',
+      'Auto Lemon Trade',
+      'Talk To Alien Button',
+      'Walk Speed',
+      'Infinite Jump',
+      'Anti AFK',
+      'Config System',
+    ],
+  },
+  {
     slug: 'grow-a-garden-2',
     title: 'Grow A Garden 2',
     image: '/GaG2.webp',
