@@ -94,7 +94,7 @@ export default function Hero() {
 
                     <span className="text-zinc-300">(</span>
 
-                    <span className="text-zinc-500">{'"https://www.luxyhub.space/api/...'}</span>
+                    <span className="text-zinc-500">{'"https://www.luxyhub.space/api/    '}</span>
 
                     <span className="mx-1 text-red-500">...</span>
 
