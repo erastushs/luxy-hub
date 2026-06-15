@@ -82,7 +82,7 @@ export const games = [
     status: 'Working',
     features: 30,
 
-    lastUpdate: '15 Jun 2026',
+    lastUpdate: '16 Jun 2026',
     description:
       'Advanced automation suite for farming, training, upgrades, weather events, brainrot management, configuration profiles, and shop systems.',
 
