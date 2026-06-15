@@ -19,7 +19,7 @@ jobs:
           script: |
             ~/deploy.sh
 
-- name: Health Check
-  run: |
-    sleep 10
-    curl -f https://www.luxyhub.space/api/health
+      - name: Health Check
+        run: |
+          sleep 10
+          curl -f https://www.luxyhub.space/api/health
