@@ -8,6 +8,27 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: 'v5.0',
+    date: '16 Jun 2026',
+    game: 'Kick A Lucky Blox',
+    summary: 'Performance Update, Visual Improvements & Major System Fixes',
+    changes: [
+      'Added FPS Boost',
+      'Added RTX Mod',
+      'Added Black Screen Mode',
+      'Added Auto Equip Best Weight',
+      'Fixed Auto Collect Ball',
+      'Fixed and Improved Auto Train System',
+      'Fixed and Improved Auto Place Brainrots',
+      'Fixed Auto Kick and Brainrot Filters',
+      'Fixed and Improved Auto Collect Cash',
+      'Fixed and Improved Webhook Notifier',
+      'Fixed and Improved Server Joiner Stability',
+      'Removed Deprecated Features',
+      'General Performance and Stability Improvements',
+    ],
+  },
+  {
     version: 'v4.9',
     date: '15 Jun 2026',
     game: 'Kick A Lucky Blox',
