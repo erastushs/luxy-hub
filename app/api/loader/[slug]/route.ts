@@ -15,10 +15,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     }
 
     const { slug } = await params
+
     const bootstrap = createLoaderBootstrapLua({
       baseUrl: process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin,
       slug,
     })
+
     return new NextResponse(bootstrap, {
       status: 200,
       headers: {
