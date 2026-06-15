@@ -8,6 +8,22 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: 'v4.9',
+    date: '15 Jun 2026',
+    game: 'Kick A Lucky Blox',
+    summary: 'Ball Farming, Shop Automation & Prediction Fixes',
+    changes: [
+      'Added Auto Farm Ball',
+      'Added Auto Buy Upgrade',
+      'Added Auto Buy Potion',
+      'Added Auto Use Potion',
+      'Added Auto Buy Shop Cup',
+      'Added 5 Selection Dropdowns',
+      'Fixed Auto Prediction Brainrots',
+      'Fixed Auto Kick',
+    ],
+  },
+  {
     version: 'v4.8',
     date: '14 Jun 2026',
     game: 'Multi Game Update',
