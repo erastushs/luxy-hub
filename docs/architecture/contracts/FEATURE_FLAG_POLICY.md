@@ -36,7 +36,7 @@ Runtime modules may request flags through design review, but they do not own fla
 | Flag | Category | Purpose | Default |
 |---|---|---|---|
 | `analytics_v2` | release | Enable future Analytics V2 runtime event behavior. | `false` |
-| `license_runtime_enforcement` | compatibility/release | Gate future Phase 7C runtime-license-related behavior after design approval. This must not implement Phase 7B Key Monetization by itself. | `false` |
+| `license_runtime_enforcement` | compatibility/release | Gate future Phase 7C runtime-license-related behavior after design approval. This must not implement Phase 7B Key Monetization Platform by itself. | `false` |
 | `new_authorization_window` | experiment/release | Enable redesigned key/license window UX. | `false` |
 | `experimental_runtime` | experiment | Enable experimental runtime services for controlled cohorts only. | `false` |
 

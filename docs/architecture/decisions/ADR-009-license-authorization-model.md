@@ -19,11 +19,11 @@ Phase 7A introduced the license foundation:
 - License management dashboard
 - License analytics dashboard
 
-Roadmap update: Phase 7B is now Key Monetization. Runtime license enforcement and premium license hardening have moved to Phase 7C. The current architectural boundary remains delivery session creation.
+Roadmap update: Phase 7B is now Key Monetization Platform. Runtime license enforcement and premium license hardening have moved to Phase 7C. The current architectural boundary remains delivery session creation.
 
 ## Problem
 
-LuxyHub needs a clear authorization model for script delivery that separates discoverability from access requirements and records the current implementation state before Phase 7B Key Monetization and Phase 7C Premium License System work begins.
+LuxyHub needs a clear authorization model for script delivery that separates discoverability from access requirements and records the current implementation state before Phase 7B Key Monetization Platform and Phase 7C Premium License System work begins.
 
 The system must support free/public scripts, Work.ink key-gated scripts, and premium license-gated scripts without moving authorization into untrusted loader/runtime code.
 
@@ -47,7 +47,7 @@ Implemented behavior in current Phase 7A state:
 - Runtime payload fetch remains session-token based and does not accept license credentials.
 - License dashboard/API supports management workflows for creators.
 
-Known limitations before Phase 7B Key Monetization:
+Known limitations before Phase 7B Key Monetization Platform:
 
 - Dashboard key issuance is not productized.
 - Weekly, monthly, and custom-expiration key issuance paths are not productized.
@@ -64,7 +64,7 @@ Known limitations before Phase 7C Premium License System:
 - License counters and runtime audit trail semantics need final implementation review.
 - Request contract naming for documented `license_key` behavior must be reconciled before changing runtime clients.
 
-Planned Phase 7B Key Monetization work:
+Planned Phase 7B Key Monetization Platform work:
 
 - Dashboard key issuance.
 - Weekly, monthly, and custom-expiration keys.

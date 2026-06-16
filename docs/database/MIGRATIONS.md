@@ -347,6 +347,6 @@ ORDER BY tablename, indexname;
 
 - No schema changes are part of Documentation P1.
 - No ADRs are created in this phase.
-- Phase 7B Key Monetization should avoid new migrations unless a separately approved hardening track requires them.
+- Phase 7B Key Monetization Platform documentation does not create migrations. Provider source, key type, max devices, device registrations, reset history, or analytics storage must be separately reviewed before implementation.
 - Phase 7C Premium License System migration work must not be folded into Phase 7B.
 - License management should remain aligned with finalized loader integration requirements.

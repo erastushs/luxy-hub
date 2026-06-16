@@ -6,11 +6,11 @@ Last updated: 2026-06-16
 
 Phase 7A is complete and production ready for the implemented access-mode foundation, key validation integration, license foundation, license management dashboard, license analytics dashboard, and UI remediation scope.
 
-Current focus: Production Stabilization. Production is in an observation window before Phase 7B Key Monetization implementation begins.
+Current focus: Production Stabilization. Production is in an observation window before Phase 7B Key Monetization Platform implementation begins.
 
 Next planned major development: Analytics V2.
 
-Phase 7B has been realigned to Key Monetization and is deferred because of the Production Stabilization Window. Premium License System work has moved to Phase 7C.
+Phase 7B has been refined to Key Monetization Platform and is deferred because of the Production Stabilization Window. Premium License System work remains Phase 7C.
 
 ## Completed Systems
 
@@ -29,7 +29,7 @@ Phase 7B has been realigned to Key Monetization and is deferred because of the P
 
 ## Deferred / Not Started
 
-- Phase 7B Key Monetization: Deferred / Planning Realigned
+- Phase 7B Key Monetization Platform: Deferred / Planning Refined
 - Phase 7C Premium License System: Deferred / Not Started
 - Analytics V2
 - QA & Test Coverage Expansion
@@ -49,7 +49,7 @@ Phase 7B has been realigned to Key Monetization and is deferred because of the P
 ## Current Focus
 
 - Production Stabilization: ACTIVE
-- Phase 7B Key Monetization: Deferred / Planning Realigned
+- Phase 7B Key Monetization Platform: Deferred / Planning Refined
 - Phase 7C Premium License System: Deferred
 - Deferral reason: Production Stabilization Window
 
@@ -82,7 +82,7 @@ Suggested Duration: 2-4 weeks.
 2. QA & Test Coverage Expansion
 3. Operational Hardening
 4. Security Review
-5. Phase 7B Key Monetization
+5. Phase 7B Key Monetization Platform
 6. Final Security Audit
 7. Release Candidate
 8. V1 Release
@@ -102,37 +102,42 @@ Suggested Duration: 2-4 weeks.
 
 ## Phase 7B Status
 
-- Name: Key Monetization
-- Status: Deferred / Planning Realigned
+- Name: Key Monetization Platform
+- Status: Deferred / Planning Refined
 - Reason: Production Stabilization Window
-- Implementation: Partially founded in MAIN by existing key, Work.ink, expiration, and access-mode systems
-- Design: Realigned
-- Threat Model: Realigned
-- Documentation: Realigned
-- Current completion estimate: 60%
+- Implementation: Partially founded in MAIN by existing free key generation, Work.ink verification, key validation, key expiration, `access_mode`, and session-boundary key authorization
+- Design: Refined
+- Threat Model: Refined
+- Documentation: Refined
+- Current completion estimate: 35%
 
 Phase 7B remaining work:
 
-- Dashboard key issuance.
-- Weekly keys.
-- Monthly keys.
+- Provider-agnostic access system.
+- Linkvertise and LootLabs provider support.
+- Paid weekly keys.
+- Paid monthly keys.
 - Custom expiration keys.
+- Device-limited keys.
+- Administrative device reset workflow.
+- Dashboard key issuance.
 - `key_required` script access controls.
-- Loader key forwarding.
+- Loader key/fingerprint forwarding.
 - Raw endpoint protection.
-- Key analytics.
+- Key analytics with provider source and device outcomes.
 
 ## Phase 7C Status
 
 - Name: Premium License System
 - Status: Deferred
-- Implementation: Phase 7A foundation exists, but Phase 7C runtime hardening has not started under the new roadmap
-- Scope: premium licenses, license assignments, customer identifiers, device binding, license lookup hashes, license verifier storage, premium analytics, runtime license enforcement, assignment lifecycle, and assignment capacity enforcement
+- Implementation: Phase 7A foundation exists, but Phase 7C license hardening has not started under the new roadmap
+- Scope: premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, license hardening, runtime license enforcement, assignment lifecycle, and assignment capacity enforcement
 
 ## Phase 7B Entry Criteria
 
 - Review `docs/phases/phase7/PHASE_7B_DESIGN.md`.
 - Review `docs/phases/phase7/PHASE_7B_THREAT_MODEL.md`.
+- Review `docs/phases/phase7/PHASE7_KEY_MONETIZATION_MODEL.md`.
 - Review `docs/roadmap/PHASE7_ROADMAP_REALIGNMENT_REPORT.md`.
 - Confirm production safety boundaries before changing runtime, delivery, authorization, loader, repository, service, API route, or database behavior.
-- Keep premium license, assignment, customer identifier, device binding, and premium analytics work out of Phase 7B.
+- Keep premium license, assignment, customer identifier, HWID binding, device transfer workflow, license entitlement, license analytics, and license hardening work out of Phase 7B.

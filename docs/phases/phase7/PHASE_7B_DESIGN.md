@@ -1,25 +1,32 @@
-# Phase 7B Design — Key Monetization
+# Phase 7B Design — Key Monetization Platform
 
-Status: Deferred / Planning Realigned
+Status: Deferred / Planning Refined
 Date: 2026-06-16
 
-Reason: Product direction changed. Phase 7B is now Key Monetization only. Premium License System work has moved to Phase 7C.
+Reason: Product direction was refined. Phase 7B is now the Key Monetization Platform. Phase 7C remains the deferred Premium License System.
 
-Implementation: Partially founded in MAIN by existing key, Work.ink, key expiration, and access-mode infrastructure. No feature implementation is part of this documentation realignment.
+Implementation: Partially founded in MAIN by existing free key generation, Work.ink verification, key validation, key expiration, `access_mode`, and session-boundary key authorization. No feature implementation is part of this documentation update.
 
-Design: Realigned
+Design: Refined
 
-Threat Model: Realigned
+Threat Model: Refined
 
-Documentation: Realigned
+Documentation: Refined
 
-This document describes intended Phase 7B scope only. It is not an implementation record. Phase 7B must not implement premium licenses, license assignments, customer identifiers, device binding, license lookup hashes, license verifier storage, premium analytics, runtime license enforcement, assignment lifecycle, or assignment capacity enforcement. Those items belong to Phase 7C.
+This document describes intended Phase 7B scope only. It is not an implementation record. Phase 7B must not implement premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, runtime license hardening, or license assignment capacity enforcement. Those items belong to Phase 7C.
 
 ## 1. Objective
 
-Phase 7B should productize the existing free key system into a small, stable, releasable Key Monetization phase.
+Phase 7B should evolve the existing key system into a provider-agnostic Key Monetization Platform.
 
-The phase should preserve the current Work.ink-backed free key flow while adding the minimum missing product wiring for creator/admin issuance, configurable expiration, key-required script access, loader key forwarding, raw endpoint protection, and key analytics.
+The platform supports:
+
+- Free 24-hour keys issued through ad providers.
+- Multiple provider sources, starting with Work.ink and designed for Linkvertise, LootLabs, and future providers.
+- Paid keys with weekly, monthly, and custom expiration durations.
+- Device-limited keys with a simpler support model than full HWID licensing.
+- Administrative device reset workflows.
+- Key analytics that distinguish generated, validated, expired, denied, and provider-sourced activity.
 
 ## 2. Current MAIN Foundation
 
@@ -34,27 +41,40 @@ Already present in MAIN:
 - Delivery-session authorization branch for `key_required` that delegates to existing key validation.
 - Operational logging/analytics tables that can support a minimal analytics view.
 
-Known gaps in MAIN:
+Known gaps in MAIN for the refined Phase 7B scope:
 
-- Dashboard key issuance is not implemented.
+- Provider abstraction is not implemented; current behavior is Work.ink-specific.
+- Linkvertise, LootLabs, and future provider contracts are not designed in code.
+- Paid key issuance is not implemented.
 - Weekly, monthly, and custom-expiration issuance paths are not implemented.
+- Key records do not currently model `provider`, `source`, `key_type`, or `max_devices`.
+- Device registration storage is not implemented.
+- Device reset workflow is not implemented.
+- Dashboard key issuance is not implemented.
 - Dashboard script management does not yet expose `key_required` as a productized creator control.
-- The production loader does not currently forward a key to `POST /api/delivery/session`.
+- The production loader does not currently forward a key or device fingerprint to `POST /api/delivery/session`.
 - Raw script delivery must be protected so it cannot bypass `key_required` access.
-- Key analytics are incomplete for a key monetization funnel.
+- Key analytics are incomplete for provider source, paid/free key type, denial reason, and device limit outcomes.
 
 ## 3. Phase 7B Scope
 
-Phase 7B includes only:
+Phase 7B includes:
 
-- Free key access.
-- Work.ink flow.
-- Key expiration.
+- Free keys.
+- 24-hour keys via ad providers.
+- Multi-provider access system.
+- Work.ink provider support.
+- Linkvertise provider support.
+- LootLabs provider support.
+- Future provider abstraction.
+- Paid keys.
 - Weekly keys.
 - Monthly keys.
 - Custom expiration keys.
-- Dashboard key issuance.
+- Device-limited keys.
+- Administrative device reset workflow.
 - Key analytics.
+- Provider source tracking.
 - `key_required` script access.
 - Loader key forwarding.
 - Raw endpoint protection.
@@ -64,77 +84,185 @@ Phase 7B excludes:
 - Premium licenses.
 - License assignments.
 - Customer identifiers.
-- Device binding.
-- License lookup hashes.
-- License verifier storage.
-- Premium analytics.
+- HWID binding.
+- Device transfer workflows.
+- License entitlements.
+- License analytics.
+- License hardening.
 - Runtime license enforcement.
 - Assignment lifecycle.
 - Assignment capacity enforcement.
 - Marketplace, paid scripts, and creator economy features.
 
-## 4. Free Key Access and Work.ink Flow
+## 4. Product Model
+
+Conceptual key model:
+
+```text
+Key
+|-- expires_at
+|-- max_devices
+|-- is_active
+|-- provider_source
+|-- key_type
+|-- analytics
+```
+
+Conceptual device registration model:
+
+```text
+Device Registration
+|-- key_id
+|-- fingerprint
+|-- first_seen_at
+|-- last_seen_at
+```
+
+Key types:
+
+| Key Type | Source | Duration | Example Device Limit |
+|---|---|---:|---:|
+| Free | Ad provider | 24 hours | 1 device |
+| Weekly | Paid key issuance | 7 days | 1 device |
+| Monthly | Paid key issuance | 30 days | 3 devices |
+| Team | Paid/custom key issuance | Custom | 5 devices |
+| Custom | Dashboard/admin issuance | Custom | Custom |
+
+The table is product guidance, not a schema migration. Any eventual schema changes must be reviewed separately during implementation planning.
+
+## 5. Provider Model
 
 Goal:
-Preserve the existing ad-supported free key acquisition path.
+Make key acquisition provider-agnostic.
+
+Supported provider direction:
+
+- Work.ink.
+- Linkvertise.
+- LootLabs.
+- Future providers.
+
+Provider abstraction requirements:
+
+- The key platform should not assume Work.ink-specific token naming, callback shape, URL structure, completion semantics, or replay strategy outside a provider adapter.
+- Provider adapters should normalize completions into one internal key issuance decision.
+- Provider source should be recorded for analytics.
+- Provider-specific verification failures should be mapped to generic user-facing denial states.
+- Provider credentials, secrets, and raw callback payloads must not leak to loader/runtime code.
+
+Conceptual provider flow:
+
+```text
+Provider completion/callback
+  -> provider adapter verifies completion
+  -> normalized provider result
+  -> key issuance policy selects key type, expiration, max_devices
+  -> key generated
+  -> analytics records provider source and generated outcome
+```
+
+## 6. Free Keys
+
+Goal:
+Support ad-provider-funded 24-hour keys.
 
 Current State:
-The current branch already supports `/get-key`, Work.ink token verification, key generation, key validation, and token replay protection.
+MAIN already supports a Work.ink-backed free key flow with fixed 24-hour expiration.
 
 Target State:
-The existing Work.ink flow remains compatible. Phase 7B should not break existing generated keys or existing validation behavior.
+Free keys are issued through a provider-agnostic ad-provider layer. Work.ink is one provider, not the platform assumption. Linkvertise, LootLabs, and future providers should fit the same adapter model.
+
+Default policy:
+
+- Duration: 24 hours.
+- Device limit: 1 device.
+- Source: ad provider.
 
 Risks:
-Changing the Work.ink flow can break current users, weaken replay protection, or reduce ad-supported completion reliability.
+Changing the existing Work.ink flow can break current users. Provider-specific assumptions can make future providers expensive to add.
 
-## 5. Key Expiration Durations
+## 7. Paid Keys
 
 Goal:
-Support operational key issuance for multiple durations without changing the database schema.
+Support paid key issuance without using the Premium License System.
 
-Current State:
-Generated keys already store `expires_at`, and existing generation produces a fixed 24-hour key.
+Paid key types:
 
-Target State:
-Dashboard or server-side issuance supports:
+- Weekly keys.
+- Monthly keys.
+- Custom expiration keys.
 
-- 24-hour/free key.
-- Weekly key.
-- Monthly key.
-- Custom expiration key.
+Paid keys are still keys, not licenses. They should use the key monetization model, key validation path, device limit model, and key analytics. They should not introduce license assignments, customer identifiers, license entitlements, or premium license analytics.
+
+Target policy examples:
+
+- Weekly: 7 days, 1 device.
+- Monthly: 30 days, 3 devices.
+- Team/custom: custom expiration, 5 or custom devices.
 
 Risks:
-Incorrect expiration calculation can overgrant or prematurely revoke access. Custom expiration inputs must be validated before any implementation work.
+Paid keys can be confused with premium licenses. The dashboard and docs must keep paid keys separate from Phase 7C Premium License System concepts.
 
-## 6. Dashboard Key Issuance
-
-Goal:
-Provide a creator/admin-facing way to issue keys for Phase 7B durations.
-
-Current State:
-The existing dashboard focuses on scripts, analytics, events, profile, and license management. Dashboard key issuance is not productized.
-
-Target State:
-Dashboard key issuance should create keys with explicit expiration, show safe key output once where appropriate, and avoid exposing unnecessary raw key history.
-
-Risks:
-Raw free keys are currently stored in the existing key table. Dashboard views must avoid creating unnecessary credential exposure.
-
-## 7. `key_required` Script Access
+## 8. Device-Limited Keys
 
 Goal:
-Make `access_mode = key_required` usable as the key monetization access mode.
+Reduce casual key sharing without implementing full HWID/license binding.
+
+Conceptual behavior:
+
+1. User submits a key and device fingerprint during session creation.
+2. Server validates the key is active and unexpired.
+3. Server looks up device registrations for the key.
+4. If the fingerprint is already registered, update `last_seen_at` and allow.
+5. If the fingerprint is new and active registration count is below `max_devices`, register it and allow.
+6. If the fingerprint is new and the limit is exhausted, deny.
+
+Example limits:
+
+| Key Tier | Max Devices |
+|---|---:|
+| Free | 1 |
+| Weekly | 1 |
+| Monthly | 3 |
+| Team | 5 |
+
+Device fingerprints are not perfect. They should be treated as sharing friction and support tooling, not as anti-tamper DRM or a full HWID license system.
+
+## 9. Device Reset Workflow
+
+Goal:
+Provide an administrative support workflow for legitimate device changes.
+
+Administrative reset workflow:
+
+1. Admin/creator opens key detail view.
+2. Admin reviews key status, expiration, provider source, device registrations, and recent validation outcomes.
+3. Admin selects a device registration or all registrations to reset.
+4. System records a reset audit/analytics event.
+5. The next validation from a new fingerprint can register if the key is active, unexpired, and under `max_devices`.
+
+Reset policy guidance:
+
+- Resets should be explicit administrative actions.
+- Resets should not extend key expiration by default.
+- Resets should not change `max_devices` unless the admin separately edits/reissues the key.
+- Reset events should be visible in key analytics or support history.
+
+## 10. `key_required` Script Access
+
+Goal:
+Make `access_mode = key_required` the platform access mode for free, paid, provider-backed, and device-limited keys.
 
 Current State:
 The database and delivery authorization foundation support `key_required`, but script management does not yet productize creator-facing access-mode changes.
 
 Target State:
-Creators can configure eligible scripts as `public` or `key_required` without enabling Phase 7C premium license behavior.
+Creators can configure eligible scripts as `public` or `key_required`. `license_required` remains Phase 7C.
 
 Risks:
-Confusing `visibility` with `access_mode` can accidentally expose or block scripts. `license_required` should remain deferred unless Phase 7C is active.
+Confusing `visibility` with `access_mode` can accidentally expose or block scripts. Confusing paid keys with premium licenses can cause support and entitlement mistakes.
 
-## 8. Loader Key Forwarding
+## 11. Loader Key Forwarding
 
 Goal:
 Allow the production loader to satisfy key-required session authorization while preserving secure delivery boundaries.
@@ -143,12 +271,12 @@ Current State:
 The loader posts only `slug` to `/api/delivery/session`.
 
 Target State:
-The loader forwards a supplied key only to `POST /api/delivery/session`. It must not forward keys to delivery fetch, payload delivery, event reporting, or unrelated runtime surfaces.
+The loader forwards key and device fingerprint values only to `POST /api/delivery/session`. It must not forward keys or fingerprints to delivery fetch, payload delivery, event reporting, or unrelated runtime surfaces.
 
 Risks:
-Credential forwarding can leak keys through logs, errors, generated Lua, or analytics if boundaries are not explicit.
+Credential forwarding can leak keys or fingerprints through logs, errors, generated Lua, analytics, or support screenshots if boundaries are not explicit.
 
-## 9. Raw Endpoint Protection
+## 12. Raw Endpoint Protection
 
 Goal:
 Prevent raw script delivery from bypassing key monetization.
@@ -162,30 +290,50 @@ If a script is `key_required`, raw script/source endpoints must not provide a by
 Risks:
 If raw delivery remains open for key-required scripts, Phase 7B monetization can be bypassed entirely.
 
-## 10. Key Analytics
+## 13. Key Analytics
 
 Goal:
 Provide operational visibility into key monetization.
 
-Current State:
-The project has `verification_logs`, `key_usage`, event infrastructure, and delivery/session analytics foundations, but key monetization analytics are not complete.
+Required events:
 
-Target State:
-Phase 7B should track enough information to review:
+- Key generated.
+- Key validated.
+- Key expired.
+- Key denied.
+- Provider source.
 
-- Key generation.
-- Work.ink completion to key issuance.
-- Key validation success/failure.
-- Expired key attempts.
-- Missing/invalid key denials.
-- Key-authorized delivery sessions.
+Recommended analytics dimensions:
+
+- Provider source: Work.ink, Linkvertise, LootLabs, manual/admin, paid, future provider.
+- Key type: free, weekly, monthly, team, custom.
+- Denial reason category: invalid, expired, inactive, device_limit_exceeded, provider_failed, missing_key.
+- Device registration count.
+- Reset count.
+- Script/access-mode context where safe.
 
 Risks:
-Analytics that overcollect raw keys or token data can leak credentials. Analytics that undercount delivery authorization can misrepresent monetization performance.
+Analytics that overcollect raw keys, provider tokens, or raw fingerprints can leak credentials or sensitive device data. Analytics should use snippets, hashes, categories, and aggregate counters where possible.
 
-## 11. Progress Assessment
+## 14. Benefits
 
-Current Phase 7B completion estimate based only on MAIN: 60%.
+- Reduced provider dependency because Work.ink, Linkvertise, LootLabs, and future providers can share one normalized model.
+- Reduced key sharing through device-limited keys.
+- Simpler support model than full HWID licensing.
+- Better monetization flexibility through free, weekly, monthly, team, and custom keys.
+- Cleaner Phase 7C boundary because paid keys do not require premium license assignments or entitlements.
+
+## 15. Tradeoffs
+
+- Fingerprints are not perfect and can be spoofed or unstable.
+- Device resets may be needed for legitimate users.
+- Device-limited keys are not a full anti-sharing or anti-tamper solution.
+- Provider abstraction adds planning complexity compared with a Work.ink-only flow.
+- Paid keys must be carefully documented so they are not mistaken for premium licenses.
+
+## 16. Progress Assessment
+
+Current Phase 7B completion estimate based only on MAIN: 35%.
 
 Completed foundation:
 
@@ -199,55 +347,71 @@ Completed foundation:
 
 Remaining work:
 
-- Dashboard key issuance.
+- Provider-agnostic access design and implementation.
+- Linkvertise provider support.
+- LootLabs provider support.
+- Future provider adapter contract.
+- Paid key issuance.
 - Weekly/monthly/custom expiration controls.
+- Device limit model.
+- Device registration model.
+- Administrative device reset workflow.
+- Dashboard key issuance.
 - Productized `key_required` script access controls.
-- Loader key forwarding.
+- Loader key and fingerprint forwarding.
 - Raw endpoint protection.
-- Key analytics.
-- Key monetization rollout checklist and tests.
+- Key analytics with provider source and device outcomes.
+- Rollout checklist and tests.
 
 Production blockers:
 
-- Production loader does not forward keys.
+- Production loader does not forward keys or device fingerprints.
 - Raw endpoint bypass must be resolved before key-required monetization can be trusted.
 - Dashboard does not yet expose key issuance or key-required access-mode management.
+- Provider abstraction and paid key issuance are not implemented.
+- Device registration and reset workflow are not implemented.
 
 Nice-to-have items:
 
 - Key hashing.
 - Script-scoped keys.
-- Creator-specific Work.ink campaigns.
 - Revenue attribution.
-- Rich conversion funnel analytics.
+- Rich funnel analytics from provider completion to key-authorized delivery.
+- Self-service user device reset with abuse controls.
 
-Nice-to-have items are not required for Phase 7B and may require future migrations or design review.
+Nice-to-have items are not required for the first Phase 7B platform release unless separately approved.
 
-## 12. Recommended Implementation Order
+## 17. Recommended Implementation Order
 
-1. Update roadmap and planning documents to reflect Phase 7B Key Monetization and Phase 7C Premium License System.
+1. Finalize provider-agnostic key monetization model.
 2. Confirm production stabilization entry criteria.
-3. Add tests/planning for raw endpoint access-mode protection.
-4. Productize `key_required` script access configuration.
-5. Add dashboard key issuance with 24-hour, weekly, monthly, and custom expiration.
-6. Add loader key forwarding only to the delivery-session endpoint.
-7. Add key analytics using existing operational tables where possible.
-8. Run security review focused on key leakage, raw endpoint bypass, and delivery-session authorization.
+3. Design storage/API requirements for key types, provider source, max devices, and device registrations.
+4. Add raw endpoint access-mode protection before monetized rollout.
+5. Productize `key_required` script access configuration.
+6. Add provider adapter contract and migrate Work.ink behind it.
+7. Add Linkvertise and LootLabs provider adapters.
+8. Add dashboard key issuance for free, weekly, monthly, team, and custom keys.
+9. Add device registration and administrative reset workflow.
+10. Add loader key/fingerprint forwarding only to the delivery-session endpoint.
+11. Add key analytics for generated, validated, expired, denied, provider source, and device outcomes.
+12. Run security review focused on provider spoofing, key leakage, fingerprint handling, raw endpoint bypass, and analytics data minimization.
 
-## 13. Phase 7C Boundary
+## 18. Phase 7C Boundary
 
 All premium-license work is Phase 7C:
 
-- Runtime license enforcement.
-- Premium license assignment enforcement.
+- Premium licenses.
+- License assignments.
 - Customer identifiers.
-- Device binding.
-- License lookup hashes.
-- License verifier storage.
-- Premium analytics.
+- HWID binding.
+- Device transfer workflows.
+- License entitlements.
+- License analytics.
+- License hardening.
+- Runtime license enforcement.
 - Assignment lifecycle.
 - Assignment capacity enforcement.
 - License counters and runtime audit trail.
 - `license_key` contract alignment.
 
-Phase 7C may require migrations or database functions. Those risks must not be introduced into Phase 7B.
+Phase 7C may require migrations or database functions. Those risks must not be introduced into Phase 7B documentation as implemented behavior.

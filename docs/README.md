@@ -7,18 +7,19 @@
 - Phase 8: Complete (100%), production verified, Roblox verified
 - Analytics V1: Complete
 - Phase 7A: Complete / production ready
-- Phase 7B: Key Monetization, deferred because of the Production Stabilization Window
+- Phase 7B: Key Monetization Platform, deferred because of the Production Stabilization Window
 - Phase 7C: Premium License System, deferred until after Phase 7B
 
-LuxyHub has closed Phase 7A with the access-mode foundation, key validation integration, license foundation, license management dashboard, and license analytics dashboard production ready for the implemented UI/backend scope. Production is now in an active stabilization and observation window before Phase 7B Key Monetization work begins. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
+LuxyHub has closed Phase 7A with the access-mode foundation, key validation integration, license foundation, license management dashboard, and license analytics dashboard production ready for the implemented UI/backend scope. Production is now in an active stabilization and observation window before Phase 7B Key Monetization Platform work begins. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
 
 ## Source of Truth Documents
 
 - `architecture/ARCHITECTURE.md` — current implementation architecture.
-- `architecture/PHASE7_LICENSE_ARCHITECTURE.md` — Phase 7 access mode, Work.ink key, and premium license architecture.
+- `architecture/PHASE7_LICENSE_ARCHITECTURE.md` — Phase 7 access mode, provider-backed key, and premium license architecture.
 - `architecture/decisions/` — accepted Architecture Decision Records for current production boundaries and access-mode authorization.
-- `phases/phase7/PHASE_7B_DESIGN.md` — realigned Phase 7B Key Monetization design scope; implementation deferred.
-- `phases/phase7/PHASE_7B_THREAT_MODEL.md` — realigned Phase 7B Key Monetization threat model; implementation deferred.
+- `phases/phase7/PHASE_7B_DESIGN.md` — refined Phase 7B Key Monetization Platform design scope; implementation deferred.
+- `phases/phase7/PHASE_7B_THREAT_MODEL.md` — refined Phase 7B Key Monetization Platform threat model; implementation deferred.
+- `phases/phase7/PHASE7_KEY_MONETIZATION_MODEL.md` — product, provider, device-limit, reset, and analytics model for Phase 7B.
 - `roadmap/PHASE7_ROADMAP_REALIGNMENT_REPORT.md` — report documenting the Phase 7B/7C product-direction split.
 - `roadmap/TODO.md` — roadmap, active phase, completed phases, and pending work.
 
@@ -78,8 +79,9 @@ Scheduler notes:
 
 - `phases/phase4/PHASE4_DOCUMENTATION_REVIEW.md` — Phase 4 documentation review.
 - `phases/phase7/README.md` — Phase 7 status and source-of-truth pointers.
-- `phases/phase7/PHASE_7B_DESIGN.md` — planned Phase 7B Key Monetization design.
-- `phases/phase7/PHASE_7B_THREAT_MODEL.md` — planned Phase 7B Key Monetization threat model.
+- `phases/phase7/PHASE_7B_DESIGN.md` — planned Phase 7B Key Monetization Platform design.
+- `phases/phase7/PHASE_7B_THREAT_MODEL.md` — planned Phase 7B Key Monetization Platform threat model.
+- `phases/phase7/PHASE7_KEY_MONETIZATION_MODEL.md` — Phase 7B key product/provider/device model.
 - `phases/phase7/historical/` — Phase 7 supporting historical records.
 - `phases/phase8/active/` — Phase 8 closeout and operational decisions retained after production verification.
 - `phases/phase8/historical/` — Phase 8 historical implementation records.
@@ -136,7 +138,7 @@ Scheduler notes:
 - QA & Test Coverage Expansion
 - Operational Hardening
 - Security Review
-- Phase 7B Key Monetization
+- Phase 7B Key Monetization Platform
 - Phase 7C Premium License System
 - Final Security Audit
 
@@ -146,7 +148,7 @@ Scheduler notes:
 2. QA & Test Coverage Expansion
 3. Operational Hardening
 4. Security Review
-5. Phase 7B Key Monetization
+5. Phase 7B Key Monetization Platform
 6. Final Security Audit
 7. Release Candidate
 8. V1 Release

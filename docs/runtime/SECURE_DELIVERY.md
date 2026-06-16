@@ -1,6 +1,6 @@
 # Secure Delivery Runtime
 
-Status: Documents current runtime behavior before Phase 7B. This file is documentation only.
+Status: Documents current runtime behavior before Phase 7B Key Monetization Platform. This file is documentation only.
 
 Primary files:
 
@@ -156,4 +156,4 @@ Operational caveats:
 
 ## Phase Boundary
 
-This document describes current secure delivery behavior before Phase 7B Key Monetization. It does not add key monetization features, Phase 7C runtime license enforcement hardening, new APIs, schema changes, or loader delivery changes.
+This document describes current secure delivery behavior before Phase 7B Key Monetization Platform. It does not add key monetization platform features, Phase 7C runtime license enforcement hardening, new APIs, schema changes, or loader delivery changes.

@@ -17,7 +17,7 @@ LuxyHub delivers script runtime payloads through secure delivery rather than exp
 
 Delivery sessions are short-lived, one-time access records stored in `delivery_sessions`. Raw session tokens are returned to the loader, while only SHA-256 token hashes are stored in the database. Sessions expire after 60 seconds and are consumed during payload fetch.
 
-Phase 7A added `scripts.access_mode` with `public`, `key_required`, and `license_required` values. Phase 7B is now Key Monetization, while premium runtime license enforcement has moved to Phase 7C. The architectural authorization boundary already exists at delivery session creation.
+Phase 7A added `scripts.access_mode` with `public`, `key_required`, and `license_required` values. Phase 7B is now Key Monetization Platform, while premium runtime license enforcement has moved to Phase 7C. The architectural authorization boundary already exists at delivery session creation.
 
 ## Problem
 
