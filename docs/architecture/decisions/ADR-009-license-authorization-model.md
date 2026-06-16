@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted / Roadmap Realigned
 
 ## Date
 
@@ -19,11 +19,11 @@ Phase 7A introduced the license foundation:
 - License management dashboard
 - License analytics dashboard
 
-Phase 7B Runtime License Enforcement is planned but not implemented by this ADR. The current architectural boundary remains delivery session creation.
+Roadmap update: Phase 7B is now Key Monetization. Runtime license enforcement and premium license hardening have moved to Phase 7C. The current architectural boundary remains delivery session creation.
 
 ## Problem
 
-LuxyHub needs a clear authorization model for script delivery that separates discoverability from access requirements and records the current implementation state before Phase 7B begins.
+LuxyHub needs a clear authorization model for script delivery that separates discoverability from access requirements and records the current implementation state before Phase 7B Key Monetization and Phase 7C Premium License System work begins.
 
 The system must support free/public scripts, Work.ink key-gated scripts, and premium license-gated scripts without moving authorization into untrusted loader/runtime code.
 
@@ -34,8 +34,8 @@ LuxyHub accepts `scripts.access_mode` as the delivery authorization model.
 Access modes:
 
 - `public`: delivery session may be created when script visibility/build state permits delivery.
-- `key_required`: delivery session requires a valid key through the existing key ecosystem.
-- `license_required`: delivery session requires license validation through license foundation services.
+- `key_required`: delivery session requires a valid key through the existing key ecosystem. Productization belongs to Phase 7B.
+- `license_required`: delivery session requires license validation through license foundation services. Runtime hardening belongs to Phase 7C.
 
 Implemented behavior in current Phase 7A state:
 
@@ -47,22 +47,39 @@ Implemented behavior in current Phase 7A state:
 - Runtime payload fetch remains session-token based and does not accept license credentials.
 - License dashboard/API supports management workflows for creators.
 
-Known limitations before Phase 7B:
+Known limitations before Phase 7B Key Monetization:
+
+- Dashboard key issuance is not productized.
+- Weekly, monthly, and custom-expiration key issuance paths are not productized.
+- `key_required` script access controls are not productized for creators.
+- Loader key forwarding is not implemented by this ADR.
+- Raw endpoint protection for key-required scripts must be reviewed before Phase 7B release.
+- Key monetization analytics are not complete.
+
+Known limitations before Phase 7C Premium License System:
 
 - Runtime license enforcement requires additional hardening against assignment capacity bypass.
 - `customer_identifier` normalization and required semantics need to be frozen.
 - License assignment creation and capacity enforcement need atomic semantics.
 - License counters and runtime audit trail semantics need final implementation review.
-- Loader credential forwarding for key/license/customer identifier values is planned and not implemented by this ADR.
 - Request contract naming for documented `license_key` behavior must be reconciled before changing runtime clients.
 
-Planned Phase 7B enforcement work:
+Planned Phase 7B Key Monetization work:
+
+- Dashboard key issuance.
+- Weekly, monthly, and custom-expiration keys.
+- `key_required` script access.
+- Loader key forwarding only to the delivery session endpoint.
+- Raw endpoint protection.
+- Key analytics.
+
+Planned Phase 7C Premium License System work:
 
 - Harden license-required delivery session authorization.
 - Enforce `max_assignments` consistently for runtime and creator assignment paths.
 - Require and normalize customer identifiers for license-required runtime access.
 - Align runtime request contract around documented license credential fields.
-- Forward credentials through loader only to the delivery session endpoint.
+- Forward premium credentials through loader only to the delivery session endpoint.
 - Update license activation/delivery counters safely.
 - Add sanitized runtime license audit trail behavior.
 
@@ -84,11 +101,12 @@ Positive consequences:
 - Existing public delivery behavior remains stable through default `public`.
 - Key-required and license-required scripts share the same session boundary.
 - License ownership is enforced at schema and service layers.
-- Phase 7B has a clear hardening target without redesigning delivery fetch.
+- Phase 7B has a clear key-monetization target without redesigning delivery fetch.
+- Phase 7C has a clear premium-license hardening target without blocking Phase 7B.
 
 Negative consequences:
 
-- Current Phase 7A state is foundation, not final runtime enforcement hardening.
+- Current Phase 7A state is foundation, not final key monetization or premium runtime enforcement hardening.
 - License-required behavior is sensitive to loader request contract and identifier handling decisions.
 - Assignment capacity requires careful concurrency handling.
 - Mistakes in enforcement can block legitimate users or allow unauthorized access.

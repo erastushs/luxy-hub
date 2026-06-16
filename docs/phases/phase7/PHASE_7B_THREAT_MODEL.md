@@ -1,97 +1,121 @@
-# Phase 7B Threat Model — Runtime License Enforcement
+# Phase 7B Threat Model — Key Monetization
 
-Status: Deferred
-Date: 2026-06-12
+Status: Deferred / Planning Realigned
+Date: 2026-06-16
 
-Reason: Production Stabilization Window
+Reason: Product direction changed. Phase 7B is now Key Monetization only. Premium License System threats and controls have moved to Phase 7C.
 
-Implementation: Not Started
+Implementation: Not part of this documentation realignment.
 
-Design: Complete
+Design: Realigned
 
-Threat Model: Complete
+Threat Model: Realigned
 
-Documentation: Complete
+Documentation: Realigned
 
-This document records the intended threat model for Phase 7B. It does not implement controls. Phase 7B implementation is intentionally deferred while production delivery, analytics, event processing, build behavior, and runtime errors are observed.
+This document records the intended threat model for Phase 7B Key Monetization. It does not implement controls. It must not be used to start premium license, customer identifier, device binding, assignment capacity, or runtime license enforcement work. Those concerns belong to Phase 7C.
 
-## Threat: License Sharing
-
-Description:
-A valid license key may be copied and shared with multiple users or devices beyond the creator's intended assignment limit.
-
-Impact:
-Unauthorized users can access premium scripts, reducing license value and weakening creator trust.
-
-Mitigation Strategy:
-Require a normalized `customer_identifier`, bind assignments to hashed identifiers, enforce `max_assignments`, and deny new assignments when capacity is exhausted.
-
-## Threat: Assignment Bypass
+## Threat: Raw Endpoint Bypass
 
 Description:
-An attacker may attempt to bypass assignment checks by omitting identifiers, changing identifier formats, or exploiting assignment status gaps.
+A script configured for `key_required` access may still be retrievable through a raw script/source endpoint that does not enforce `access_mode`.
 
 Impact:
-Disabled or revoked assignments may retain access, or one license may authorize more customers than intended.
+Attackers can bypass Work.ink and key authorization entirely, making key monetization ineffective.
 
 Mitigation Strategy:
-Require non-empty normalized identifiers, share validation between runtime and dashboard assignment paths, enforce assignment status, and treat disabled/revoked assignments as denied.
+Before Phase 7B release, raw delivery must respect key-required access or be disabled for key-required scripts. Authorization remains server-side and must not rely on client behavior.
 
-## Threat: Unlimited Assignment Creation
+## Threat: Missing Loader Key Forwarding
 
 Description:
-Concurrent requests or manual assignment creation may create more active assignments than the license capacity allows.
+The server can require keys at delivery-session creation, but the production loader may not forward keys.
 
 Impact:
-Assignment limits become ineffective and license-required access becomes equivalent to shared-key access.
+Legitimate users with valid keys cannot run key-required scripts through the default loader, causing false denials and support burden.
 
 Mitigation Strategy:
-Use atomic authorization and assignment creation. Enforce capacity in both runtime-created and creator-created assignments.
+Add a key-only credential forwarding path for `POST /api/delivery/session`. Do not forward keys to delivery fetch, runtime payload delivery, event reporting, or unrelated runtime APIs.
 
-## Threat: Replay Attacks
+## Threat: Key Leakage
 
 Description:
-Captured delivery session requests, session tokens, or credentials may be replayed to obtain repeated access.
+Free keys may leak through logs, dashboard screens, generated loader snippets, browser output, errors, analytics payloads, or support screenshots.
 
 Impact:
-Attackers may reuse valid authorization material outside the intended session lifecycle.
+Leaked keys can be reused until expiration, reducing monetization effectiveness and increasing abuse.
 
 Mitigation Strategy:
-Keep one-time delivery sessions, preserve short TTLs, retain session token hashing, avoid reusing event secrets, and ensure license authorization occurs only before session creation.
+Avoid logging raw keys. Use snippets only when operationally necessary. Keep key display one-time where practical. Return generic authorization errors. Do not include raw keys in analytics payloads.
 
-## Threat: Loader Tampering
+## Threat: Expiration Bypass
 
 Description:
-Users may modify loader code to remove credential forwarding, change identifiers, or call delivery APIs directly.
+Expired keys may continue to authorize access because expiration is not checked consistently, cleanup fails, or time handling is incorrect.
 
 Impact:
-Tampered clients may attempt to bypass intended UX or replay credentials outside the loader path.
+Users retain access beyond the intended monetization window.
 
 Mitigation Strategy:
-Treat the loader as untrusted. Enforce all authorization server-side at `POST /api/delivery/session`. Keep fetch/runtime payload delivery dependent on valid one-time sessions.
+Validate `expires_at` during every key authorization. Treat cleanup as operational hygiene, not the enforcement boundary. Use server time for expiration decisions.
 
-## Threat: Credential Leakage
+## Threat: Work.ink Replay Abuse
 
 Description:
-License keys, Work.ink keys, customer identifiers, or event secrets may leak through logs, browser output, error messages, analytics, or dashboard tables.
+A Work.ink token may be reused to generate multiple keys or replayed from another client.
 
 Impact:
-Leaked credentials can be reused, brute-forced, shared, or correlated with users.
+Attackers can create more free keys than intended from one ad-supported completion.
 
 Mitigation Strategy:
-Never store raw license keys. Avoid logging raw credentials. Store hashed customer identifiers for enforcement. Return generic authorization errors where practical. Keep dashboard assignment views limited to safe display labels and record IDs.
+Preserve token replay protection through `used_workink_tokens`. Keep token verification server-side and avoid accepting client assertions as proof of completion.
 
 ## Threat: Brute Force Attempts
 
 Description:
-Attackers may try large numbers of license keys, Work.ink keys, script slugs, or customer identifiers against delivery session creation.
+Attackers may try many generated keys or slugs against `/api/validate` or `/api/delivery/session`.
 
 Impact:
-Valid credentials may be discovered, rate limits may be exhausted, and authorization infrastructure may experience abuse load.
+Valid keys may be discovered, rate limits may be exhausted, and authorization infrastructure may experience abuse load.
 
 Mitigation Strategy:
-Preserve delivery session rate limiting, use generic failures, monitor repeated authorization failures, consider per-script/per-license abuse thresholds, and avoid credential-validity or existence oracles.
+Preserve route rate limits, use generic failures, monitor repeated authorization failures, and avoid creating key-validity or existence oracles.
+
+## Threat: Analytics Credential Exposure
+
+Description:
+Key analytics may accidentally store raw keys, raw Work.ink tokens, IP-sensitive data, or overly specific denial reasons.
+
+Impact:
+Analytics tables can become a credential leakage vector or privacy risk.
+
+Mitigation Strategy:
+Use snippets, hashes, aggregate counters, or event categories where possible. Keep raw credentials out of event payloads, logs, and dashboard analytics.
+
+## Threat: Access Mode Confusion
+
+Description:
+Creators or operators may confuse `visibility` with `access_mode`, causing scripts to be public when intended to be key-required or key-required when intended to be public.
+
+Impact:
+Scripts may become unexpectedly inaccessible or monetization may be bypassed.
+
+Mitigation Strategy:
+Keep `visibility` and `access_mode` UI language separate. Restrict Phase 7B controls to `public` and `key_required` unless Phase 7C is explicitly active.
+
+## Threat: Scope Creep Into Premium License Work
+
+Description:
+Phase 7B may expand to include premium licenses, assignments, customer identifiers, device binding, or license analytics.
+
+Impact:
+The release becomes larger, requires migrations or atomic authorization design, and introduces higher production risk.
+
+Mitigation Strategy:
+Keep Phase 7B limited to key monetization. Move premium licenses, runtime license enforcement, assignment lifecycle, assignment capacity enforcement, customer identifiers, device binding, license lookup hashes, license verifier storage, and premium analytics to Phase 7C.
 
 ## Review Notes
 
 Phase 7B implementation should remain deferred until the Production Stabilization Window completes. When resumed, implementation should be reviewed against this threat model before code changes begin and again before production rollout.
+
+Phase 7C requires its own premium-license threat model before implementing runtime license enforcement, assignment capacity enforcement, customer identifiers, or device binding.

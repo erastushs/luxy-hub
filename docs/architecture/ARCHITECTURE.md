@@ -1,7 +1,7 @@
 # LuxyHub Architecture
 
-Last updated: 2026-06-12
-Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, and Phase 7A license foundation closeout. Production Stabilization is the active track. Phase 7B Runtime License Enforcement is deferred because of the Production Stabilization Window.
+Last updated: 2026-06-16
+Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, and Phase 7A access-mode/license foundation closeout. Production Stabilization is the active track. Phase 7B has been realigned to Key Monetization. Phase 7C now owns Premium License System work.
 
 ## Overview
 
@@ -12,7 +12,7 @@ LuxyHub is a Next.js 16 application that currently provides:
 - Script CDN metadata, upload, raw delivery, and analytics APIs
 - Creator Dashboard V1 for script management, analytics, versions, and profile management
 - Secure loader delivery with delivery builds and one-time delivery sessions
-- Phase 7A license foundation, license management dashboard, and license analytics dashboard
+- Phase 7A access-mode foundation, key validation integration, license foundation, license management dashboard, and license analytics dashboard
 - Supabase-backed authentication, ownership enforcement, RLS, Turnstile login protection, rate limiting, and audit logging
 
 The current production architecture is a single Next.js application. Dedicated `dashboard`, `api`, `cdn`, or `vault` subdomains are not implemented.
@@ -293,9 +293,9 @@ Approved Phase 7 authorization boundary:
 - Authorization must not occur during delivery fetch, payload delivery, runtime execution, or event reporting.
 - `public` creates a delivery session immediately when the script/build is deliverable.
 - `key_required` reuses the existing Work.ink key ecosystem.
-- `license_required` uses premium creator-generated licenses and assignment/device limits.
+- `license_required` uses premium creator-generated licenses and assignment/device limits; runtime hardening is Phase 7C.
 
-Phase 7A implemented the license foundation, creator license lifecycle management, assignment create/remove workflows, and dashboard analytics. Phase 7B is deferred during Production Stabilization and will later harden runtime license enforcement, assignment capacity, customer identifier handling, loader credential forwarding, license counters, and runtime audit trail behavior.
+Phase 7A implemented the access-mode foundation, key validation integration, license foundation, creator license lifecycle management, assignment create/remove workflows, and dashboard analytics. Phase 7B is deferred during Production Stabilization and has been realigned to Key Monetization: dashboard key issuance, weekly/monthly/custom expiration keys, `key_required` script access, loader key forwarding, raw endpoint protection, and key analytics. Premium license runtime enforcement, assignment capacity, customer identifiers, device binding, license lookup hashes, license verifier storage, and premium analytics are Phase 7C.
 
 ## Analytics Architecture
 
@@ -385,7 +385,7 @@ Future improvements:
 - Dependency updates when stable security fixes are available
 - Security monitoring and alerting for authentication and delivery anomalies
 - Login anomaly detection beyond local failed-attempt counters
-- Phase 7 authorization monitoring for access mode, Work.ink key, and license-required session attempts
+- Phase 7 authorization monitoring for access mode, Work.ink key, and later license-required session attempts
 
 ## Architecture Decisions
 
@@ -401,14 +401,15 @@ Current accepted decisions:
 - `decisions/ADR-006-verification-logs-as-monitoring-counters.md` — monitoring counters originate from `verification_logs` and runtime event tables until a dedicated metrics system is justified.
 - `decisions/ADR-007-webhook-credential-storage-risk.md` — current webhook credential storage risks are accepted with operational mitigations and rotation processes.
 - `decisions/ADR-008-payload-secret-fallback-policy.md` — payload encryption prefers `DELIVERY_PAYLOAD_SECRET` with documented fallback and rotation implications.
-- `decisions/ADR-009-license-authorization-model.md` — `scripts.access_mode` is the accepted license/key/public delivery authorization model, with Phase 7B hardening planned but not implemented.
+- `decisions/ADR-009-license-authorization-model.md` — `scripts.access_mode` is the accepted license/key/public delivery authorization model. Phase 7B is key monetization; Phase 7C is premium license hardening.
 
 ## Roadmap Alignment
 
 Current phase:
 
 - Production Stabilization Program: active.
-- Phase 7B — Runtime License Enforcement: deferred / not started in code. Design, threat model, and documentation are complete.
+- Phase 7B — Key Monetization: deferred / planning realigned. MAIN already contains the key, Work.ink, expiration, access-mode, and session-boundary foundation.
+- Phase 7C — Premium License System: deferred / not started under the new roadmap. MAIN contains Phase 7A foundation only.
 
 Completed phases:
 
@@ -427,7 +428,7 @@ Future ordering:
 2. QA & Test Coverage Expansion
 3. Operational Hardening
 4. Security Review
-5. Phase 7B — Runtime License Enforcement
+5. Phase 7B — Key Monetization
 6. Final Security Audit
 7. Release Candidate
 8. V1 Release
@@ -436,4 +437,4 @@ Deprecated roadmap assumptions removed from current architecture:
 
 - Separate `dashboard.luxyhub.space`, `api.luxyhub.space`, `cdn.luxyhub.space`, and `vault.luxyhub.space` services are not implemented.
 - Marketplace architecture is not part of the current roadmap.
-- Phase 7A access modes and premium license management foundation are implemented; Phase 7B runtime enforcement hardening is deferred during Production Stabilization — see `PHASE7_LICENSE_ARCHITECTURE.md` and `../phases/phase7/PHASE_7B_DESIGN.md`.
+- Phase 7A access modes and premium license management foundation are implemented; Phase 7B is now Key Monetization and Phase 7C owns premium runtime enforcement hardening — see `PHASE7_LICENSE_ARCHITECTURE.md` and `../phases/phase7/PHASE_7B_DESIGN.md`.

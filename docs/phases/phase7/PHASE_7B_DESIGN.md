@@ -1,118 +1,253 @@
-# Phase 7B Design — Runtime License Enforcement
+# Phase 7B Design — Key Monetization
 
-Status: Deferred
-Date: 2026-06-12
+Status: Deferred / Planning Realigned
+Date: 2026-06-16
 
-Reason: Production Stabilization Window
+Reason: Product direction changed. Phase 7B is now Key Monetization only. Premium License System work has moved to Phase 7C.
 
-Implementation: Not Started
+Implementation: Partially founded in MAIN by existing key, Work.ink, key expiration, and access-mode infrastructure. No feature implementation is part of this documentation realignment.
 
-Design: Complete
+Design: Realigned
 
-Threat Model: Complete
+Threat Model: Realigned
 
-Documentation: Complete
+Documentation: Realigned
 
-This document describes intended Phase 7B scope only. It is not an implementation record. No Phase 7B code, schema, API, runtime, loader, service, repository, delivery, or authorization changes have started. Phase 7B implementation is intentionally deferred while production delivery, analytics, event processing, build behavior, and runtime errors are observed.
+This document describes intended Phase 7B scope only. It is not an implementation record. Phase 7B must not implement premium licenses, license assignments, customer identifiers, device binding, license lookup hashes, license verifier storage, premium analytics, runtime license enforcement, assignment lifecycle, or assignment capacity enforcement. Those items belong to Phase 7C.
 
-## 1. Runtime License Enforcement
+## 1. Objective
 
-Goal:
-Ensure `license_required` scripts only receive delivery sessions when the supplied license is valid for the target script and the runtime assignment decision is allowed.
+Phase 7B should productize the existing free key system into a small, stable, releasable Key Monetization phase.
 
-Current State:
-Phase 7A provides the license foundation, license lifecycle management, assignment records, and dashboard visibility. Runtime validation foundation exists at the session boundary, while deeper enforcement hardening is deferred to Phase 7B.
+The phase should preserve the current Work.ink-backed free key flow while adding the minimum missing product wiring for creator/admin issuance, configurable expiration, key-required script access, loader key forwarding, raw endpoint protection, and key analytics.
 
-Target State:
-Runtime license authorization should consistently validate license hash, script binding, license status, expiry, assignment status, and assignment capacity before delivery session creation succeeds.
+## 2. Current MAIN Foundation
 
-Risks:
-Incorrect enforcement can block valid customers, allow unauthorized access, or change production delivery behavior outside the approved session boundary.
+Already present in MAIN:
 
-## 2. Assignment Capacity Enforcement
+- Free key generation.
+- Work.ink token verification flow.
+- Work.ink token replay protection.
+- Key validation.
+- Key expiration through `keys.expires_at`.
+- `access_mode` with `public`, `key_required`, and `license_required` values.
+- Delivery-session authorization branch for `key_required` that delegates to existing key validation.
+- Operational logging/analytics tables that can support a minimal analytics view.
 
-Goal:
-Enforce `licenses.max_assignments` consistently for runtime-created and creator-created assignments.
+Known gaps in MAIN:
 
-Current State:
-Phase 7A stores `max_assignments` and assignment records. UI displays capacity data and assignments, but Phase 7B must harden capacity enforcement semantics.
+- Dashboard key issuance is not implemented.
+- Weekly, monthly, and custom-expiration issuance paths are not implemented.
+- Dashboard script management does not yet expose `key_required` as a productized creator control.
+- The production loader does not currently forward a key to `POST /api/delivery/session`.
+- Raw script delivery must be protected so it cannot bypass `key_required` access.
+- Key analytics are incomplete for a key monetization funnel.
 
-Target State:
-When no assignment exists for a normalized customer identifier, authorization checks active assignment count against `max_assignments` before creating a new assignment. Capacity checks and assignment creation should be atomic.
+## 3. Phase 7B Scope
 
-Risks:
-Non-atomic checks can allow concurrent assignment bypass. Overly strict checks can deny legitimate activations during retries or partial failures.
+Phase 7B includes only:
 
-## 3. `customer_identifier` Handling
+- Free key access.
+- Work.ink flow.
+- Key expiration.
+- Weekly keys.
+- Monthly keys.
+- Custom expiration keys.
+- Dashboard key issuance.
+- Key analytics.
+- `key_required` script access.
+- Loader key forwarding.
+- Raw endpoint protection.
 
-Goal:
-Define and enforce a stable customer/device identifier contract for license-required runtime access.
+Phase 7B excludes:
 
-Current State:
-Phase 7A supports assignment customer identifiers and stores hashed identifiers. Dashboard assignment creation accepts customer identifiers for creator-managed assignments.
+- Premium licenses.
+- License assignments.
+- Customer identifiers.
+- Device binding.
+- License lookup hashes.
+- License verifier storage.
+- Premium analytics.
+- Runtime license enforcement.
+- Assignment lifecycle.
+- Assignment capacity enforcement.
+- Marketplace, paid scripts, and creator economy features.
 
-Target State:
-`license_required` delivery should require a non-empty normalized `customer_identifier`. Normalization and validation should be shared across runtime and dashboard assignment paths.
-
-Risks:
-Changing identifier handling can strand existing assignment records if normalization changes are not migration-aware. Overly permissive identifiers can weaken assignment enforcement.
-
-## 4. `license_key` Contract
-
-Goal:
-Align the runtime delivery request contract around the documented `license_key` field.
-
-Current State:
-Phase 7A documents license-required access and implements license management. Phase 7B will reconcile runtime request naming and compatibility expectations before behavior changes.
-
-Target State:
-Delivery session creation should accept the documented `license_key` field for premium license authorization. Any compatibility alias should be explicit, temporary, and tested.
-
-Risks:
-Contract changes can break existing loader snippets or clients if deployed without compatibility planning.
-
-## 5. Loader Credential Forwarding
-
-Goal:
-Support key-required and license-required scripts through the production loader while preserving secure delivery boundaries.
-
-Current State:
-Phase 7A dashboard and license foundation are complete. Loader credential forwarding is intentionally deferred to Phase 7B planning and implementation.
-
-Target State:
-The loader should forward key, license key, and customer identifier values only when present and only to the delivery session endpoint. Runtime payload delivery and event reporting should remain unchanged.
-
-Risks:
-Credential forwarding can leak secrets if logged, embedded unsafely, exposed in errors, or passed to unrelated runtime/event surfaces.
-
-## 6. License Counters
+## 4. Free Key Access and Work.ink Flow
 
 Goal:
-Make license analytics counters reflect runtime authorization activity.
+Preserve the existing ad-supported free key acquisition path.
 
 Current State:
-Phase 7A schema and dashboard expose activation and delivery counters. Phase 7A UI displays existing data from current APIs.
+The current branch already supports `/get-key`, Work.ink token verification, key generation, key validation, and token replay protection.
 
 Target State:
-`activation_count` should increment only when a new assignment is created. `delivery_count` should increment when a license-authorized delivery session is successfully created. Timestamps should update with the same events.
+The existing Work.ink flow remains compatible. Phase 7B should not break existing generated keys or existing validation behavior.
 
 Risks:
-Counters can become misleading if updated outside the same authorization transaction or if retries double-count activity.
+Changing the Work.ink flow can break current users, weaken replay protection, or reduce ad-supported completion reliability.
 
-## 7. Runtime Audit Trail
+## 5. Key Expiration Durations
 
 Goal:
-Provide safe operational visibility into runtime license authorization decisions without leaking credentials.
+Support operational key issuance for multiple durations without changing the database schema.
 
 Current State:
-Phase 7A has dashboard visibility and existing audit infrastructure patterns elsewhere in the project. Runtime license audit trail expansion is planned for Phase 7B.
+Generated keys already store `expires_at`, and existing generation produces a fixed 24-hour key.
 
 Target State:
-Runtime authorization should record sanitized audit events for allowed, denied, exhausted, invalid, expired, and assignment-related license outcomes. Raw keys and raw customer identifiers should not be logged.
+Dashboard or server-side issuance supports:
+
+- 24-hour/free key.
+- Weekly key.
+- Monthly key.
+- Custom expiration key.
 
 Risks:
-Audit logging can introduce credential leakage, noisy high-volume records, or delivery latency if not handled asynchronously and safely.
+Incorrect expiration calculation can overgrant or prematurely revoke access. Custom expiration inputs must be validated before any implementation work.
 
-## Recommended First Milestone
+## 6. Dashboard Key Issuance
 
-Phase 7B.1 remains deferred until the Production Stabilization Window completes. When resumed, the first milestone should be a runtime enforcement design review that freezes the request contract, identifier normalization, atomic authorization strategy, and audit/counter semantics before implementation begins.
+Goal:
+Provide a creator/admin-facing way to issue keys for Phase 7B durations.
+
+Current State:
+The existing dashboard focuses on scripts, analytics, events, profile, and license management. Dashboard key issuance is not productized.
+
+Target State:
+Dashboard key issuance should create keys with explicit expiration, show safe key output once where appropriate, and avoid exposing unnecessary raw key history.
+
+Risks:
+Raw free keys are currently stored in the existing key table. Dashboard views must avoid creating unnecessary credential exposure.
+
+## 7. `key_required` Script Access
+
+Goal:
+Make `access_mode = key_required` usable as the key monetization access mode.
+
+Current State:
+The database and delivery authorization foundation support `key_required`, but script management does not yet productize creator-facing access-mode changes.
+
+Target State:
+Creators can configure eligible scripts as `public` or `key_required` without enabling Phase 7C premium license behavior.
+
+Risks:
+Confusing `visibility` with `access_mode` can accidentally expose or block scripts. `license_required` should remain deferred unless Phase 7C is active.
+
+## 8. Loader Key Forwarding
+
+Goal:
+Allow the production loader to satisfy key-required session authorization while preserving secure delivery boundaries.
+
+Current State:
+The loader posts only `slug` to `/api/delivery/session`.
+
+Target State:
+The loader forwards a supplied key only to `POST /api/delivery/session`. It must not forward keys to delivery fetch, payload delivery, event reporting, or unrelated runtime surfaces.
+
+Risks:
+Credential forwarding can leak keys through logs, errors, generated Lua, or analytics if boundaries are not explicit.
+
+## 9. Raw Endpoint Protection
+
+Goal:
+Prevent raw script delivery from bypassing key monetization.
+
+Current State:
+Raw delivery remains available for public/unlisted scripts. `access_mode` protection must be accounted for before Phase 7B release.
+
+Target State:
+If a script is `key_required`, raw script/source endpoints must not provide a bypass around delivery-session key authorization.
+
+Risks:
+If raw delivery remains open for key-required scripts, Phase 7B monetization can be bypassed entirely.
+
+## 10. Key Analytics
+
+Goal:
+Provide operational visibility into key monetization.
+
+Current State:
+The project has `verification_logs`, `key_usage`, event infrastructure, and delivery/session analytics foundations, but key monetization analytics are not complete.
+
+Target State:
+Phase 7B should track enough information to review:
+
+- Key generation.
+- Work.ink completion to key issuance.
+- Key validation success/failure.
+- Expired key attempts.
+- Missing/invalid key denials.
+- Key-authorized delivery sessions.
+
+Risks:
+Analytics that overcollect raw keys or token data can leak credentials. Analytics that undercount delivery authorization can misrepresent monetization performance.
+
+## 11. Progress Assessment
+
+Current Phase 7B completion estimate based only on MAIN: 60%.
+
+Completed foundation:
+
+- Free key generation.
+- Work.ink integration.
+- Key validation.
+- Key expiration.
+- Token replay protection.
+- `access_mode` schema foundation.
+- Session-boundary `key_required` authorization foundation.
+
+Remaining work:
+
+- Dashboard key issuance.
+- Weekly/monthly/custom expiration controls.
+- Productized `key_required` script access controls.
+- Loader key forwarding.
+- Raw endpoint protection.
+- Key analytics.
+- Key monetization rollout checklist and tests.
+
+Production blockers:
+
+- Production loader does not forward keys.
+- Raw endpoint bypass must be resolved before key-required monetization can be trusted.
+- Dashboard does not yet expose key issuance or key-required access-mode management.
+
+Nice-to-have items:
+
+- Key hashing.
+- Script-scoped keys.
+- Creator-specific Work.ink campaigns.
+- Revenue attribution.
+- Rich conversion funnel analytics.
+
+Nice-to-have items are not required for Phase 7B and may require future migrations or design review.
+
+## 12. Recommended Implementation Order
+
+1. Update roadmap and planning documents to reflect Phase 7B Key Monetization and Phase 7C Premium License System.
+2. Confirm production stabilization entry criteria.
+3. Add tests/planning for raw endpoint access-mode protection.
+4. Productize `key_required` script access configuration.
+5. Add dashboard key issuance with 24-hour, weekly, monthly, and custom expiration.
+6. Add loader key forwarding only to the delivery-session endpoint.
+7. Add key analytics using existing operational tables where possible.
+8. Run security review focused on key leakage, raw endpoint bypass, and delivery-session authorization.
+
+## 13. Phase 7C Boundary
+
+All premium-license work is Phase 7C:
+
+- Runtime license enforcement.
+- Premium license assignment enforcement.
+- Customer identifiers.
+- Device binding.
+- License lookup hashes.
+- License verifier storage.
+- Premium analytics.
+- Assignment lifecycle.
+- Assignment capacity enforcement.
+- License counters and runtime audit trail.
+- `license_key` contract alignment.
+
+Phase 7C may require migrations or database functions. Those risks must not be introduced into Phase 7B.

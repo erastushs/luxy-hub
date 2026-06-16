@@ -156,4 +156,4 @@ Operational caveats:
 
 ## Phase Boundary
 
-This document describes current secure delivery behavior before Phase 7B. It does not add runtime license enforcement hardening, new APIs, schema changes, or loader delivery changes.
+This document describes current secure delivery behavior before Phase 7B Key Monetization. It does not add key monetization features, Phase 7C runtime license enforcement hardening, new APIs, schema changes, or loader delivery changes.

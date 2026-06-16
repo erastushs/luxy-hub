@@ -8,10 +8,10 @@ Scope: Future script-side runtime architecture for shared loaders, authorization
 Design freeze status:
 
 - Script Runtime Architecture: DESIGN FROZEN
-- Phase 7B: DESIGN COMPLETE
+- Phase 7B Key Monetization: DESIGN REALIGNED
 - Implementation: Not Started
 - Contract freeze: Complete in `contracts/`
-- Phase 7B implementation remains deferred until explicitly approved after the Production Stabilization Window.
+- Phase 7B Key Monetization implementation remains deferred until explicitly approved after the Production Stabilization Window. Premium license runtime behavior belongs to Phase 7C.
 
 Frozen contract documents:
 
@@ -1270,7 +1270,7 @@ Implementation guardrails for the future:
 - Do not let main game logic load before authorization succeeds.
 - Do not treat loader or runtime code as trusted security boundaries.
 - Do not add game-specific branches directly into the universal loader except for stable metadata routing.
-- Do not begin Phase 7B runtime license enforcement as part of script runtime architecture work.
+- Do not begin Phase 7C runtime license enforcement as part of script runtime architecture work.
 - Do not ship runtime contract changes without compatibility handling.
 - Do not ship experimental runtime behavior without server-owned feature flags and fallback behavior.
 - Do not scale beyond a few modules without a registry and ownership model.
@@ -1309,7 +1309,7 @@ Separate analytics systems prevent consistent reporting across products. Lifecyc
 - No website code changes.
 - No delivery system changes.
 - No Phase 7A changes.
-- No Phase 7B implementation.
+- No Phase 7B Key Monetization implementation.
 - No production behavior changes.
 - No database changes.
 - No migration changes.

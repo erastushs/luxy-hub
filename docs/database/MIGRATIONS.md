@@ -300,7 +300,7 @@ RLS changes:
 Operational notes:
 
 - Defaulting `scripts.access_mode` to `public` is production-safe because it preserves existing delivery behavior until scripts are explicitly changed.
-- This migration is license schema foundation only; runtime hardening for Phase 7B remains separate.
+- This migration is license schema foundation only; premium runtime hardening now belongs to Phase 7C and remains separate.
 
 ## Deployment Checks
 
@@ -347,5 +347,6 @@ ORDER BY tablename, indexname;
 
 - No schema changes are part of Documentation P1.
 - No ADRs are created in this phase.
-- Phase 7B runtime license enforcement hardening must not begin until after P1 completion.
+- Phase 7B Key Monetization should avoid new migrations unless a separately approved hardening track requires them.
+- Phase 7C Premium License System migration work must not be folded into Phase 7B.
 - License management should remain aligned with finalized loader integration requirements.

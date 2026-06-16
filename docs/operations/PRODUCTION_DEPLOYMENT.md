@@ -14,7 +14,7 @@ Expected production systems:
 - Event Platform: signed event reporting, database-backed queue, Discord delivery, dead-letter handling, internal alerts, GitHub Actions worker scheduler.
 - License Foundation: license schema, license lifecycle APIs, assignment APIs, license management dashboard, license analytics dashboard.
 
-Phase 7B runtime license enforcement hardening is planned separately and is not part of this deployment guide.
+Phase 7B Key Monetization and Phase 7C Premium License System work are planned separately and are not part of this deployment guide. Premium runtime license enforcement hardening belongs to Phase 7C.
 
 ## 1. Environment Setup
 

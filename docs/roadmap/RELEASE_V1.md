@@ -204,9 +204,10 @@ Current active track:
 
 - Production Stabilization Program: active observation window for production behavior, analytics accuracy, event platform stability, secure delivery stability, build stability, bug reports, user feedback, and runtime errors.
 
-Deferred track:
+Deferred tracks:
 
-- Phase 7B — Runtime License Enforcement: deferred because of the Production Stabilization Window. Implementation has not started. Design, threat model, and documentation are complete in `../phases/phase7/PHASE_7B_DESIGN.md` and `../phases/phase7/PHASE_7B_THREAT_MODEL.md`.
+- Phase 7B — Key Monetization: deferred because of the Production Stabilization Window. MAIN already contains free key generation, Work.ink flow, key validation, key expiration, `access_mode`, and key-required authorization foundation. Remaining work is dashboard key issuance, weekly/monthly/custom expiration keys, `key_required` script access, loader key forwarding, raw endpoint protection, and key analytics.
+- Phase 7C — Premium License System: deferred until after Phase 7B. Premium licenses, license assignments, customer identifiers, device binding, license lookup hashes, license verifier storage, premium analytics, runtime license enforcement, assignment lifecycle, and assignment capacity enforcement belong to Phase 7C.
 
 Future ordering:
 
@@ -214,7 +215,7 @@ Future ordering:
 2. QA & Test Coverage Expansion
 3. Operational Hardening
 4. Security Review
-5. Phase 7B — Runtime License Enforcement
+5. Phase 7B — Key Monetization
 6. Final Security Audit
 7. Release Candidate
 8. V1 Release
