@@ -1,7 +1,6 @@
 import { KeyRound, AlertTriangle, RefreshCw, ArrowLeft } from 'lucide-react'
 import CopyKeyButton from '@/app/components/CopyKeyButton'
-import { verifyWorkinkToken } from '@/app/lib/services/workink-service'
-import { createKey } from '@/app/lib/services/key-service'
+import { issueProviderKey } from '@/app/lib/services/provider-key-issuance-service'
 import Navbar from '@/app/components/Navbar'
 import Footer from '@/app/components/Footer'
 import { headers } from 'next/headers'
@@ -57,20 +56,16 @@ export default async function VerifyTokenPage({
   const clientIP = forwarded ? forwarded.split(',')[0].trim() : '127.0.0.1'
 
   try {
-    const workinkResult = await verifyWorkinkToken(token, clientIP)
+    const issuance = await issueProviderKey({ providerKey: 'workink', token, clientIP })
 
-    if (!workinkResult.success) {
-      status = { success: false, message: workinkResult.message }
+    if (!issuance.success) {
+      status = { success: false, message: issuance.message }
     } else {
-      const key = await createKey()
-      const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + 1)
-
       status = {
         success: true,
         message: 'Key generated successfully',
-        key,
-        expires_at: expiresAt.toISOString(),
+        key: issuance.key,
+        expires_at: issuance.expires_at,
       }
     }
   } catch {

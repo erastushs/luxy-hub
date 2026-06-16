@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/app/lib/rate-limiter'
 import { logEvent } from '@/app/lib/logger'
-import { verifyWorkinkToken } from '@/app/lib/services/workink-service'
-import { createKey } from '@/app/lib/services/key-service'
+import { issueProviderKey } from '@/app/lib/services/provider-key-issuance-service'
 import { isValidToken } from '@/app/lib/validators'
 
 export async function POST(req: NextRequest) {
@@ -33,9 +32,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const workinkResult = await verifyWorkinkToken(token, clientIP)
+    const issuance = await issueProviderKey({ providerKey: 'workink', token, clientIP })
 
-    if (!workinkResult.success) {
+    if (!issuance.success) {
       const statusMap: Record<string, number> = {
         'Token required': 400,
         'Too many requests': 429,
@@ -45,28 +44,23 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json(
-        { success: false, message: workinkResult.message },
-        { status: statusMap[workinkResult.message] || 500 }
+        { success: false, message: issuance.message },
+        { status: statusMap[issuance.message] || 500 }
       )
     }
-
-    const key = await createKey()
 
     await logEvent({
       event: 'KEY_GENERATED',
       ip: clientIP,
-      key,
+      key: issuance.key,
       message: 'Key generated via Work.ink verification',
     })
 
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 1)
-
     return NextResponse.json({
       success: true,
-      key,
-      expires_at: expiresAt.toISOString(),
-      tokenInfo: workinkResult.tokenInfo,
+      key: issuance.key,
+      expires_at: issuance.expires_at,
+      tokenInfo: issuance.verification.tokenInfo,
     })
   } catch {
     return NextResponse.json(
