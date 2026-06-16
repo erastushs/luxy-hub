@@ -6,6 +6,8 @@ export type KeyStatus =
   | { valid: true }
   | { valid: false; message: string; status: number }
 
+export const DEFAULT_KEY_DURATION_MS = 24 * 60 * 60 * 1000
+
 export async function validateKey(key: unknown): Promise<KeyStatus> {
   if (!key) {
     return { valid: false, message: 'Key is required', status: 400 }
@@ -32,9 +34,10 @@ export async function validateKey(key: unknown): Promise<KeyStatus> {
   return { valid: true }
 }
 
-export async function createKey(): Promise<string> {
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + 1)
+export async function createKeyWithExpiration(expiresAt: Date): Promise<string> {
+  if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+    throw new Error('Key expiration must be in the future')
+  }
 
   let attempts = 0
   while (attempts < 5) {
@@ -45,6 +48,21 @@ export async function createKey(): Promise<string> {
   }
 
   throw new Error('Failed to generate unique key after 5 attempts')
+}
+
+export async function createKeyRecord(expiresAt: Date): Promise<{ key: string; expires_at: string }> {
+  const key = await createKeyWithExpiration(expiresAt)
+
+  return {
+    key,
+    expires_at: expiresAt.toISOString(),
+  }
+}
+
+export async function createKey(): Promise<string> {
+  const record = await createKeyRecord(new Date(Date.now() + DEFAULT_KEY_DURATION_MS))
+
+  return record.key
 }
 
 export async function runKeyCleanup() {

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { LicensesClient } from '@/app/dashboard/licenses/licenses-client'
+import { KeysClient } from '@/app/dashboard/keys/keys-client'
 import { Sidebar } from '@/app/dashboard/components/Sidebar'
 
 vi.mock('next/navigation', () => ({
@@ -59,5 +60,22 @@ describe('license dashboard UI', () => {
 
     expect(html).toContain('/dashboard/licenses')
     expect(html).toContain('Licenses')
+  })
+
+  it('renders paid key issuance controls', () => {
+    const html = renderToStaticMarkup(<KeysClient />)
+
+    expect(html).toContain('Dashboard Key Issuance')
+    expect(html).toContain('Weekly')
+    expect(html).toContain('Monthly')
+    expect(html).toContain('Custom')
+    expect(html).toContain('Issue key')
+  })
+
+  it('adds keys to dashboard navigation', () => {
+    const html = renderToStaticMarkup(<Sidebar />)
+
+    expect(html).toContain('/dashboard/keys')
+    expect(html).toContain('Keys')
   })
 })

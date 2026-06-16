@@ -1,4 +1,4 @@
-import { createKey } from '@/app/lib/services/key-service'
+import { DEFAULT_KEY_DURATION_MS, createKeyRecord } from '@/app/lib/services/key-service'
 import { getProvider } from '@/app/lib/providers/registry'
 import type { ProviderKey, ProviderVerificationResult } from '@/app/lib/providers/types'
 
@@ -31,14 +31,12 @@ export async function issueProviderKey({
     return { success: false, message: verification.message, verification }
   }
 
-  const key = await createKey()
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + 1)
+  const key = await createKeyRecord(new Date(Date.now() + DEFAULT_KEY_DURATION_MS))
 
   return {
     success: true,
-    key,
-    expires_at: expiresAt.toISOString(),
+    key: key.key,
+    expires_at: key.expires_at,
     verification,
   }
 }

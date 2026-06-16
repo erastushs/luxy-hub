@@ -9,6 +9,7 @@ import {
   BarChart3,
   History,
   KeyRound,
+  Ticket,
   UserCircle,
   LogOut,
   type LucideIcon,
@@ -26,6 +27,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Scripts', href: '/dashboard/scripts', icon: FileCode },
+  { label: 'Keys', href: '/dashboard/keys', icon: Ticket },
   { label: 'Licenses', href: '/dashboard/licenses', icon: KeyRound },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { label: 'Versions', href: '/dashboard/versions', icon: History },

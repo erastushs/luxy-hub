@@ -21,7 +21,7 @@ export async function insertKey(key: string, expiresAt: string) {
     throw error
   }
 
-  return !error || error.code === '23505'
+  return !error
 }
 
 export async function deactivateExpiredKeys() {
