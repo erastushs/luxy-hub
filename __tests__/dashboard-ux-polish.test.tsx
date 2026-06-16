@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { LoaderSnippetCard } from '@/app/dashboard/components/LoaderSnippetCard'
 import { ScriptMetadataSummaryCard } from '@/app/dashboard/components/ScriptMetadataSummaryCard'
 import { Tooltip } from '@/app/dashboard/components/Tooltip'
-import { DEFAULT_SITE_URL } from '@/app/config/platform'
 import { getPublicSiteUrl } from '@/app/config/env'
 
 async function loadLoaderSnippetModule() {
@@ -23,7 +22,7 @@ describe('Dashboard UX polish components', () => {
   })
 
   it.each([
-    ['develop', 'https://www.luxyhub.dev'],
+    ['preview', 'https://preview.example.com'],
     ['production', 'https://www.luxyhub.space'],
   ])('supports %s site URL configuration', async (_environment, siteUrl) => {
     const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL
@@ -107,7 +106,14 @@ describe('Dashboard UX polish components', () => {
     expect(html).toContain('Loader URL')
   })
 
-  it('defaults to configured develop site URL when env is unset', () => {
-    expect(DEFAULT_SITE_URL).toBe('https://www.luxyhub.dev')
+  it('defaults to localhost when env is unset outside production', () => {
+    const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    delete process.env.NEXT_PUBLIC_SITE_URL
+
+    try {
+      expect(getPublicSiteUrl()).toBe('http://localhost:3000')
+    } finally {
+      if (originalSiteUrl !== undefined) process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl
+    }
   })
 })

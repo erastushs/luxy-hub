@@ -1,5 +1,3 @@
-import { DEFAULT_SITE_URL } from '@/app/config/platform'
-
 export const isProduction = process.env.NODE_ENV === 'production'
 
 export function getOptionalEnv(name: string): string | undefined {
@@ -17,7 +15,13 @@ export function getRequiredEnv(name: string): string {
 
 export function getPublicSiteUrl(): string {
   const configuredUrl = getOptionalEnv('NEXT_PUBLIC_SITE_URL')
-  return configuredUrl ? new URL(configuredUrl).origin : DEFAULT_SITE_URL
+  if (configuredUrl) return new URL(configuredUrl).origin
+
+  if (isProduction) {
+    throw new Error('NEXT_PUBLIC_SITE_URL is required in production')
+  }
+
+  return 'http://localhost:3000'
 }
 
 export function getPublicSupabaseUrl(): string {

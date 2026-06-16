@@ -1,5 +1,3 @@
-export const DEFAULT_SITE_URL = 'https://www.luxyhub.dev'
-
 export const paginationConfig = {
   defaultLimit: 20,
   defaultOffset: 0,

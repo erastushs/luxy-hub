@@ -41,7 +41,8 @@ function loadDotEnvLocal() {
 function assertDevelopmentOnly() {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
   const host = supabaseUrl ? new URL(supabaseUrl).host : ''
-  const unsafeSite = siteUrl && !siteUrl.includes('luxyhub.dev') && !siteUrl.includes('localhost')
+  const siteHost = siteUrl ? new URL(siteUrl).host : ''
+  const unsafeSite = siteHost && !['localhost', '127.0.0.1'].includes(siteHost.split(':')[0])
   const unsafeSupabase = host.includes('luxyhub.com') || host.includes('prod') || host.includes('production')
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
@@ -152,7 +153,7 @@ function staticMigrationValidation() {
 }
 
 async function createCreator(admin, suffix) {
-  const email = `${runId}_${suffix}@luxyhub.dev`
+  const email = `${runId}_${suffix}@example.test`
   const password = `${runId}_${suffix}_Password_123456!`
   const created = await admin.auth.admin.createUser({ email, password, email_confirm: true })
   if (created.error) throw new Error(`create ${suffix}: ${created.error.message}`)
