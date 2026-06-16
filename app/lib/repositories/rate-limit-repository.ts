@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { supabaseAdmin } from '@/app/lib/supabase'
 import { getAnalyticsPepper } from '@/app/config/env'
 import { rateLimitConfig, type RateLimitKey } from '@/app/config/rate-limits'
+export { getClientIP, getClientIPFromHeaders } from '@/app/lib/rate-limit-ip'
 
 export type LimitKey = RateLimitKey
 const LOGIN_FAILED_IP: 'LOGIN_FAILED_IP' = rateLimitConfig.loginFailure.ipEndpoint
@@ -11,28 +12,6 @@ type LoginFailureEndpoint = typeof LOGIN_FAILED_IP | typeof LOGIN_FAILED_EMAIL
 type LoginFailureLimitResult =
   | { allowed: true }
   | { allowed: false; retryAfter: number }
-
-export function getClientIP(request: Request): string {
-  return getClientIPFromHeaders(request.headers)
-}
-
-export function getClientIPFromHeaders(headers: Headers): string {
-  if (headers.has('x-vercel-forwarded-for')) {
-    return headers.get('x-vercel-forwarded-for')!.trim()
-  }
-
-  const forwarded = headers.get('x-forwarded-for')
-  if (forwarded) {
-    const ips = forwarded.split(',').map((s) => s.trim())
-    const ip = ips[ips.length - 1]
-    if (ip) return ip
-  }
-
-  const realIp = headers.get('x-real-ip')
-  if (realIp) return realIp.trim()
-
-  return '127.0.0.1'
-}
 
 export async function checkRateLimit(ip: string, limitKey: LimitKey) {
   const windowMs = rateLimitConfig.windowsMs[limitKey]

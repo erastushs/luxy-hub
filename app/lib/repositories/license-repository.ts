@@ -9,6 +9,7 @@ export type LicenseRow = {
   script_id: string
   creator_id: string
   key_hash: string
+  key_lookup_hash?: string | null
   max_assignments: number
   status: LicenseStatus
   activation_count: number
@@ -34,6 +35,7 @@ export type CreateLicenseParams = {
   scriptId: string
   creatorId: string
   keyHash: string
+  keyLookupHash?: string
   maxAssignments?: number
   status?: LicenseStatus
   expiresAt?: string | null
@@ -55,6 +57,7 @@ const LICENSE_SELECT = [
   'script_id',
   'creator_id',
   'key_hash',
+  'key_lookup_hash',
   'max_assignments',
   'status',
   'activation_count',
@@ -84,6 +87,7 @@ export async function createLicense(params: CreateLicenseParams): Promise<Licens
       script_id: params.scriptId,
       creator_id: params.creatorId,
       key_hash: params.keyHash,
+      key_lookup_hash: params.keyLookupHash ?? params.keyHash,
       max_assignments: params.maxAssignments ?? 1,
       status: params.status ?? 'active',
       expires_at: params.expiresAt ?? null,
@@ -116,11 +120,27 @@ export async function getLicenseForScriptByKeyHash(
     .from('licenses')
     .select(LICENSE_SELECT)
     .eq('script_id', scriptId)
-    .eq('key_hash', keyHash)
+    .or(`key_lookup_hash.eq.${keyHash},key_hash.eq.${keyHash}`)
     .maybeSingle()
 
   if (error) throw error
   return data as unknown as LicenseRow | null
+}
+
+export async function updateLicenseKeyHashes(
+  id: string,
+  params: { keyHash: string; keyLookupHash: string }
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('licenses')
+    .update({
+      key_hash: params.keyHash,
+      key_lookup_hash: params.keyLookupHash,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+
+  if (error) throw error
 }
 
 export async function getLicensesForScript(scriptId: string): Promise<LicenseRow[]> {

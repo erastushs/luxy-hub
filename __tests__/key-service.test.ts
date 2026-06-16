@@ -4,6 +4,7 @@ vi.mock('@/app/lib/repositories/key-repository', () => ({
   findKey: vi.fn(),
   insertKey: vi.fn(),
   deactivateExpiredKeys: vi.fn(),
+  upgradeKeyHash: vi.fn(),
 }))
 
 vi.mock('@/app/lib/key-generator', () => ({
@@ -11,18 +12,22 @@ vi.mock('@/app/lib/key-generator', () => ({
 }))
 
 import { createKey, validateKey } from '@/app/lib/services/key-service'
-import { findKey, insertKey } from '@/app/lib/repositories/key-repository'
+import { findKey, insertKey, upgradeKeyHash } from '@/app/lib/repositories/key-repository'
 import { generateKey } from '@/app/lib/key-generator'
 import { getFreeKeyFormat, isValidKeyFormat } from '@/app/lib/validators'
+import { hashFreeKeyLookup, hashLegacyFreeKeyLookup } from '@/app/lib/security/secret-hashing'
 
 const mockedFindKey = vi.mocked(findKey)
 const mockedInsertKey = vi.mocked(insertKey)
+const mockedUpgradeKeyHash = vi.mocked(upgradeKeyHash)
 const mockedGenerateKey = vi.mocked(generateKey)
 
 function keyRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 'key-uuid-1',
-    key: 'LUXY-FREE-ABCD-1234-EFGH',
+    key: null,
+    key_hash: hashFreeKeyLookup('LUXY-FREE-ABCD-1234-EFGH'),
+    hash_version: 'hmac-sha256:v1',
     is_active: true,
     expires_at: new Date(Date.now() + 60_000).toISOString(),
     created_at: '2026-01-01T00:00:00.000Z',
@@ -39,14 +44,25 @@ describe('key service authorization', () => {
     mockedFindKey.mockResolvedValue(keyRow())
 
     await expect(validateKey('LUXY-FREE-ABCD-1234-EFGH')).resolves.toEqual({ valid: true })
-    expect(mockedFindKey).toHaveBeenCalledWith('LUXY-FREE-ABCD-1234-EFGH')
+    expect(mockedFindKey).toHaveBeenCalledWith(hashFreeKeyLookup('LUXY-FREE-ABCD-1234-EFGH'))
+    expect(mockedUpgradeKeyHash).not.toHaveBeenCalled()
   })
 
-  it('accepts active legacy key format without rewriting it', async () => {
-    mockedFindKey.mockResolvedValue(keyRow({ key: 'LUXY-ABCD-1234-EFGH' }))
+  it('accepts active legacy key format and upgrades plaintext storage', async () => {
+    mockedFindKey
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(keyRow({
+        key: 'LUXY-ABCD-1234-EFGH',
+        key_hash: null,
+        hash_version: 'plaintext-legacy',
+      }))
 
     await expect(validateKey('LUXY-ABCD-1234-EFGH')).resolves.toEqual({ valid: true })
+    expect(mockedFindKey).toHaveBeenCalledWith(hashFreeKeyLookup('LUXY-ABCD-1234-EFGH'))
+    expect(mockedFindKey).toHaveBeenCalledWith(hashLegacyFreeKeyLookup('LUXY-ABCD-1234-EFGH'))
     expect(mockedFindKey).toHaveBeenCalledWith('LUXY-ABCD-1234-EFGH')
+    expect(mockedUpgradeKeyHash).toHaveBeenCalledWith('key-uuid-1', hashFreeKeyLookup('LUXY-ABCD-1234-EFGH'))
   })
 
   it('classifies free key formats centrally', () => {
@@ -94,6 +110,11 @@ describe('key service authorization', () => {
 
     await expect(createKey()).resolves.toBe('LUXY-FREE-UNIQ-UE00-0002')
     expect(mockedInsertKey).toHaveBeenCalledTimes(2)
+    expect(mockedInsertKey).toHaveBeenNthCalledWith(
+      2,
+      hashFreeKeyLookup('LUXY-FREE-UNIQ-UE00-0002'),
+      expect.any(String)
+    )
   })
 
   it('fails safely when duplicate generation exhausts retries', async () => {

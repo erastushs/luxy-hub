@@ -118,7 +118,7 @@ Symptoms:
 Diagnosis:
 
 - Check production `DELIVERY_PAYLOAD_SECRET`.
-- Confirm `SUPABASE_SERVICE_ROLE_KEY` is present if relying on fallback.
+- Confirm `DELIVERY_PAYLOAD_SECRET` is present; production does not use `SUPABASE_SERVICE_ROLE_KEY` as a payload-secret fallback.
 - Check environment variable scope and redeploy status.
 
 Recovery:
@@ -201,7 +201,7 @@ Escalation:
 Symptoms:
 
 - Builds are `ready` but fetch/runtime payload consumption fails.
-- Failure begins after `DELIVERY_PAYLOAD_SECRET` or fallback secret rotation.
+- Failure begins after `DELIVERY_PAYLOAD_SECRET` rotation.
 
 Diagnosis:
 

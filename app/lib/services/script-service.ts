@@ -35,6 +35,8 @@ import { MAX_SCRIPT_SIZE_DISPLAY } from '@/app/lib/constants/size-limits'
 import { logAuditEvent } from '@/app/lib/services/audit-service'
 import { createUploadChangelog, sanitizeSourceFilename } from '@/app/lib/source-file-metadata'
 import { runAutoBuildForVersion } from '@/app/lib/services/build-automation-service'
+import { authorizeDeliveryAccess } from '@/app/lib/services/delivery-authorization-service'
+import { recordLicenseDelivery } from '@/app/lib/services/license-service'
 
 export type { ScriptRow, ScriptStats, ListScriptsResult, ScriptAccessMode, Visibility, VersionRow, VersionSummaryRow }
 
@@ -479,8 +481,17 @@ export async function changeVisibility(
 
 export async function getRawContent(
   slug: unknown,
-  isAuthenticated: boolean = false
+  options: boolean | {
+    isAuthenticated?: boolean
+    key?: unknown
+    license?: unknown
+    customerIdentifier?: unknown
+  } = false
 ): Promise<RawContentResult> {
+  const request = typeof options === 'boolean'
+    ? { isAuthenticated: options }
+    : options
+
   if (!isValidSlug(slug)) {
     return { success: false, message: 'Invalid slug format', status: 400 }
   }
@@ -491,8 +502,27 @@ export async function getRawContent(
       return { success: false, message: 'Script not found', status: 404 }
     }
 
-    if (script.visibility === 'private' && !isAuthenticated) {
+    if (script.visibility === 'private' && !request.isAuthenticated) {
       return { success: false, message: 'This script is private', status: 403 }
+    }
+
+    if (!request.isAuthenticated) {
+      const authorization = await authorizeDeliveryAccess({
+        script,
+        key: request.key,
+        license: request.license,
+        customerIdentifier: request.customerIdentifier,
+      })
+
+      if (!authorization.success) {
+        return { success: false, message: authorization.message, status: authorization.status }
+      }
+
+      if (authorization.accessMode === 'license_required' && authorization.license) {
+        recordLicenseDelivery(authorization.license.id).catch((error: unknown) => {
+          console.error('[raw-script] failed to record license delivery', error)
+        })
+      }
     }
 
     if (!script.current_version_id) {
@@ -505,6 +535,20 @@ export async function getRawContent(
     }
 
     trackDownloadAsync(script.id, version.id, '0.0.0.0')
+
+    logAuditEvent({
+      actor_id: script.creator_id ?? 'runtime',
+      actor_role: request.isAuthenticated ? 'admin' : 'runtime',
+      action: 'script.raw_delivered',
+      resource_type: 'script',
+      resource_id: script.id,
+      metadata: {
+        slug: script.slug,
+        version_id: version.id,
+        access_mode: script.access_mode,
+        legacy_endpoint: true,
+      },
+    })
 
     return { success: true, content: version.content }
   } catch {

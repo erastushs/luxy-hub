@@ -1,6 +1,6 @@
 # Row Level Security Policies
 
-Status: Current through `migrations/013_license_schema_foundation.sql`.
+Status: Current through `migrations/016_license_hash_hardening.sql`.
 
 This document summarizes RLS behavior and security boundaries. It is not a substitute for reviewing the SQL migrations before production changes.
 
@@ -32,6 +32,8 @@ The following tables deny direct `anon` and `authenticated` access and are expec
 - `event_logs`
 - `alert_events`
 - `script_executions`
+
+Migration 014 also adds service-role-only runtime RPCs for license assignment authorization and delivery-count increments. Migration 015/016 add hashed key/license lookup columns without changing browser access policies.
 
 Security expectations:
 

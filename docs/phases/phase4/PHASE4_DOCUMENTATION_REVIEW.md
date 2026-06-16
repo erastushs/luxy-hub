@@ -54,7 +54,7 @@ Audit and synchronize all documentation with the actual implementation state. No
 | 11 | API endpoint count 18 vs actual 22 route methods | Medium | RELEASE_V1.md | Corrected to 22 |
 | 12 | Component count 14 vs actual 16 | Medium | RELEASE_V1.md | Corrected to 16 |
 | 13 | Phase 4.1/4.2 marked Not Started | Medium | TODO.md | Marked Complete |
-| 14 | Route tree missing /get-key, /verify-token, /docs/api, /dashboard/scripts/new, /dashboard/scripts/[slug]/edit, /dashboard/versions/* | Medium | TODO.md | Added missing routes |
+| 14 | Route tree missing /get-key, /verify-token, /docs/reference/api, /dashboard/scripts/new, /dashboard/scripts/[slug]/edit, /dashboard/versions/* | Medium | TODO.md | Added missing routes |
 | 15 | PHASE3E_AUTH_UI.md listed remaining work that is now complete | Low | PHASE3E_AUTH_UI.md | Struck through completed items |
 | 16 | API_INTEGRATION.md base URL line mentioned old api.luxyhub.space | Low | API_INTEGRATION.md | Clarified no dedicated subdomain |
 | 17 | ../../../AGENTS.md had no dashboard conventions | Medium | ../../../AGENTS.md | Added full conventions block |

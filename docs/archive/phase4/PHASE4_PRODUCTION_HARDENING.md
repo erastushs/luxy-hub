@@ -279,7 +279,7 @@ Build output confirms all routes:
 ○ /login (static)
 ○ /get-key (static)
 ○ /verify-token (static)
-○ /docs/api (static)
+○ /docs/reference/api (static)
 ○ /robots.txt (static)
 ○ /sitemap.xml (static)
 ƒ /dashboard (dynamic — requires session)

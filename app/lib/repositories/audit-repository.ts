@@ -4,6 +4,7 @@ export type AuditAction =
   | 'script.created'
   | 'script.updated'
   | 'script.deleted'
+  | 'script.raw_delivered'
   | 'script.visibility_changed'
   | 'script.version_created'
   | 'license.created'

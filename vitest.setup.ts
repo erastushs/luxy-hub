@@ -1,0 +1,7 @@
+process.env.NEXT_PUBLIC_SUPABASE_URL ??= 'https://test.supabase.co'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= 'test-anon-key'
+process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'test-service-role-key'
+process.env.ANALYTICS_PEPPER ??= 'test-analytics-pepper'
+process.env.KEY_HASH_SECRET ??= 'test-key-hash-secret'
+process.env.LICENSE_HASH_SECRET ??= 'test-license-hash-secret'
+process.env.DELIVERY_PAYLOAD_SECRET ??= 'test-delivery-payload-secret'

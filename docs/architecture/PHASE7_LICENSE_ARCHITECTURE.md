@@ -198,7 +198,8 @@ Required fields:
 | `id` | Primary key |
 | `script_id` | Licensed script |
 | `creator_id` | Owning creator; derived from server session in creator APIs |
-| `key_hash` | Hash/HMAC of generated license key; raw key is never stored |
+| `key_hash` | Scrypt verifier for generated license key; legacy SHA-256 hashes are upgraded after successful validation |
+| `key_lookup_hash` | Deterministic HMAC lookup hash used for script/license validation queries |
 | `max_assignments` | Device/customer assignment limit |
 | `status` | `active`, `disabled`, `revoked` |
 | `activation_count` | Count of new assignment activations |
@@ -223,7 +224,7 @@ Do not use a separate `expired` status. Expiry is derived from `expires_at`:
 
 Recommended constraints and indexes:
 
-- `key_hash` unique.
+- `key_lookup_hash` indexed with `script_id` for validation lookup.
 - `max_assignments > 0`.
 - `status in ('active', 'disabled', 'revoked')`.
 - Index `(script_id, status)` for delivery authorization.

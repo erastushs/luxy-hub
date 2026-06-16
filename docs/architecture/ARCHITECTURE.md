@@ -25,7 +25,7 @@ www.luxyhub.space
 ├── /login
 ├── /get-key
 ├── /verify-token
-├── /docs/api
+├── /docs/reference/api
 ├── /dashboard
 ├── /dashboard/scripts
 ├── /dashboard/scripts/new
@@ -253,7 +253,15 @@ Raw script delivery remains available through:
 GET /api/scripts/[slug]/raw
 ```
 
-This endpoint returns raw script content for public and unlisted scripts. Private raw reads require `Authorization: Bearer <ADMIN_API_KEY>`. Authenticated creator/session access is used for management and owner-scoped APIs; cron secrets are not accepted for admin raw reads.
+This legacy compatibility endpoint now uses the same access-mode authorization model as secure delivery for non-admin callers:
+
+- `public` scripts can be read without credentials.
+- `key_required` scripts require a valid `key` query parameter.
+- `license_required` scripts require a valid `license`/`license_key` and `customer_identifier` query parameter.
+- `private` scripts remain unavailable to public callers.
+- Admin operational reads require `Authorization: Bearer <ADMIN_API_KEY>`; cron secrets are not accepted for admin raw reads.
+
+New runtime integrations should prefer `/api/delivery/session` plus `/api/delivery/fetch`. Raw delivery remains only as a compatibility migration path and records audit events plus delivery counters where applicable.
 
 Secure loader delivery is also implemented:
 
@@ -400,7 +408,7 @@ Current accepted decisions:
 - `decisions/ADR-005-build-automation-failure-model.md` — source mutations and derived delivery build generation have separate failure and recovery behavior.
 - `decisions/ADR-006-verification-logs-as-monitoring-counters.md` — monitoring counters originate from `verification_logs` and runtime event tables until a dedicated metrics system is justified.
 - `decisions/ADR-007-webhook-credential-storage-risk.md` — current webhook credential storage risks are accepted with operational mitigations and rotation processes.
-- `decisions/ADR-008-payload-secret-fallback-policy.md` — payload encryption prefers `DELIVERY_PAYLOAD_SECRET` with documented fallback and rotation implications.
+- `decisions/ADR-008-payload-secret-fallback-policy.md` — superseded payload secret policy; production now requires `DELIVERY_PAYLOAD_SECRET` and does not fall back to `SUPABASE_SERVICE_ROLE_KEY`.
 - `decisions/ADR-009-license-authorization-model.md` — `scripts.access_mode` is the accepted license/key/public delivery authorization model; Phase 7B implementation and hardening are complete.
 
 ## Roadmap Alignment

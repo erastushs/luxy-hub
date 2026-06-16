@@ -44,6 +44,28 @@ export function getAnalyticsPepper(): string {
   return getOptionalEnv('ANALYTICS_PEPPER') ?? 'dev-pepper'
 }
 
+export function getKeyHashSecret(): string {
+  const secret = getOptionalEnv('KEY_HASH_SECRET') ?? getOptionalEnv('ANALYTICS_PEPPER')
+  if (secret) return secret
+
+  if (isProduction) {
+    throw new Error('KEY_HASH_SECRET is required in production')
+  }
+
+  return 'dev-key-hash-secret'
+}
+
+export function getLicenseHashSecret(): string {
+  const secret = getOptionalEnv('LICENSE_HASH_SECRET') ?? getOptionalEnv('ANALYTICS_PEPPER')
+  if (secret) return secret
+
+  if (isProduction) {
+    throw new Error('LICENSE_HASH_SECRET is required in production')
+  }
+
+  return 'dev-license-hash-secret'
+}
+
 export function getTurnstileSecretKey(): string | undefined {
   return getOptionalEnv('TURNSTILE_SECRET_KEY')
 }
@@ -53,7 +75,7 @@ export function getTurnstileSiteKey(): string | undefined {
 }
 
 export function getDeliveryPayloadSecret(): string | undefined {
-  return getOptionalEnv('DELIVERY_PAYLOAD_SECRET') ?? getOptionalEnv('SUPABASE_SERVICE_ROLE_KEY')
+  return getOptionalEnv('DELIVERY_PAYLOAD_SECRET')
 }
 
 export function getDeliveryPayloadSecretOrDevDefault(): string {

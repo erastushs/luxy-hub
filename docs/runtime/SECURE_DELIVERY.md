@@ -135,7 +135,8 @@ Delivery build requirements:
 
 Operational caveats:
 
-- If `DELIVERY_PAYLOAD_SECRET` or fallback `SUPABASE_SERVICE_ROLE_KEY` changes, existing payloads encrypted under the old effective secret may require rebuild.
+- `DELIVERY_PAYLOAD_SECRET` is required in production. The secure delivery runtime no longer falls back to `SUPABASE_SERVICE_ROLE_KEY` for payload encryption.
+- If `DELIVERY_PAYLOAD_SECRET` changes, existing payloads encrypted under the old secret require rebuild.
 - `DELIVERY_PAYLOAD_KEY_ID` is metadata only; changing it does not decrypt old payloads by itself.
 - A ready build can become unusable if the server no longer has the secret required by payload consumer logic.
 

@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import {
   authorizeLicenseAssignment,
   createLicense as createLicenseRow,
@@ -12,11 +12,20 @@ import {
   incrementLicenseDeliveryCount,
   removeLicenseAssignment,
   revokeLicense as revokeLicenseRow,
+  updateLicenseKeyHashes,
   type LicenseAssignmentRow,
   type LicenseRow,
 } from '@/app/lib/repositories/license-repository'
 import { logAuditEvent } from '@/app/lib/services/audit-service'
 import { licenseConfig } from '@/app/config/licenses'
+import {
+  hashCustomerIdentifier,
+  hashLicenseLookup,
+  hashLicenseVerifier,
+  isLegacyLicenseVerifier,
+  legacyLicenseVerifier,
+  verifyLicenseVerifier,
+} from '@/app/lib/security/secret-hashing'
 
 const LICENSE_KEY_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
@@ -66,7 +75,7 @@ export function generateRawLicenseKey(): string {
 }
 
 export function hashLicenseSecret(value: string): string {
-  return createHash('sha256').update(value).digest('hex')
+  return hashLicenseLookup(value)
 }
 
 export function normalizeCustomerIdentifier(value: unknown): string | null {
@@ -86,7 +95,8 @@ export async function createLicense(input: CreateLicenseInput): Promise<CreateLi
   const license = await createLicenseRow({
     scriptId: input.script_id,
     creatorId: input.creator_id,
-    keyHash: hashLicenseSecret(rawKey),
+    keyHash: hashLicenseVerifier(rawKey),
+    keyLookupHash: hashLicenseLookup(rawKey),
     maxAssignments: input.max_assignments,
     expiresAt: input.expires_at ?? null,
   })
@@ -145,11 +155,21 @@ export async function validateLicense({
   }
   }
 
-  const licenseRow = await getLicenseForScriptByKeyHash(scriptId, hashLicenseSecret(rawLicense))
+  const lookupHash = hashLicenseLookup(rawLicense)
+  const legacyLookupHash = legacyLicenseVerifier(rawLicense)
+  const licenseRow = await getLicenseForScriptByKeyHash(scriptId, lookupHash)
+    ?? await getLicenseForScriptByKeyHash(scriptId, legacyLookupHash)
 
-  if (!licenseRow || licenseRow.status !== 'active') {
+  if (!licenseRow || !verifyLicenseVerifier(rawLicense, licenseRow.key_hash) || licenseRow.status !== 'active') {
     if (licenseRow) logRuntimeLicenseAudit(licenseRow, null, 'license.authorization_denied', 'invalid_license')
     return { success: false, status: 403, message: 'Invalid license', reason: 'invalid_license' }
+  }
+
+  if (isLegacyLicenseVerifier(licenseRow.key_hash) || licenseRow.key_lookup_hash !== lookupHash) {
+    await updateLicenseKeyHashes(licenseRow.id, {
+      keyHash: hashLicenseVerifier(rawLicense),
+      keyLookupHash: lookupHash,
+    })
   }
 
   if (licenseRow.expires_at && new Date(licenseRow.expires_at).getTime() <= Date.now()) {
@@ -157,8 +177,10 @@ export async function validateLicense({
     return { success: false, status: 403, message: 'Invalid license', reason: 'invalid_license' }
   }
 
-  const customerIdentifierHash = hashLicenseSecret(normalizedCustomerIdentifier)
+  const customerIdentifierHash = hashCustomerIdentifier(normalizedCustomerIdentifier)
+  const legacyCustomerIdentifierHash = legacyLicenseVerifier(normalizedCustomerIdentifier)
   const existingAssignment = await getLicenseAssignmentByCustomerHash(licenseRow.id, customerIdentifierHash)
+    ?? await getLicenseAssignmentByCustomerHash(licenseRow.id, legacyCustomerIdentifierHash)
 
   if (existingAssignment) {
     if (existingAssignment.status !== 'active') {
@@ -171,7 +193,7 @@ export async function validateLicense({
 
   const authorization = await authorizeLicenseAssignment({
     licenseId: licenseRow.id,
-    customerIdentifierHash,
+      customerIdentifierHash,
     displayName: null,
   })
 
@@ -251,7 +273,7 @@ export async function createAssignment(input: CreateAssignmentInput): Promise<Li
 
   const authorization = await authorizeLicenseAssignment({
     licenseId: input.license_id,
-    customerIdentifierHash: hashLicenseSecret(normalizedCustomerIdentifier),
+      customerIdentifierHash: hashCustomerIdentifier(normalizedCustomerIdentifier),
     displayName: input.display_name ?? null,
   })
 

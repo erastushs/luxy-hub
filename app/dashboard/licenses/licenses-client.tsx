@@ -9,6 +9,12 @@ import { CopyButton } from '@/app/dashboard/components/CopyButton'
 import { EmptyState } from '@/app/dashboard/components/EmptyState'
 import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
 import { formatDate, formatDateTime } from '@/app/dashboard/lib/format-date'
+import {
+  createLicenseAction,
+  createLicenseAssignmentAction,
+  removeLicenseAssignmentAction,
+  updateLicenseStatusAction,
+} from '@/app/actions/licenses'
 
 type ScriptOption = {
   id: string
@@ -104,6 +110,10 @@ function formatUtilization(used: number, maxAssignments: number) {
 async function readApiError(response: Response, fallback: string) {
   const body = await response.json().catch(() => null) as { message?: unknown } | null
   return typeof body?.message === 'string' ? body.message : fallback
+}
+
+function readActionError(result: { success: false; message: string }, fallback: string) {
+  return result.message || fallback
 }
 
 function LicenseListSkeleton() {
@@ -455,25 +465,20 @@ export function LicensesClient({
     startTransition(async () => {
       setError(null)
       try {
-        const response = await fetch('/api/licenses', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            script_id: scriptId,
-            max_assignments: Number.isInteger(maxAssignments) && maxAssignments > 0 ? maxAssignments : 1,
-            expires_at: expiresAt ? new Date(`${expiresAt}T00:00:00`).toISOString() : null,
-          }),
+        const result = await createLicenseAction({
+          scriptId,
+          maxAssignments: Number.isInteger(maxAssignments) && maxAssignments > 0 ? maxAssignments : 1,
+          expiresAt: expiresAt ? new Date(`${expiresAt}T00:00:00`).toISOString() : null,
         })
 
-        if (!response.ok) {
-          setError(await readApiError(response, 'Failed to create license'))
+        if (!result.success) {
+          setError(readActionError(result, 'Failed to create license'))
           return
         }
 
-        const body = await response.json() as { license?: string }
         if (requestId !== createLicenseRequestId.current || scriptId !== selectedScriptId) return
 
-        setCreatedLicense(body.license ?? null)
+        setCreatedLicense(result.license)
         toast.success('License created')
 
         const listResponse = await fetch(`/api/licenses?script_id=${encodeURIComponent(scriptId)}`)
@@ -495,16 +500,13 @@ export function LicensesClient({
     startTransition(async () => {
       setError(null)
       try {
-        const response = await fetch(`/api/licenses/${id}/${action}`, { method: 'POST' })
-        if (!response.ok) {
-          setError(await readApiError(response, `Failed to ${action} license`))
+        const result = await updateLicenseStatusAction(id, action)
+        if (!result.success) {
+          setError(readActionError(result, `Failed to ${action} license`))
           return
         }
 
-        const body = await response.json() as { license?: LicenseItem }
-        if (body.license) {
-          setLicenses((current) => current.map((license) => license.id === id ? body.license! : license))
-        }
+        setLicenses((current) => current.map((license) => license.id === id ? result.license : license))
         toast.success(`License ${action === 'disable' ? 'disabled' : action === 'enable' ? 'enabled' : 'revoked'}`)
       } catch {
         setError(`Failed to ${action} license`)
@@ -513,15 +515,12 @@ export function LicensesClient({
   }
 
   async function runSingleLicenseStatusUpdate(id: string, action: BulkAction) {
-    const response = await fetch(`/api/licenses/${id}/${action}`, { method: 'POST' })
-    if (!response.ok) {
-      throw new Error(await readApiError(response, `Failed to ${action} license`))
+    const result = await updateLicenseStatusAction(id, action)
+    if (!result.success) {
+      throw new Error(readActionError(result, `Failed to ${action} license`))
     }
 
-    const body = await response.json() as { license?: LicenseItem }
-    if (body.license) {
-      setLicenses((current) => current.map((license) => license.id === id ? body.license! : license))
-    }
+    setLicenses((current) => current.map((license) => license.id === id ? result.license : license))
   }
 
   async function confirmBulkAction() {
@@ -573,9 +572,9 @@ export function LicensesClient({
   async function removeAssignment(licenseId: string, assignmentId: string) {
     startTransition(async () => {
       try {
-        const response = await fetch(`/api/licenses/${licenseId}/assignments/${assignmentId}`, { method: 'DELETE' })
-        if (!response.ok) {
-          setError(await readApiError(response, 'Failed to remove assignment'))
+        const result = await removeLicenseAssignmentAction(licenseId, assignmentId)
+        if (!result.success) {
+          setError(readActionError(result, 'Failed to remove assignment'))
           return
         }
 
@@ -626,17 +625,14 @@ export function LicensesClient({
       }))
 
       try {
-        const response = await fetch(`/api/licenses/${licenseId}/assignments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customer_identifier: customerIdentifier,
-            display_name: displayName || null,
-          }),
+        const result = await createLicenseAssignmentAction({
+          licenseId,
+          customerIdentifier,
+          displayName: displayName || null,
         })
 
-        if (!response.ok) {
-          const message = await readApiError(response, 'Failed to create assignment')
+        if (!result.success) {
+          const message = readActionError(result, 'Failed to create assignment')
           setAssignmentsByLicense((state) => ({
             ...state,
             [licenseId]: {
@@ -649,15 +645,14 @@ export function LicensesClient({
           return
         }
 
-        const body = await response.json() as { assignment?: AssignmentItem }
         setAssignmentsByLicense((state) => {
           const current = state[licenseId]
           const existingItems = current?.items ?? []
-          assignmentAlreadyExists = body.assignment
-            ? existingItems.some((assignment) => assignment.id === body.assignment?.id)
+          assignmentAlreadyExists = result.assignment
+            ? existingItems.some((assignment) => assignment.id === result.assignment.id)
             : false
-          const nextItems = body.assignment && !assignmentAlreadyExists
-            ? [body.assignment, ...existingItems]
+          const nextItems = result.assignment && !assignmentAlreadyExists
+            ? [result.assignment, ...existingItems]
             : existingItems
 
           return {

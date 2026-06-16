@@ -3,17 +3,19 @@ import { supabaseAdmin } from '@/app/lib/supabase'
 export async function findKey(key: string) {
   const { data, error } = await supabaseAdmin
     .from('keys')
-    .select('id, key, is_active, expires_at, created_at')
-    .eq('key', key)
-    .single()
+    .select('id, key, key_hash, hash_version, is_active, expires_at, created_at')
+    .or(`key.eq.${key},key_hash.eq.${key}`)
+    .maybeSingle()
 
   if (error) return null
   return data
 }
 
-export async function insertKey(key: string, expiresAt: string): Promise<boolean> {
+export async function insertKey(keyHash: string, expiresAt: string): Promise<boolean> {
   const { error } = await supabaseAdmin.from('keys').insert({
-    key,
+    key: null,
+    key_hash: keyHash,
+    hash_version: 'hmac-sha256:v1',
     expires_at: expiresAt,
   })
 
@@ -30,6 +32,19 @@ export async function insertKey(key: string, expiresAt: string): Promise<boolean
   }
 
   return false
+}
+
+export async function upgradeKeyHash(id: string, keyHash: string): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('keys')
+    .update({
+      key: null,
+      key_hash: keyHash,
+      hash_version: 'hmac-sha256:v1',
+    })
+    .eq('id', id)
+
+  if (error) throw error
 }
 
 export async function deactivateExpiredKeys() {

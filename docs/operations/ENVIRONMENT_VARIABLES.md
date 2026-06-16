@@ -90,13 +90,13 @@ Used by:
 
 - `app/lib/supabase.ts`
 - Server-side repositories and services through `supabaseAdmin`.
-- Delivery payload encryption fallback when `DELIVERY_PAYLOAD_SECRET` is unset.
+- Database administrative access only. It is not used as a delivery payload encryption fallback.
 
 Security considerations:
 
 - Highly sensitive. Never expose to browser code or public logs.
 - Bypasses RLS when used server-side, so application-level ownership checks remain mandatory.
-- If used as delivery payload secret fallback, rotating this key can affect payload decryption unless delivery builds are rebuilt with the new effective secret.
+- Rotating this key does not affect delivery payload decryption when `DELIVERY_PAYLOAD_SECRET` is configured as required.
 
 Rotation guidance:
 
@@ -262,7 +262,7 @@ Used by:
 Security considerations:
 
 - Sensitive. Must be strong and stable across build and fetch operations.
-- If unset, delivery payload encryption falls back to `SUPABASE_SERVICE_ROLE_KEY`.
+- Required in production. If unset, production build/runtime delivery fails fast instead of falling back to `SUPABASE_SERVICE_ROLE_KEY`.
 - Setting this variable decouples payload encryption from database service-role key rotation.
 
 Rotation guidance:

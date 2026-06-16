@@ -21,8 +21,14 @@ export async function GET(
 
     const { slug } = await params
     const isAuthenticated = verifyAdminAuth(req)
+    const url = new URL(req.url)
 
-    const result = await getRawContent(slug, isAuthenticated)
+    const result = await getRawContent(slug, {
+      isAuthenticated,
+      key: url.searchParams.get('key'),
+      license: url.searchParams.get('license') ?? url.searchParams.get('license_key'),
+      customerIdentifier: url.searchParams.get('customer_identifier'),
+    })
 
     if (!result.success) {
       return NextResponse.json(

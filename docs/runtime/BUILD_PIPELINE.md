@@ -49,7 +49,7 @@ Flow:
 6. Mark build `building`.
 7. Reject empty normalized source.
 8. Gzip-compress normalized source at level 9.
-9. Encrypt compressed payload with AES-256-GCM using derived key from `DELIVERY_PAYLOAD_SECRET` or `SUPABASE_SERVICE_ROLE_KEY` fallback.
+9. Encrypt compressed payload with AES-256-GCM using a derived key from `DELIVERY_PAYLOAD_SECRET`. Production does not fall back to `SUPABASE_SERVICE_ROLE_KEY`.
 10. Bind encryption AAD to payload format version, version id, and source hash.
 11. Serialize encrypted payload JSON containing version, algorithm, key id, compression, IV, tag, and data.
 12. Compute `payload_sha256` of serialized ciphertext JSON.
@@ -127,7 +127,7 @@ Failure behavior:
 
 Condition:
 
-- Production has neither `DELIVERY_PAYLOAD_SECRET` nor `SUPABASE_SERVICE_ROLE_KEY` available to build service.
+- Production is missing `DELIVERY_PAYLOAD_SECRET`.
 
 Result:
 

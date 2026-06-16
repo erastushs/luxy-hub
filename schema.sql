@@ -7,10 +7,13 @@
 -- Core key storage
 CREATE TABLE IF NOT EXISTS keys (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  key text NOT NULL UNIQUE,
+  key text UNIQUE,
+  key_hash text UNIQUE,
+  hash_version text NOT NULL DEFAULT 'hmac-sha256:v1',
   created_at timestamp with time zone DEFAULT now(),
   expires_at timestamp with time zone NOT NULL,
-  is_active boolean DEFAULT true
+  is_active boolean DEFAULT true,
+  CONSTRAINT keys_lookup_present CHECK (key_hash IS NOT NULL OR key IS NOT NULL)
 );
 
 -- Work.ink token replay protection

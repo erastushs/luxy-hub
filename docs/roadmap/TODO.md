@@ -1,6 +1,6 @@
 # LuxyHub Roadmap TODO
 
-Last updated: 2026-06-12
+Last updated: 2026-06-16
 
 ## Current Status
 
@@ -39,7 +39,7 @@ Status: ACTIVE
 - [ ] Validate assignment capacity under usage
 - [ ] Review error reports
 - [ ] Review monitoring data
-- [ ] Verify rollback readiness
+- [x] Verify rollback readiness documentation and executable rollback validation path
 - [ ] Verify production deployment checklist
 
 ## Release Candidate Program Goals
@@ -56,7 +56,7 @@ Status: ACTIVE
 ## Remaining Before Production Rollout
 
 - Complete Release Candidate Validation on `luxyhub.dev`.
-- Execute rollback drill in an isolated development database.
+- Execute rollback drill against `TEST_DATABASE_URL` before final production rollout if not already run in the release environment.
 - Review production rollout checklist and release approval.
 
 ## Deferred Ideas

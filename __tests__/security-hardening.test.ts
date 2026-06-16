@@ -187,6 +187,11 @@ describe('security hardening', () => {
 
     expect(response.status).toBe(200)
     expect(response.headers.get('Cache-Control')).toBe('no-store')
-    expect(mockedGetRawContent).toHaveBeenCalledWith('private-script', true)
+    expect(mockedGetRawContent).toHaveBeenCalledWith('private-script', {
+      isAuthenticated: true,
+      key: null,
+      license: null,
+      customerIdentifier: null,
+    })
   })
 })

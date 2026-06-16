@@ -349,7 +349,8 @@ Key columns:
 - `id`: primary key.
 - `script_id`: licensed script, `ON DELETE CASCADE`.
 - `creator_id`: owner, `ON DELETE CASCADE`.
-- `key_hash`: SHA-256 hash of raw license key.
+- `key_hash`: scrypt verifier for the raw license key. Legacy SHA-256 hashes remain valid only during migration and are upgraded on successful validation.
+- `key_lookup_hash`: deterministic HMAC lookup hash for script/key queries.
 - `max_assignments`: assignment capacity.
 - `status`: `active`, `disabled`, or `revoked`.
 - `activation_count`, `delivery_count`: counters reserved for license activity metrics.
@@ -372,7 +373,8 @@ Indexes:
 
 - `idx_licenses_script_id` for script license listing.
 - `idx_licenses_creator_id` for owner queries.
-- `idx_licenses_script_key_hash` unique for license validation by script and key hash.
+- `idx_licenses_script_key_hash` legacy index for pre-hardening validation.
+- `idx_licenses_key_lookup_hash` for hardened license validation by script and lookup hash.
 - `idx_licenses_status` for lifecycle filtering.
 - `idx_licenses_expires_at` partial index for expiring licenses.
 
@@ -494,7 +496,9 @@ Purpose: Legacy/current key validation records for key-based access.
 Key columns:
 
 - `id`: primary key.
-- `key`: unique generated key.
+- `key`: nullable legacy generated key column. New keys are not stored here.
+- `key_hash`: deterministic HMAC lookup hash for new keys. Migrated legacy keys use `legacy-sha256:` until first successful validation upgrades them.
+- `hash_version`: key hash scheme marker.
 - `created_at`: creation timestamp.
 - `expires_at`: required expiration timestamp.
 - `is_active`: active flag.
@@ -510,7 +514,7 @@ Ownership:
 
 Indexes:
 
-- Unique constraint on `key` supports validation lookup.
+- `idx_keys_key_hash` unique index supports validation lookup without plaintext key persistence.
 
 Security boundaries:
 
@@ -529,7 +533,7 @@ Key columns:
 
 Relationships:
 
-- Logical relationship to `keys.key`; no FK is defined.
+- Logical relationship to legacy key usage records; no FK is defined.
 
 Ownership:
 

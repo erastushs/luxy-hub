@@ -2,7 +2,7 @@
 
 Release date: 2026-06-08
 Status: Phase 3 Complete snapshot — current project has completed Phase 4, Phase 5, Phase 6, Analytics V1, Phase 8 Event Platform, Phase 7A, Phase 7B, Analytics V2, Testing Expansion, and Operational Hardening
-Note: This is a Phase 3 release snapshot. Current architecture docs have been updated in ARCHITECTURE.md.
+Note: This is a Phase 3 release snapshot. Current architecture docs have been updated in ARCHITECTURE.md. RC hardening supersedes raw delivery, key storage, license hashing, and delivery payload-secret details in this snapshot.
 
 ## Overview
 

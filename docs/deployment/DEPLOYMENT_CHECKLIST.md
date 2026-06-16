@@ -42,7 +42,9 @@ Optional variables:
 
 | Variable | Required | Secret | Description |
 |----------|----------|--------|-------------|
-| `DELIVERY_PAYLOAD_SECRET` | No | **Yes** | Explicit payload encryption secret; falls back to `SUPABASE_SERVICE_ROLE_KEY` |
+| `DELIVERY_PAYLOAD_SECRET` | Yes | **Yes** | Explicit payload encryption secret; no production fallback is permitted |
+| `KEY_HASH_SECRET` | Yes | **Yes** | HMAC secret for free-key lookup hashes; may use `ANALYTICS_PEPPER` only during migration |
+| `LICENSE_HASH_SECRET` | Yes | **Yes** | HMAC secret for license key lookup hashes; may use `ANALYTICS_PEPPER` only during migration |
 | `DELIVERY_PAYLOAD_KEY_ID` | No | No | Non-secret key identifier stored in delivery payload metadata |
 | `NEXT_PUBLIC_SITE_URL` | No | No | Trusted origin used by sensitive CORS checks when different from request origin |
 
@@ -119,7 +121,7 @@ AND indexname IN (
   'idx_audit_logs_actor_created_at',
   'idx_delivery_builds_version_status',
   'idx_delivery_sessions_token_hash',
-  'keys_key_key',
+  'idx_keys_key_hash',
   'keys_pkey',
   'used_workink_tokens_pkey',
   'rate_limits_pkey',
@@ -639,7 +641,7 @@ Store production env vars in a secure password manager (1Password, LastPass, Bit
 - [ ] Open `https://luxyhub.vercel.app` in browser
 - [ ] Public landing page renders
 - [ ] Navigate to `/get-key` — page renders with Work.ink link
-- [ ] Navigate to `/docs/api` — API documentation page renders
+- [ ] Navigate to `/docs/reference/api` — API documentation page renders
 - [ ] Navigate to `/login` — Turnstile widget renders
 - [ ] Unauthenticated `/dashboard` redirects to `/login`
 

@@ -86,7 +86,7 @@ export default async function DashboardHomePage() {
         <h2 className="text-lg font-semibold text-white mb-4">Developer Resources</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Link
-            href="/docs/api"
+            href="/docs/reference/api"
             className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 hover:border-zinc-600 hover:bg-zinc-900 transition-colors"
           >
             <Code2 className="h-5 w-5 text-zinc-500 group-hover:text-red-400 transition-colors" aria-hidden="true" />

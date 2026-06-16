@@ -492,6 +492,8 @@ export const docsSections: DocsSection[] = [
       path.join(DOCS_ROOT, 'releases', 'RC_STATUS.md'),
       path.join(DOCS_ROOT, 'PROJECT_STATUS.md'),
       path.join(DOCS_ROOT, 'releases', 'RC_TEST_PLAN.md'),
+      path.join(DOCS_ROOT, 'releases', 'ROLLBACK_DRILL_REPORT.md'),
+      path.join(DOCS_ROOT, 'releases', 'PRODUCTION_READINESS_REPORT.md'),
     ],
     quickLinks: [
       { label: 'Checklist', href: '/docs/releases/checklist' },
@@ -520,5 +522,4 @@ export function getRelatedDocs(section: DocsSection) {
 export function getChildSections(parentHref: string) {
   return docsSections.filter((s) => s.parent === parentHref)
 }
-
 

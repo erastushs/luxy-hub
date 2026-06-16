@@ -18,6 +18,7 @@ vi.mock('@/app/lib/repositories/license-repository', () => ({
   incrementLicenseDeliveryCount: vi.fn(),
   removeLicenseAssignment: vi.fn(),
   revokeLicense: vi.fn(),
+  updateLicenseKeyHashes: vi.fn(),
 }))
 
 vi.mock('@/app/lib/services/audit-service', () => ({
@@ -54,8 +55,10 @@ import {
   incrementLicenseDeliveryCount,
   removeLicenseAssignment,
   revokeLicense as revokeLicenseRow,
+  updateLicenseKeyHashes,
 } from '@/app/lib/repositories/license-repository'
 import { logAuditEvent } from '@/app/lib/services/audit-service'
+import { hashCustomerIdentifier, legacyLicenseVerifier } from '@/app/lib/security/secret-hashing'
 
 const mockedAuthorizeLicenseAssignment = vi.mocked(authorizeLicenseAssignment)
 const mockedCreateLicenseRow = vi.mocked(createLicenseRow)
@@ -71,6 +74,7 @@ const mockedIncrementLicenseDeliveryCount = vi.mocked(incrementLicenseDeliveryCo
 const mockedLogAuditEvent = vi.mocked(logAuditEvent)
 const mockedRemoveLicenseAssignment = vi.mocked(removeLicenseAssignment)
 const mockedRevokeLicenseRow = vi.mocked(revokeLicenseRow)
+const mockedUpdateLicenseKeyHashes = vi.mocked(updateLicenseKeyHashes)
 
 function futureIso(seconds: number = 60): string {
   return new Date(Date.now() + seconds * 1000).toISOString()
@@ -85,7 +89,8 @@ function mockLicenseRow(overrides: Partial<LicenseRow> = {}): LicenseRow {
     id: 'license-uuid-1',
     script_id: 'script-uuid-1',
     creator_id: 'creator-uuid-1',
-    key_hash: 'a'.repeat(64),
+    key_hash: legacyLicenseVerifier('LUXY-PREM-XXXX-XXXX-XXXX'),
+    key_lookup_hash: legacyLicenseVerifier('LUXY-PREM-XXXX-XXXX-XXXX'),
     max_assignments: 3,
     status: 'active',
     activation_count: 0,
@@ -142,8 +147,8 @@ describe('license service', () => {
       maxAssignments: 3,
       expiresAt: '2026-07-01T00:00:00.000Z',
     }))
-    expect(createParams.keyHash).toMatch(/^[a-f0-9]{64}$/)
-    expect(createParams.keyHash).toBe(hashLicenseSecret(result.raw_key))
+    expect(createParams.keyHash).toMatch(/^scrypt:v1:/)
+    expect(createParams.keyLookupHash).toBe(hashLicenseSecret(result.raw_key))
     expect(JSON.stringify(createParams)).not.toContain(result.raw_key)
     expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
       action: 'license.created',
@@ -258,7 +263,7 @@ describe('license service', () => {
     const createParams = mockedAuthorizeLicenseAssignment.mock.calls[0][0]
     expect(createParams).toEqual({
       licenseId: 'license-uuid-1',
-      customerIdentifierHash: hashLicenseSecret('customer@example.com'),
+      customerIdentifierHash: hashCustomerIdentifier('customer@example.com'),
       displayName: 'Customer 1',
     })
     expect(createParams.customerIdentifierHash).toMatch(/^[a-f0-9]{64}$/)
@@ -372,7 +377,7 @@ describe('license service', () => {
     })).resolves.toEqual({ success: true, license, assignment, assignmentCreated: false })
     expect(mockedGetLicenseAssignmentByCustomerHash).toHaveBeenCalledWith(
       'license-uuid-1',
-      hashLicenseSecret('customer-1')
+      hashCustomerIdentifier('customer-1')
     )
     expect(mockedCreateLicenseAssignment).not.toHaveBeenCalled()
     expect(mockedAuthorizeLicenseAssignment).not.toHaveBeenCalled()
@@ -389,6 +394,27 @@ describe('license service', () => {
         reason: 'assignment_reused',
       }),
     }))
+  })
+
+  it('upgrades legacy license hashes after successful validation', async () => {
+    const license = mockLicenseRow({
+      key_hash: legacyLicenseVerifier('LUXY-PREM-XXXX-XXXX-XXXX'),
+      key_lookup_hash: legacyLicenseVerifier('LUXY-PREM-XXXX-XXXX-XXXX'),
+    })
+    const assignment = mockAssignmentRow()
+    mockedGetLicenseForScriptByKeyHash.mockResolvedValue(license)
+    mockedGetLicenseAssignmentByCustomerHash.mockResolvedValue(assignment)
+
+    await expect(validateLicense({
+      scriptId: 'script-uuid-1',
+      license: 'LUXY-PREM-XXXX-XXXX-XXXX',
+      customerIdentifier: 'customer-1',
+    })).resolves.toEqual({ success: true, license, assignment, assignmentCreated: false })
+
+    expect(mockedUpdateLicenseKeyHashes).toHaveBeenCalledWith('license-uuid-1', {
+      keyHash: expect.stringMatching(/^scrypt:v1:/),
+      keyLookupHash: hashLicenseSecret('LUXY-PREM-XXXX-XXXX-XXXX'),
+    })
   })
 
   it('rejects license validation when customer identifier is missing', async () => {
@@ -442,7 +468,7 @@ describe('license service', () => {
     })).resolves.toEqual({ success: true, license, assignment, assignmentCreated: true })
     expect(mockedAuthorizeLicenseAssignment).toHaveBeenCalledWith({
       licenseId: 'license-uuid-1',
-      customerIdentifierHash: hashLicenseSecret('customer-1'),
+      customerIdentifierHash: hashCustomerIdentifier('customer-1'),
       displayName: null,
     })
     expect(mockedLogAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
@@ -477,7 +503,7 @@ describe('license service', () => {
     )
     expect(mockedGetLicenseAssignmentByCustomerHash).toHaveBeenCalledWith(
       'license-uuid-1',
-      hashLicenseSecret('customer@example.com')
+      hashCustomerIdentifier('customer@example.com')
     )
   })
 

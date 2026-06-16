@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { DocsMarkdownContent } from '@/app/lib/docs/docs-markdown-content'
 import { resolveDocLinks } from '@/app/lib/docs/doc-link-resolver'
@@ -22,6 +22,9 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: DocsSectionPageProps): Promise<Metadata> {
   const { slug } = await params
   const slugStr = slug.join('/')
+  if (slugStr === 'api') {
+    redirect('/docs/reference/api')
+  }
   const section = getDocsSection(slugStr)
 
   if (!section) {

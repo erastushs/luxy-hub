@@ -1,7 +1,8 @@
-import { findKey, insertKey, deactivateExpiredKeys } from '@/app/lib/repositories/key-repository'
+import { findKey, insertKey, deactivateExpiredKeys, upgradeKeyHash } from '@/app/lib/repositories/key-repository'
 import { generateKey } from '@/app/lib/key-generator'
 import { isValidKeyFormat } from '@/app/lib/validators'
 import { freeKeyConfig } from '@/app/config/free-keys'
+import { hashFreeKeyLookup, hashLegacyFreeKeyLookup } from '@/app/lib/security/secret-hashing'
 
 export type KeyStatus =
   | { valid: true }
@@ -16,7 +17,12 @@ export async function validateKey(key: unknown): Promise<KeyStatus> {
     return { valid: false, message: 'Invalid key', status: 403 }
   }
 
-  const record = await findKey(key)
+  const rawKey = key.trim()
+  const currentHash = hashFreeKeyLookup(rawKey)
+  const legacyHash = hashLegacyFreeKeyLookup(rawKey)
+  const record = await findKey(currentHash)
+    ?? await findKey(legacyHash)
+    ?? await findKey(rawKey)
 
   if (!record) {
     return { valid: false, message: 'Invalid key', status: 403 }
@@ -30,6 +36,10 @@ export async function validateKey(key: unknown): Promise<KeyStatus> {
     return { valid: false, message: 'Invalid key', status: 403 }
   }
 
+  if (record.key_hash !== currentHash || record.key !== null) {
+    await upgradeKeyHash(record.id, currentHash)
+  }
+
   return { valid: true }
 }
 
@@ -40,7 +50,7 @@ export async function createKey(): Promise<string> {
   let attempts = 0
   while (attempts < freeKeyConfig.maxGenerationAttempts) {
     const key = generateKey()
-    const inserted = await insertKey(key, expiresAt.toISOString())
+    const inserted = await insertKey(hashFreeKeyLookup(key), expiresAt.toISOString())
     if (inserted) return key
     attempts++
   }

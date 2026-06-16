@@ -31,7 +31,7 @@ Purpose:
 Impact:
 
 - Incorrect value can break most server-side database operations.
-- If used as fallback payload secret, rotation may also affect delivery payload decryption unless builds are rebuilt with the new effective secret.
+- `SUPABASE_SERVICE_ROLE_KEY` is not used as a payload secret fallback. Delivery payload compatibility is controlled by `DELIVERY_PAYLOAD_SECRET`.
 
 Rotation procedure:
 
@@ -43,7 +43,7 @@ Rotation procedure:
 6. Validate dashboard login and script listing.
 7. Validate `/api/delivery/session` and `/api/delivery/fetch` for a known deliverable script.
 8. Validate `/api/internal/event-worker` with `CRON_SECRET`.
-9. If `DELIVERY_PAYLOAD_SECRET` is not set, rebuild delivery payloads because service role key fallback changed.
+9. Confirm `DELIVERY_PAYLOAD_SECRET` is still set after rotation. If it changed, rebuild delivery payloads.
 10. Revoke old key only after validation.
 
 Common failures:
@@ -51,7 +51,7 @@ Common failures:
 - All DB-backed routes return `500`.
 - Rate limiter fails closed.
 - Event worker returns database errors.
-- Delivery build/fetch fails if secret fallback changed.
+- Delivery build/fetch fails if `DELIVERY_PAYLOAD_SECRET` changed without rebuilding payloads.
 
 Escalation:
 
