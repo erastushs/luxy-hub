@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     const result = await issuePaidKey(
       duration === 'custom'
-        ? { duration, expiresAt: typeof body.expires_at === 'string' ? body.expires_at : '', name, description }
+        ? { duration, expiresAt: typeof body.expires_at === 'string' ? body.expires_at : '', maxDevices: normalizeMaxDevices(body.maxDevices), name, description }
         : { duration, name, description }
     )
 
@@ -55,4 +55,9 @@ export async function POST(req: NextRequest) {
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ success: false, message }, { status })
+}
+
+function normalizeMaxDevices(value: unknown): number | null {
+  if (value === null || typeof value === 'undefined') return null
+  return typeof value === 'number' ? value : Number.NaN
 }

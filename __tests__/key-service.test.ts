@@ -8,6 +8,14 @@ vi.mock('@/app/lib/repositories/key-repository', () => ({
   setKeyActiveState: vi.fn(),
 }))
 
+vi.mock('@/app/lib/repositories/key-device-repository', () => ({
+  countDevicesForKeys: vi.fn(),
+}))
+
+vi.mock('@/app/lib/services/device-limit-service', () => ({
+  enforceDeviceLimit: vi.fn(),
+}))
+
 vi.mock('@/app/lib/key-generator', () => ({
   generateFreeKey: vi.fn(),
   generateKey: vi.fn(),
@@ -15,16 +23,21 @@ vi.mock('@/app/lib/key-generator', () => ({
 }))
 
 import { generateFreeKey, generateKey, generatePremiumKey } from '@/app/lib/key-generator'
-import { insertKey, listKeys, setKeyActiveState } from '@/app/lib/repositories/key-repository'
-import { createKey, createKeyRecord, createKeyWithExpiration, getDashboardKeyStatus, listDashboardKeys, updateDashboardKeyState } from '@/app/lib/services/key-service'
+import { findKey, insertKey, listKeys, setKeyActiveState } from '@/app/lib/repositories/key-repository'
+import { countDevicesForKeys } from '@/app/lib/repositories/key-device-repository'
+import { createKey, createKeyRecord, createKeyWithExpiration, getDashboardKeyStatus, listDashboardKeys, updateDashboardKeyState, validateKey } from '@/app/lib/services/key-service'
+import { enforceDeviceLimit } from '@/app/lib/services/device-limit-service'
 import { isValidKeyFormat } from '@/app/lib/validators'
 
 const mockedGenerateFreeKey = vi.mocked(generateFreeKey)
 const mockedGenerateKey = vi.mocked(generateKey)
 const mockedGeneratePremiumKey = vi.mocked(generatePremiumKey)
 const mockedInsertKey = vi.mocked(insertKey)
+const mockedFindKey = vi.mocked(findKey)
 const mockedListKeys = vi.mocked(listKeys)
 const mockedSetKeyActiveState = vi.mocked(setKeyActiveState)
+const mockedCountDevicesForKeys = vi.mocked(countDevicesForKeys)
+const mockedEnforceDeviceLimit = vi.mocked(enforceDeviceLimit)
 
 describe('key service', () => {
   beforeEach(() => {
@@ -46,6 +59,7 @@ describe('key service', () => {
       expiresAt: '2026-06-17T00:00:00.000Z',
       keyCategory: 'legacy',
       keyType: 'legacy',
+      maxDevices: null,
       name: null,
       description: null,
     })
@@ -77,6 +91,7 @@ describe('key service', () => {
       expiresAt: '2026-06-20T00:00:00.000Z',
       keyCategory: 'free',
       keyType: 'legacy',
+      maxDevices: null,
       name: null,
       description: null,
     })
@@ -95,6 +110,7 @@ describe('key service', () => {
       expiresAt: '2026-06-20T00:00:00.000Z',
       keyCategory: 'free',
       keyType: 'free',
+      maxDevices: null,
       name: null,
       description: null,
     })
@@ -118,6 +134,7 @@ describe('key service', () => {
       expiresAt: '2026-06-20T00:00:00.000Z',
       keyCategory: 'premium',
       keyType: 'legacy',
+      maxDevices: null,
       name: 'Monthly Discord',
       description: 'June supporter',
     })
@@ -139,11 +156,14 @@ describe('key service', () => {
       { id: 'key-1', key: 'LUXY-AAAA-BBBB-CCCC', is_active: true, expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-16T00:00:00.000Z' },
       { id: 'key-2', key: 'LUXY-DDDD-EEEE-FFFF', is_active: true, expires_at: '2026-06-16T00:00:00.000Z', created_at: '2026-06-15T00:00:00.000Z' },
       { id: 'key-3', key: 'LUXY-GGGG-HHHH-IIII', is_active: false, expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-14T00:00:00.000Z' },
-    ].map((key) => ({ ...key, key_category: 'premium' as const, key_type: 'weekly' as const, name: 'Premium Key', description: null })))
+    ].map((key) => ({ ...key, key_category: 'premium' as const, key_type: 'weekly' as const, max_devices: 1, name: 'Premium Key', description: null })))
+    mockedCountDevicesForKeys.mockResolvedValue({ 'key-1': 1, 'key-2': 0, 'key-3': 2 })
 
     const result = await listDashboardKeys('AAAA')
 
     expect(mockedListKeys).toHaveBeenCalledWith({ search: 'AAAA', limit: 200, category: 'premium' })
+    expect(mockedCountDevicesForKeys).toHaveBeenCalledWith(['key-1', 'key-2', 'key-3'])
+    expect(result.keys.map((key) => key.device_count)).toEqual([1, 0, 2])
     expect(result.keys.map((key) => key.status)).toEqual(['active', 'expired', 'disabled'])
     expect(result.summary).toEqual({ total: 3, active: 1, expired: 1, disabled: 1 })
   })
@@ -156,6 +176,7 @@ describe('key service', () => {
       key: 'LUXY-AAAA-BBBB-CCCC',
       key_category: 'premium',
       key_type: 'monthly',
+      max_devices: 3,
       name: 'Monthly Discord',
       description: null,
       is_active: false,
@@ -167,6 +188,32 @@ describe('key service', () => {
 
     expect(mockedSetKeyActiveState).toHaveBeenCalledWith('key-1', false)
     expect(result?.status).toBe('disabled')
+  })
+
+  it('enforces device limits when fingerprint context is provided', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-17T00:00:00.000Z'))
+    mockedFindKey.mockResolvedValue({
+      id: 'key-1',
+      key: 'LUXY-PREM-AAAA-BBBB',
+      key_category: 'premium',
+      key_type: 'weekly',
+      max_devices: 1,
+      name: null,
+      description: null,
+      is_active: true,
+      expires_at: '2026-06-18T00:00:00.000Z',
+      created_at: '2026-06-16T00:00:00.000Z',
+    })
+    mockedEnforceDeviceLimit.mockResolvedValue({ allowed: false, message: 'Device limit reached', status: 403 })
+
+    const result = await validateKey('LUXY-PREM-AAAA-BBBB', {
+      executorIdentifier: 'executor-1',
+      clientIdentifier: 'client-1',
+    })
+
+    expect(mockedEnforceDeviceLimit).toHaveBeenCalled()
+    expect(result).toEqual({ valid: false, message: 'Device limit reached', status: 403 })
   })
 })
   it('validates legacy, free, and premium key formats', () => {

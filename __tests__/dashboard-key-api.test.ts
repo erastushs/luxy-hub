@@ -100,10 +100,44 @@ describe('dashboard key API', () => {
       duration: 'custom',
       name: 'Giveaway Winner',
       expires_at: '2026-07-01T00:00:00.000Z',
+      maxDevices: 10,
     }))
 
     expect(response.status).toBe(201)
-    expect(mockedIssuePaidKey).toHaveBeenCalledWith({ duration: 'custom', expiresAt: '2026-07-01T00:00:00.000Z', name: 'Giveaway Winner', description: null })
+    expect(mockedIssuePaidKey).toHaveBeenCalledWith({ duration: 'custom', expiresAt: '2026-07-01T00:00:00.000Z', maxDevices: 10, name: 'Giveaway Winner', description: null })
+  })
+
+  it('passes unlimited custom max devices to the paid key service', async () => {
+    mockedIssuePaidKey.mockResolvedValue({
+      key: 'LUXY-CUST-BBBB-CCCC',
+      expires_at: '2026-07-01T00:00:00.000Z',
+      duration: 'custom',
+    })
+
+    const response = await issueDashboardKeyRoute(jsonRequest({
+      duration: 'custom',
+      name: 'Partner',
+      expires_at: '2026-07-01T00:00:00.000Z',
+      maxDevices: null,
+    }))
+
+    expect(response.status).toBe(201)
+    expect(mockedIssuePaidKey).toHaveBeenCalledWith({ duration: 'custom', expiresAt: '2026-07-01T00:00:00.000Z', maxDevices: null, name: 'Partner', description: null })
+  })
+
+  it('returns validation errors for invalid custom max devices', async () => {
+    mockedIssuePaidKey.mockRejectedValue(new PaidKeyValidationError('Custom max devices must be between 1 and 100'))
+
+    const response = await issueDashboardKeyRoute(jsonRequest({
+      duration: 'custom',
+      name: 'Bad',
+      expires_at: '2026-07-01T00:00:00.000Z',
+      maxDevices: 0,
+    }))
+    const body = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(body).toEqual({ success: false, message: 'Custom max devices must be between 1 and 100' })
   })
 
   it('rejects invalid durations before issuing', async () => {
@@ -117,7 +151,7 @@ describe('dashboard key API', () => {
 
   it('lists dashboard keys with summary data', async () => {
     mockedListDashboardKeys.mockResolvedValue({
-      keys: [{ id: 'key-1', key: 'LUXY-PREM-AAAA-BBBB', key_category: 'premium', key_type: 'monthly', name: 'Monthly Discord', description: null, is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
+      keys: [{ id: 'key-1', key: 'LUXY-PREM-AAAA-BBBB', key_category: 'premium', key_type: 'monthly', max_devices: 3, device_count: 2, name: 'Monthly Discord', description: null, is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
       summary: { total: 1, active: 1, expired: 0, disabled: 0 },
     })
 
@@ -128,7 +162,7 @@ describe('dashboard key API', () => {
     expect(mockedListDashboardKeys).toHaveBeenCalledWith('AAAA')
     expect(body).toEqual({
       success: true,
-      keys: [{ id: 'key-1', key: 'LUXY-PREM-AAAA-BBBB', key_category: 'premium', key_type: 'monthly', name: 'Monthly Discord', description: null, is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
+      keys: [{ id: 'key-1', key: 'LUXY-PREM-AAAA-BBBB', key_category: 'premium', key_type: 'monthly', max_devices: 3, device_count: 2, name: 'Monthly Discord', description: null, is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
       summary: { total: 1, active: 1, expired: 0, disabled: 0 },
     })
   })
@@ -139,6 +173,8 @@ describe('dashboard key API', () => {
       key: 'LUXY-PREM-AAAA-BBBB',
       key_category: 'premium',
       key_type: 'weekly',
+      max_devices: 1,
+      device_count: 0,
       name: 'Monthly Discord',
       description: null,
       is_active: false,

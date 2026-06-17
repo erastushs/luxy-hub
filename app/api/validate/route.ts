@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => null)
-    const { key } = body || {}
+    const { key, executor_identifier, client_identifier } = body || {}
 
     if (!body || typeof body !== 'object') {
       return NextResponse.json(
@@ -32,7 +32,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const result = await validateKey(key)
+    const result = await validateKey(key, {
+      executorIdentifier: executor_identifier,
+      clientIdentifier: client_identifier,
+    })
 
     if (!result.valid) {
       await logEvent({

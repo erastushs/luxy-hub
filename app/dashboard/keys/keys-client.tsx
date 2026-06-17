@@ -34,6 +34,7 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [customExpiresAt, setCustomExpiresAt] = useState('')
+  const [customMaxDevices, setCustomMaxDevices] = useState('')
   const [issuedKey, setIssuedKey] = useState<IssuedKey | null>(null)
   const [keys, setKeys] = useState(initialKeys)
   const [summary, setSummary] = useState(initialSummary)
@@ -90,6 +91,9 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
           expires_at: duration === 'custom' && customExpiresAt
             ? new Date(customExpiresAt).toISOString()
             : undefined,
+          maxDevices: duration === 'custom'
+            ? serializeCustomMaxDevices(customMaxDevices)
+            : undefined,
         }),
       })
       const body = await response.json().catch(() => ({})) as Record<string, unknown>
@@ -102,6 +106,7 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
       setIssuedKey({ key: String(body.key), expires_at: String(body.expires_at) })
       setName('')
       setDescription('')
+      setCustomMaxDevices('')
       await refreshKeys()
     } catch {
       setError('Failed to issue key')
@@ -194,6 +199,7 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
                   <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">Key</th>
                   <th className="px-4 py-3 font-medium">Type</th>
+                  <th className="px-4 py-3 font-medium">Devices</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Expires</th>
                   <th className="px-4 py-3 font-medium">Created</th>
@@ -203,7 +209,7 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
               <tbody className="divide-y divide-zinc-800 bg-zinc-900/20">
                 {keys.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">No keys found.</td>
+                    <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">No keys found.</td>
                   </tr>
                 ) : keys.map((key) => (
                   <tr key={key.id}>
@@ -217,6 +223,7 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
                       <code className="whitespace-nowrap text-xs text-zinc-200">{key.key}</code>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-zinc-300">{key.key_type}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-zinc-300">{formatDeviceLimit(key)}</td>
                     <td className="px-4 py-3"><StatusBadge status={key.status} /></td>
                     <td className="whitespace-nowrap px-4 py-3 text-zinc-400">{formatDate(key.expires_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-zinc-400">{formatDate(key.created_at)}</td>
@@ -247,6 +254,8 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
             setDuration={setDuration}
             customExpiresAt={customExpiresAt}
             setCustomExpiresAt={setCustomExpiresAt}
+            customMaxDevices={customMaxDevices}
+            setCustomMaxDevices={setCustomMaxDevices}
             isSubmitting={isSubmitting}
             onSubmit={handleSubmit}
           />
@@ -282,6 +291,8 @@ function CreateKeyForm({
   setDuration,
   customExpiresAt,
   setCustomExpiresAt,
+  customMaxDevices,
+  setCustomMaxDevices,
   isSubmitting,
   onSubmit,
 }: {
@@ -293,6 +304,8 @@ function CreateKeyForm({
   setDuration: (duration: Duration) => void
   customExpiresAt: string
   setCustomExpiresAt: (value: string) => void
+  customMaxDevices: string
+  setCustomMaxDevices: (value: string) => void
   isSubmitting: boolean
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
 }) {
@@ -368,17 +381,36 @@ function CreateKeyForm({
       </fieldset>
 
       {duration === 'custom' && (
-        <div className="mt-5">
-          <label htmlFor="custom-expires-at" className="block text-sm font-medium text-zinc-200">Custom expiration</label>
-          <input
-            id="custom-expires-at"
-            type="datetime-local"
-            value={customExpiresAt}
-            onChange={(event) => setCustomExpiresAt(event.target.value)}
-            required
-            className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-600/40"
-          />
-          <p className="mt-2 text-xs text-zinc-500">Custom keys must expire in the future and within 366 days.</p>
+        <div className="mt-5 space-y-4">
+          <div>
+            <label htmlFor="custom-expires-at" className="block text-sm font-medium text-zinc-200">Custom expiration</label>
+            <input
+              id="custom-expires-at"
+              type="datetime-local"
+              value={customExpiresAt}
+              onChange={(event) => setCustomExpiresAt(event.target.value)}
+              required
+              className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-600/40"
+            />
+            <p className="mt-2 text-xs text-zinc-500">Custom keys must expire in the future and within 366 days.</p>
+          </div>
+
+          <div>
+            <label htmlFor="custom-max-devices" className="block text-sm font-medium text-zinc-200">Max Devices</label>
+            <input
+              id="custom-max-devices"
+              type="number"
+              min={1}
+              max={100}
+              step={1}
+              inputMode="numeric"
+              value={customMaxDevices}
+              onChange={(event) => setCustomMaxDevices(event.target.value)}
+              placeholder="Unlimited"
+              className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-red-500 focus:ring-2 focus:ring-red-600/40"
+            />
+            <p className="mt-2 text-xs text-zinc-500">Leave blank for unlimited. Custom limits must be whole numbers from 1 to 100.</p>
+          </div>
         </div>
       )}
 
@@ -442,6 +474,16 @@ function StatusBadge({ status }: { status: DashboardKey['status'] }) {
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function formatDeviceLimit(key: DashboardKey) {
+  const count = key.device_count ?? 0
+  return typeof key.max_devices === 'number' ? `${count} / ${key.max_devices}` : `${count} / Unlimited`
+}
+
+export function serializeCustomMaxDevices(value: string): number | null {
+  const trimmed = value.trim()
+  return trimmed ? Number(trimmed) : null
 }
 
 function isSummary(value: unknown): value is KeySummary {

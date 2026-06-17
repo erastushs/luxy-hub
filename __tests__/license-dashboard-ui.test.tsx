@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { LicensesClient } from '@/app/dashboard/licenses/licenses-client'
-import { KeysClient } from '@/app/dashboard/keys/keys-client'
+import { KeysClient, serializeCustomMaxDevices } from '@/app/dashboard/keys/keys-client'
 import { Sidebar } from '@/app/dashboard/components/Sidebar'
 
 vi.mock('next/navigation', () => ({
@@ -70,14 +70,29 @@ describe('license dashboard UI', () => {
           key: 'LUXY-PREM-AAAA-BBBB',
           key_category: 'premium',
           key_type: 'monthly',
+          max_devices: 3,
+          device_count: 2,
           name: 'Monthly Discord',
           description: 'June supporter',
           is_active: true,
           status: 'active',
           expires_at: '2026-06-18T00:00:00.000Z',
           created_at: '2026-06-17T00:00:00.000Z',
+        }, {
+          id: 'key-2',
+          key: 'LUXY-PREM-UNLM-BBBB',
+          key_category: 'premium',
+          key_type: 'custom',
+          max_devices: null,
+          device_count: 0,
+          name: 'Partner',
+          description: null,
+          is_active: true,
+          status: 'active',
+          expires_at: '2026-06-18T00:00:00.000Z',
+          created_at: '2026-06-17T00:00:00.000Z',
         }]}
-        initialSummary={{ total: 1, active: 1, expired: 0, disabled: 0 }}
+        initialSummary={{ total: 2, active: 2, expired: 0, disabled: 0 }}
       />
     )
 
@@ -89,6 +104,9 @@ describe('license dashboard UI', () => {
     expect(html).toContain('Existing keys')
     expect(html).toContain('Type')
     expect(html).toContain('monthly')
+    expect(html).toContain('Devices')
+    expect(html).toContain('2 / 3')
+    expect(html).toContain('0 / Unlimited')
     expect(html).toContain('Monthly Discord')
     expect(html).toContain('June supporter')
     expect(html).toContain('LUXY-PREM-AAAA-BBBB')
@@ -106,5 +124,11 @@ describe('license dashboard UI', () => {
 
     expect(html).toContain('/dashboard/keys')
     expect(html).toContain('Keys')
+  })
+
+  it('serializes blank custom max devices as unlimited', () => {
+    expect(serializeCustomMaxDevices('')).toBeNull()
+    expect(serializeCustomMaxDevices('   ')).toBeNull()
+    expect(serializeCustomMaxDevices('10')).toBe(10)
   })
 })

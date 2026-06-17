@@ -1,6 +1,8 @@
 import { findKey, insertKey, deactivateExpiredKeys, listKeys, setKeyActiveState, type KeyCategory, type KeyRow, type KeyType } from '@/app/lib/repositories/key-repository'
 import { generateFreeKey, generateKey, generatePremiumKey } from '@/app/lib/key-generator'
 import { isValidKeyFormat } from '@/app/lib/validators'
+import { enforceDeviceLimit, type DeviceFingerprintInput } from '@/app/lib/services/device-limit-service'
+import { countDevicesForKeys } from '@/app/lib/repositories/key-device-repository'
 
 export type KeyStatus =
   | { valid: true }
@@ -26,11 +28,12 @@ export type CreateKeyRecordInput = {
   expiresAt: Date
   keyCategory?: KeyCategory
   keyType?: KeyType
+  maxDevices?: number | null
   name?: string | null
   description?: string | null
 }
 
-export async function validateKey(key: unknown): Promise<KeyStatus> {
+export async function validateKey(key: unknown, fingerprintInput?: DeviceFingerprintInput): Promise<KeyStatus> {
   if (!key) {
     return { valid: false, message: 'Key is required', status: 400 }
   }
@@ -51,6 +54,13 @@ export async function validateKey(key: unknown): Promise<KeyStatus> {
 
   if (new Date(record.expires_at) < new Date()) {
     return { valid: false, message: 'Invalid key', status: 403 }
+  }
+
+  if (fingerprintInput) {
+    const deviceLimit = await enforceDeviceLimit(record, fingerprintInput)
+    if (!deviceLimit.allowed) {
+      return { valid: false, message: deviceLimit.message, status: deviceLimit.status }
+    }
   }
 
   return { valid: true }
@@ -78,6 +88,7 @@ export async function createKeyRecord(input: Date | CreateKeyRecordInput): Promi
       expiresAt: expiresAt.toISOString(),
       keyCategory: params.keyCategory ?? 'legacy',
       keyType: params.keyType ?? 'legacy',
+      maxDevices: params.maxDevices ?? null,
       name: params.name ?? null,
       description: params.description ?? null,
     })
@@ -107,7 +118,11 @@ export async function runKeyCleanup() {
 export async function listDashboardKeys(search?: unknown): Promise<{ keys: DashboardKey[]; summary: KeySummary }> {
   const normalizedSearch = typeof search === 'string' && search.trim().length > 0 ? search.trim() : null
   const keys = await listKeys({ search: normalizedSearch, limit: 200, category: 'premium' })
-  const dashboardKeys = keys.map(serializeDashboardKey)
+  const deviceCounts = await countDevicesForKeys(keys.map((key) => key.id))
+  const dashboardKeys = keys.map((key) => serializeDashboardKey({
+    ...key,
+    device_count: deviceCounts[key.id] ?? 0,
+  }))
 
   return {
     keys: dashboardKeys,

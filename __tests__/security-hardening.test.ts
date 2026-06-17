@@ -97,6 +97,24 @@ describe('security hardening', () => {
     expect(mockedValidateKey).not.toHaveBeenCalled()
   })
 
+  it('forwards validate fingerprint context without changing success shape', async () => {
+    mockedValidateKey.mockResolvedValue({ valid: true })
+
+    const response = await validateRoute(jsonRequest('https://luxy.example/api/validate', JSON.stringify({
+      key: 'LUXY-PREM-AAAA-BBBB',
+      executor_identifier: 'executor-1',
+      client_identifier: 'client-1',
+    })))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toEqual({ success: true })
+    expect(mockedValidateKey).toHaveBeenCalledWith('LUXY-PREM-AAAA-BBBB', {
+      executorIdentifier: 'executor-1',
+      clientIdentifier: 'client-1',
+    })
+  })
+
   it('does not accept CRON_SECRET as an admin credential', () => {
     process.env.CRON_SECRET = 'cron-secret'
 

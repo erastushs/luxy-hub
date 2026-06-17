@@ -5,6 +5,8 @@ export type KeyRow = {
   key: string
   key_category: KeyCategory
   key_type: KeyType
+  max_devices: number | null
+  device_count?: number
   name: string | null
   description: string | null
   is_active: boolean
@@ -20,11 +22,12 @@ export type InsertKeyParams = {
   expiresAt: string
   keyCategory?: KeyCategory
   keyType?: KeyType
+  maxDevices?: number | null
   name?: string | null
   description?: string | null
 }
 
-const KEY_SELECT = 'id, key, key_category, key_type, name, description, is_active, expires_at, created_at'
+const KEY_SELECT = 'id, key, key_category, key_type, max_devices, name, description, is_active, expires_at, created_at'
 
 export async function findKey(key: string) {
   const { data, error } = await supabaseAdmin
@@ -65,6 +68,7 @@ export async function insertKey(params: InsertKeyParams) {
     expires_at: params.expiresAt,
     key_category: params.keyCategory ?? 'legacy',
     key_type: params.keyType ?? 'legacy',
+    max_devices: params.maxDevices ?? defaultMaxDevicesForType(params.keyType ?? 'legacy'),
     name: params.name ?? null,
     description: params.description ?? null,
   })
@@ -96,4 +100,10 @@ export async function setKeyActiveState(keyId: string, isActive: boolean): Promi
 
   if (error) return null
   return data as KeyRow
+}
+
+function defaultMaxDevicesForType(keyType: KeyType): number | null {
+  if (keyType === 'free' || keyType === 'weekly') return 1
+  if (keyType === 'monthly') return 3
+  return null
 }

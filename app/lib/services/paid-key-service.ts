@@ -5,7 +5,7 @@ export type PaidKeyDuration = 'weekly' | 'monthly' | 'custom'
 export type PaidKeyIssuanceInput =
   | { duration: 'weekly'; name: string; description?: string | null }
   | { duration: 'monthly'; name: string; description?: string | null }
-  | { duration: 'custom'; expiresAt: string; name: string; description?: string | null }
+  | { duration: 'custom'; expiresAt: string; maxDevices?: unknown; name: string; description?: string | null }
 
 export type PaidKeyIssuance = {
   key: string
@@ -35,6 +35,7 @@ export async function issuePaidKey(input: PaidKeyIssuanceInput): Promise<PaidKey
     expiresAt,
     keyCategory: 'premium',
     keyType: input.duration,
+    maxDevices: resolveMaxDevices(input),
     name,
     description: normalizeDescription(input.description),
   })
@@ -77,6 +78,23 @@ function resolveExpiration(input: PaidKeyIssuanceInput): Date {
   }
 
   return expiresAt
+}
+
+function resolveMaxDevices(input: PaidKeyIssuanceInput): number | null {
+  if (input.duration === 'weekly') return 1
+  if (input.duration === 'monthly') return 3
+
+  if (input.maxDevices === null || typeof input.maxDevices === 'undefined') return null
+
+  if (typeof input.maxDevices !== 'number' || !Number.isInteger(input.maxDevices)) {
+    throw new PaidKeyValidationError('Custom max devices must be a whole number between 1 and 100, or unlimited')
+  }
+
+  if (input.maxDevices < 1 || input.maxDevices > 100) {
+    throw new PaidKeyValidationError('Custom max devices must be between 1 and 100')
+  }
+
+  return input.maxDevices
 }
 
 function normalizePremiumKeyName(name: string): string {

@@ -25,6 +25,7 @@ describe('paid key service', () => {
       expiresAt: new Date('2026-06-23T00:00:00.000Z'),
       keyCategory: 'premium',
       keyType: 'weekly',
+      maxDevices: 1,
       name: 'Monthly Discord',
       description: 'supporter',
     })
@@ -44,6 +45,7 @@ describe('paid key service', () => {
       expiresAt: new Date('2026-07-16T00:00:00.000Z'),
       keyCategory: 'premium',
       keyType: 'monthly',
+      maxDevices: 3,
       name: 'Tester',
       description: null,
     })
@@ -56,19 +58,39 @@ describe('paid key service', () => {
     expect(expiresAt.toISOString()).toBe('2026-07-01T12:30:00.000Z')
   })
 
-  it('issues custom keys with custom key type', async () => {
+  it('issues custom keys with supplied max devices', async () => {
     mockedCreateKeyRecord.mockResolvedValue({ key: 'LUXY-PREM-CUST-CCCC', expires_at: '2026-07-01T12:30:00.000Z' })
 
-    const result = await issuePaidKey({ duration: 'custom', expiresAt: '2026-07-01T12:30:00.000Z', name: 'Giveaway Winner' })
+    const result = await issuePaidKey({ duration: 'custom', expiresAt: '2026-07-01T12:30:00.000Z', maxDevices: 10, name: 'Giveaway Winner' })
 
     expect(mockedCreateKeyRecord).toHaveBeenCalledWith({
       expiresAt: new Date('2026-07-01T12:30:00.000Z'),
       keyCategory: 'premium',
       keyType: 'custom',
+      maxDevices: 10,
       name: 'Giveaway Winner',
       description: null,
     })
     expect(result.duration).toBe('custom')
+  })
+
+  it('issues custom keys with unlimited devices when max devices is null', async () => {
+    mockedCreateKeyRecord.mockResolvedValue({ key: 'LUXY-PREM-CUST-CCCC', expires_at: '2026-07-01T12:30:00.000Z' })
+
+    await issuePaidKey({ duration: 'custom', expiresAt: '2026-07-01T12:30:00.000Z', maxDevices: null, name: 'Partner' })
+
+    expect(mockedCreateKeyRecord).toHaveBeenCalledWith(expect.objectContaining({
+      keyType: 'custom',
+      maxDevices: null,
+    }))
+  })
+
+  it('rejects invalid custom max devices', async () => {
+    await expect(issuePaidKey({ duration: 'custom', expiresAt: '2026-07-01T12:30:00.000Z', maxDevices: 0, name: 'Bad' })).rejects.toThrow('between 1 and 100')
+    await expect(issuePaidKey({ duration: 'custom', expiresAt: '2026-07-01T12:30:00.000Z', maxDevices: -1, name: 'Bad' })).rejects.toThrow('between 1 and 100')
+    await expect(issuePaidKey({ duration: 'custom', expiresAt: '2026-07-01T12:30:00.000Z', maxDevices: 1.5, name: 'Bad' })).rejects.toThrow('whole number')
+    await expect(issuePaidKey({ duration: 'custom', expiresAt: '2026-07-01T12:30:00.000Z', maxDevices: 101, name: 'Bad' })).rejects.toThrow('between 1 and 100')
+    expect(mockedCreateKeyRecord).not.toHaveBeenCalled()
   })
 
   it('rejects invalid or past custom expirations', () => {
