@@ -78,9 +78,9 @@ export async function PATCH(
 
     const { slug } = await params
     const body = await req.json().catch(() => ({}))
-    const { name, description, visibility, content } = body || {}
+    const { name, description, visibility, access_mode, content } = body || {}
 
-    const result = await updateScript(slug, actor.id, { name, description, visibility, content }, actor.role)
+    const result = await updateScript(slug, actor.id, { name, description, visibility, accessMode: access_mode, content }, actor.role)
 
     if (!result.success) {
       return NextResponse.json(

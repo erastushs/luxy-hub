@@ -8,6 +8,7 @@ const mockScriptRow = (overrides: Partial<ScriptRow> = {}): ScriptRow => ({
   name: 'My Script',
   description: 'A test script',
   visibility: 'public',
+  access_mode: 'public',
   creator_id: '00000000-0000-0000-0000-00000000000a',
   current_version_id: '00000000-0000-0000-0000-000000000002',
   created_at: '2026-01-01T00:00:00.000Z',
@@ -278,6 +279,40 @@ describe('Phase 3C Creator API Layer', () => {
       expect(mockedRunAutoBuildForVersion).toHaveBeenCalledWith('version-uuid-2', 'version_created')
     })
 
+    it('updates access mode from public to key_required', async () => {
+      mockedFindScriptBySlugForOwner.mockResolvedValue(mockScriptRow({ creator_id: OWNER_A, access_mode: 'public' }))
+      mockedUpdateScriptRepo.mockResolvedValue(mockScriptRow({ creator_id: OWNER_A, access_mode: 'key_required' }))
+
+      const result = await updateScript('my-script', OWNER_A, { accessMode: 'key_required' })
+
+      expect(result.success).toBe(true)
+      expect(mockedUpdateScriptRepo).toHaveBeenCalledWith(
+        'my-script',
+        { access_mode: 'key_required', current_version_id: '00000000-0000-0000-0000-000000000002' },
+        OWNER_A
+      )
+      if (result.success) {
+        expect(result.script.access_mode).toBe('key_required')
+      }
+    })
+
+    it('updates access mode from key_required to public', async () => {
+      mockedFindScriptBySlugForOwner.mockResolvedValue(mockScriptRow({ creator_id: OWNER_A, access_mode: 'key_required' }))
+      mockedUpdateScriptRepo.mockResolvedValue(mockScriptRow({ creator_id: OWNER_A, access_mode: 'public' }))
+
+      const result = await updateScript('my-script', OWNER_A, { accessMode: 'public' })
+
+      expect(result.success).toBe(true)
+      expect(mockedUpdateScriptRepo).toHaveBeenCalledWith(
+        'my-script',
+        { access_mode: 'public', current_version_id: '00000000-0000-0000-0000-000000000002' },
+        OWNER_A
+      )
+      if (result.success) {
+        expect(result.script.access_mode).toBe('public')
+      }
+    })
+
     it('returns 404 for foreign script update', async () => {
       mockedFindScriptBySlugForOwner.mockResolvedValue(null)
 
@@ -290,6 +325,80 @@ describe('Phase 3C Creator API Layer', () => {
   })
 
   describe('createScript — build automation', () => {
+    it('creates scripts with public access mode', async () => {
+      mockedCreateScriptRepo.mockResolvedValue(mockScriptRow({ slug: 'new-script', id: 'script-uuid-1', access_mode: 'public' }))
+      mockedCreateVersion.mockResolvedValue({
+        id: 'version-uuid-1',
+        script_id: 'script-uuid-1',
+        version: '1.0.0',
+        content: 'print("hello")',
+        changelog: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+      })
+      mockedUpdateScriptRepo.mockResolvedValue(mockScriptRow({
+        slug: 'new-script',
+        id: 'script-uuid-1',
+        access_mode: 'public',
+        current_version_id: 'version-uuid-1',
+      }))
+
+      const result = await createScript({
+        slug: 'new-script',
+        name: 'New Script',
+        visibility: 'private',
+        accessMode: 'public',
+        content: 'print("hello")',
+        creatorId: OWNER_A,
+      })
+
+      expect(result.success).toBe(true)
+      expect(mockedCreateScriptRepo).toHaveBeenCalledWith({
+        slug: 'new-script',
+        name: 'New Script',
+        description: undefined,
+        visibility: 'private',
+        access_mode: 'public',
+        creator_id: OWNER_A,
+      })
+    })
+
+    it('creates scripts with key_required access mode', async () => {
+      mockedCreateScriptRepo.mockResolvedValue(mockScriptRow({ slug: 'new-script', id: 'script-uuid-1', access_mode: 'key_required' }))
+      mockedCreateVersion.mockResolvedValue({
+        id: 'version-uuid-1',
+        script_id: 'script-uuid-1',
+        version: '1.0.0',
+        content: 'print("hello")',
+        changelog: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+      })
+      mockedUpdateScriptRepo.mockResolvedValue(mockScriptRow({
+        slug: 'new-script',
+        id: 'script-uuid-1',
+        access_mode: 'key_required',
+        current_version_id: 'version-uuid-1',
+      }))
+
+      const result = await createScript({
+        slug: 'new-script',
+        name: 'New Script',
+        visibility: 'private',
+        accessMode: 'key_required',
+        content: 'print("hello")',
+        creatorId: OWNER_A,
+      })
+
+      expect(result.success).toBe(true)
+      expect(mockedCreateScriptRepo).toHaveBeenCalledWith({
+        slug: 'new-script',
+        name: 'New Script',
+        description: undefined,
+        visibility: 'private',
+        access_mode: 'key_required',
+        creator_id: OWNER_A,
+      })
+    })
+
     it('auto-builds the initial script version after creation', async () => {
       mockedCreateScriptRepo.mockResolvedValue(mockScriptRow({ slug: 'new-script', id: 'script-uuid-1' }))
       mockedCreateVersion.mockResolvedValue({

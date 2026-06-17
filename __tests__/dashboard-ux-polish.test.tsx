@@ -1,8 +1,27 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
+
+vi.mock('@/app/actions/scripts', () => ({
+  updateScriptAction: vi.fn(),
+}))
+
+vi.mock('@/app/actions/builds', () => ({
+  rebuildLatestBuildAction: vi.fn(),
+}))
+
+vi.mock('@/app/actions/auth', () => ({
+  logout: vi.fn(),
+}))
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/dashboard/scripts/my-script/edit',
+}))
+
 import { LoaderSnippetCard } from '@/app/dashboard/components/LoaderSnippetCard'
+import { ScriptForm } from '@/app/dashboard/components/ScriptForm'
 import { ScriptMetadataSummaryCard } from '@/app/dashboard/components/ScriptMetadataSummaryCard'
 import { Tooltip } from '@/app/dashboard/components/Tooltip'
+import EditScriptClient from '@/app/dashboard/scripts/[slug]/edit/edit-client'
 import { getLoaderSnippet, getLoaderUrl } from '@/app/dashboard/lib/loader-snippet'
 
 describe('Dashboard UX polish components', () => {
@@ -71,5 +90,44 @@ describe('Dashboard UX polish components', () => {
     expect(html).toContain('Build Status')
     expect(html).toContain('Ready')
     expect(html).toContain('Loader URL')
+  })
+
+  it('renders access mode selector in the shared script form', () => {
+    const html = renderToStaticMarkup(
+      <ScriptForm
+        initial={{ name: 'My Script', slug: 'my-script', access_mode: 'key_required' }}
+        submitLabel="Save"
+        onSubmit={async () => {}}
+      />
+    )
+
+    expect(html).toContain('Access Mode')
+    expect(html).toContain('value="public"')
+    expect(html).toContain('value="key_required"')
+  })
+
+  it('renders current access mode in the edit form', () => {
+    const html = renderToStaticMarkup(
+      <EditScriptClient
+        script={{
+          id: 'script-uuid-1',
+          slug: 'my-script',
+          name: 'My Script',
+          description: null,
+          visibility: 'private',
+          access_mode: 'key_required',
+          creator_id: 'creator-uuid-1',
+          current_version_id: null,
+          created_at: '2026-06-17T00:00:00.000Z',
+          updated_at: '2026-06-17T00:00:00.000Z',
+        }}
+        currentVersion={null}
+        buildInfo={null}
+        lastUploadedFilename={null}
+      />
+    )
+
+    expect(html).toContain('Access Mode')
+    expect(html).toContain('value="key_required" selected=""')
   })
 })

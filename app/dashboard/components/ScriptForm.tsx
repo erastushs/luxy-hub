@@ -9,6 +9,7 @@ type ScriptFormData = {
   slug: string
   description: string
   visibility: string
+  access_mode: string
   content: string
 }
 
@@ -43,6 +44,7 @@ export function ScriptForm({
       slug: (formData.get('slug') as string) || '',
       description: (formData.get('description') as string) || '',
       visibility: (formData.get('visibility') as string) || 'private',
+      access_mode: (formData.get('access_mode') as string) || 'public',
       content: (formData.get('content') as string) || '',
     }
 
@@ -162,6 +164,22 @@ export function ScriptForm({
           <option value="private">Private</option>
           <option value="unlisted">Unlisted</option>
           <option value="public">Public</option>
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor="access_mode" className="block text-sm font-medium text-zinc-300">
+          Access Mode
+        </label>
+        <p className="mt-1 text-xs text-zinc-500">Choose whether this script requires a Luxy key through delivery authorization.</p>
+        <select
+          id="access_mode"
+          name="access_mode"
+          defaultValue={initial?.access_mode ?? 'public'}
+          className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+        >
+          <option value="public">Public</option>
+          <option value="key_required">Key required</option>
         </select>
       </div>
 

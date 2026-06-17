@@ -134,6 +134,24 @@ export default function EditScriptClient({
           </select>
         </div>
 
+        <div>
+          <label htmlFor="access_mode" className="block text-sm font-medium text-zinc-300">
+            Access Mode
+          </label>
+          <p className="mt-1 text-xs text-zinc-500">
+            Public scripts deliver without a key. Key required scripts need a valid Luxy key through delivery authorization.
+          </p>
+          <select
+            id="access_mode"
+            name="access_mode"
+            defaultValue={script.access_mode ?? 'public'}
+            className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+          >
+            <option value="public">Public</option>
+            <option value="key_required">Key required</option>
+          </select>
+        </div>
+
         <div className="space-y-3">
           <div>
             <h2 className="text-sm font-medium text-zinc-300">Replace Lua File</h2>

@@ -6,6 +6,7 @@ export type ScriptRow = {
   name: string
   description: string | null
   visibility: 'public' | 'private' | 'unlisted'
+  access_mode?: ScriptAccessMode
   creator_id: string | null
   current_version_id: string | null
   execute_count?: number | null
@@ -20,8 +21,8 @@ export type DeliveryScriptRow = ScriptRow & {
   access_mode: ScriptAccessMode
 }
 
-const SCRIPT_SELECT = 'id, slug, name, description, visibility, creator_id, current_version_id, execute_count, last_executed_at, created_at, updated_at'
-const DELIVERY_SCRIPT_SELECT = `${SCRIPT_SELECT}, access_mode`
+const SCRIPT_SELECT = 'id, slug, name, description, visibility, access_mode, creator_id, current_version_id, execute_count, last_executed_at, created_at, updated_at'
+const DELIVERY_SCRIPT_SELECT = SCRIPT_SELECT
 
 export type VersionRow = {
   id: string
@@ -197,6 +198,7 @@ export async function createScript(params: {
   name: string
   description?: string
   visibility?: string
+  access_mode?: ScriptAccessMode
   creator_id: string
 }): Promise<ScriptRow> {
   const now = new Date().toISOString()
@@ -207,6 +209,7 @@ export async function createScript(params: {
       name: params.name,
       description: params.description ?? '',
       visibility: params.visibility ?? 'private',
+      access_mode: params.access_mode ?? 'public',
       creator_id: params.creator_id,
       created_at: now,
       updated_at: now,
@@ -237,6 +240,7 @@ export async function updateScript(
     name?: string
     description?: string
     visibility?: 'public' | 'private' | 'unlisted'
+    access_mode?: ScriptAccessMode
     current_version_id?: string
   },
   ownerId?: string
@@ -245,6 +249,7 @@ export async function updateScript(
   if (params.name !== undefined) updates.name = params.name
   if (params.description !== undefined) updates.description = params.description
   if (params.visibility !== undefined) updates.visibility = params.visibility
+  if (params.access_mode !== undefined) updates.access_mode = params.access_mode
   if (params.current_version_id !== undefined) updates.current_version_id = params.current_version_id
 
   let query = supabaseAdmin

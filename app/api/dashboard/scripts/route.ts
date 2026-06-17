@@ -82,13 +82,14 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { slug, name, description, visibility, content } = body || {}
+    const { slug, name, description, visibility, access_mode, content } = body || {}
 
     const result = await createScript({
       slug,
       name,
       description,
       visibility,
+      accessMode: access_mode,
       content,
       creatorId: actor.id,
       creatorRole: actor.role,

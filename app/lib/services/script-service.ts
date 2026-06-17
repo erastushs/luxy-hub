@@ -20,15 +20,16 @@ import {
   type ListScriptsResult,
   type VersionRow,
   type VersionSummaryRow,
+  type ScriptAccessMode,
 } from '@/app/lib/repositories/script-repository'
 import { assertScriptOwner, OwnershipError } from '@/app/lib/auth/ownership'
-import { isValidSlug, isValidScriptName, isValidVisibility, isValidScriptContent, type Visibility } from '@/app/lib/validators'
+import { isValidSlug, isValidScriptName, isValidVisibility, isValidScriptContent, isValidDashboardAccessMode, type Visibility, type DashboardAccessMode } from '@/app/lib/validators'
 import { MAX_SCRIPT_SIZE_DISPLAY } from '@/app/lib/constants/size-limits'
 import { logAuditEvent } from '@/app/lib/services/audit-service'
 import { createUploadChangelog, sanitizeSourceFilename } from '@/app/lib/source-file-metadata'
 import { runAutoBuildForVersion } from '@/app/lib/services/build-automation-service'
 
-export type { ScriptRow, ScriptStats, ListScriptsResult, Visibility, VersionRow, VersionSummaryRow }
+export type { ScriptRow, ScriptStats, ListScriptsResult, Visibility, VersionRow, VersionSummaryRow, DashboardAccessMode }
 
 export type ScriptResult =
   | { success: true; script: ScriptRow }
@@ -79,9 +80,10 @@ function nextVersion(current: string): string {
 export async function createScript(params: {
   slug: unknown
   name: unknown
-  description?: unknown
-  visibility?: unknown
-  content: unknown
+    description?: unknown
+    visibility?: unknown
+    accessMode?: unknown
+    content: unknown
   sourceFilename?: unknown
   creatorId: string
   creatorRole?: string
@@ -107,12 +109,18 @@ export async function createScript(params: {
     return { success: false, message: 'Description must be a string', status: 400 }
   }
 
+  const accessMode = params.accessMode !== undefined ? params.accessMode : 'public'
+  if (!isValidDashboardAccessMode(accessMode)) {
+    return { success: false, message: 'Invalid access mode. Must be public or key_required', status: 400 }
+  }
+
   try {
     const script = await createScriptRepo({
       slug: params.slug,
       name: params.name.trim(),
       description: typeof params.description === 'string' ? params.description : undefined,
       visibility,
+      access_mode: accessMode,
       creator_id: params.creatorId,
     })
 
@@ -144,6 +152,7 @@ export async function createScript(params: {
       metadata: {
         name: params.name,
         visibility,
+        access_mode: accessMode,
         version_id: version.id,
         source_filename: sanitizeSourceFilename(params.sourceFilename) ?? undefined,
       },
@@ -276,6 +285,7 @@ export async function updateScript(
     name?: unknown
     description?: unknown
     visibility?: unknown
+    accessMode?: unknown
     content?: unknown
     sourceFilename?: unknown
   },
@@ -297,6 +307,10 @@ export async function updateScript(
     return { success: false, message: 'Invalid visibility. Must be public, private, or unlisted', status: 400 }
   }
 
+  if (params.accessMode !== undefined && !isValidDashboardAccessMode(params.accessMode)) {
+    return { success: false, message: 'Invalid access mode. Must be public or key_required', status: 400 }
+  }
+
   if (params.content !== undefined && !isValidScriptContent(params.content)) {
     return { success: false, message: `Content must not exceed ${MAX_SCRIPT_SIZE_DISPLAY}`, status: 400 }
   }
@@ -304,10 +318,11 @@ export async function updateScript(
   try {
     const existing = await assertScriptOwner(slug, ownerId)
 
-    const updateFields: { name?: string; description?: string; visibility?: Visibility } = {}
+    const updateFields: { name?: string; description?: string; visibility?: Visibility; access_mode?: ScriptAccessMode } = {}
     if (params.name !== undefined) updateFields.name = (params.name as string).trim()
     if (params.description !== undefined) updateFields.description = params.description as string
     if (params.visibility !== undefined) updateFields.visibility = params.visibility as Visibility
+    if (params.accessMode !== undefined) updateFields.access_mode = params.accessMode as DashboardAccessMode
 
     let currentVersionId = existing.current_version_id
     let createdVersionId: string | null = null
