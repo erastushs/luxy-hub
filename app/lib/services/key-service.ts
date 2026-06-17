@@ -1,10 +1,23 @@
-import { findKey, insertKey, deactivateExpiredKeys } from '@/app/lib/repositories/key-repository'
+import { findKey, insertKey, deactivateExpiredKeys, listKeys, setKeyActiveState, type KeyRow } from '@/app/lib/repositories/key-repository'
 import { generateKey } from '@/app/lib/key-generator'
 import { isValidKeyFormat } from '@/app/lib/validators'
 
 export type KeyStatus =
   | { valid: true }
   | { valid: false; message: string; status: number }
+
+export type DashboardKeyStatus = 'active' | 'expired' | 'disabled'
+
+export type DashboardKey = KeyRow & {
+  status: DashboardKeyStatus
+}
+
+export type KeySummary = {
+  total: number
+  active: number
+  expired: number
+  disabled: number
+}
 
 export const DEFAULT_KEY_DURATION_MS = 24 * 60 * 60 * 1000
 
@@ -68,4 +81,45 @@ export async function createKey(): Promise<string> {
 export async function runKeyCleanup() {
   const { error } = await deactivateExpiredKeys()
   if (error) throw error
+}
+
+export async function listDashboardKeys(search?: unknown): Promise<{ keys: DashboardKey[]; summary: KeySummary }> {
+  const normalizedSearch = typeof search === 'string' && search.trim().length > 0 ? search.trim() : null
+  const keys = await listKeys({ search: normalizedSearch, limit: 200 })
+  const dashboardKeys = keys.map(serializeDashboardKey)
+
+  return {
+    keys: dashboardKeys,
+    summary: summarizeKeys(dashboardKeys),
+  }
+}
+
+export async function updateDashboardKeyState(keyId: unknown, isActive: unknown): Promise<DashboardKey | null> {
+  if (typeof keyId !== 'string' || keyId.trim().length === 0 || typeof isActive !== 'boolean') {
+    return null
+  }
+
+  const updated = await setKeyActiveState(keyId.trim(), isActive)
+  return updated ? serializeDashboardKey(updated) : null
+}
+
+export function getDashboardKeyStatus(key: Pick<KeyRow, 'is_active' | 'expires_at'>): DashboardKeyStatus {
+  if (!key.is_active) return 'disabled'
+  if (new Date(key.expires_at).getTime() < Date.now()) return 'expired'
+  return 'active'
+}
+
+function serializeDashboardKey(key: KeyRow): DashboardKey {
+  return {
+    ...key,
+    status: getDashboardKeyStatus(key),
+  }
+}
+
+function summarizeKeys(keys: DashboardKey[]): KeySummary {
+  return keys.reduce<KeySummary>((summary, key) => {
+    summary.total += 1
+    summary[key.status] += 1
+    return summary
+  }, { total: 0, active: 0, expired: 0, disabled: 0 })
 }

@@ -18,12 +18,21 @@ vi.mock('@/app/lib/services/paid-key-service', () => ({
   issuePaidKey: vi.fn(),
 }))
 
+vi.mock('@/app/lib/services/key-service', () => ({
+  listDashboardKeys: vi.fn(),
+  updateDashboardKeyState: vi.fn(),
+}))
+
 import { requireAuth } from '@/app/lib/auth/session-auth'
 import { issuePaidKey } from '@/app/lib/services/paid-key-service'
-import { POST as issueDashboardKeyRoute } from '@/app/api/dashboard/keys/route'
+import { listDashboardKeys, updateDashboardKeyState } from '@/app/lib/services/key-service'
+import { GET as listDashboardKeysRoute, POST as issueDashboardKeyRoute } from '@/app/api/dashboard/keys/route'
+import { PATCH as updateDashboardKeyRoute } from '@/app/api/dashboard/keys/[id]/route'
 
 const mockedRequireAuth = vi.mocked(requireAuth)
 const mockedIssuePaidKey = vi.mocked(issuePaidKey)
+const mockedListDashboardKeys = vi.mocked(listDashboardKeys)
+const mockedUpdateDashboardKeyState = vi.mocked(updateDashboardKeyState)
 
 function jsonRequest(body?: Record<string, unknown>): NextRequest {
   return new Request('https://example.test/api/dashboard/keys', {
@@ -31,6 +40,10 @@ function jsonRequest(body?: Record<string, unknown>): NextRequest {
     headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   }) as NextRequest
+}
+
+function params<T extends Record<string, string>>(value: T) {
+  return { params: Promise.resolve(value) }
 }
 
 describe('dashboard key API', () => {
@@ -82,5 +95,41 @@ describe('dashboard key API', () => {
     expect(response.status).toBe(400)
     expect(body).toEqual({ success: false, message: 'Invalid key duration' })
     expect(mockedIssuePaidKey).not.toHaveBeenCalled()
+  })
+
+  it('lists dashboard keys with summary data', async () => {
+    mockedListDashboardKeys.mockResolvedValue({
+      keys: [{ id: 'key-1', key: 'LUXY-AAAA-BBBB-CCCC', is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
+      summary: { total: 1, active: 1, expired: 0, disabled: 0 },
+    })
+
+    const response = await listDashboardKeysRoute(new Request('https://example.test/api/dashboard/keys?search=AAAA') as NextRequest)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockedListDashboardKeys).toHaveBeenCalledWith('AAAA')
+    expect(body).toEqual({
+      success: true,
+      keys: [{ id: 'key-1', key: 'LUXY-AAAA-BBBB-CCCC', is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
+      summary: { total: 1, active: 1, expired: 0, disabled: 0 },
+    })
+  })
+
+  it('updates dashboard key active state', async () => {
+    mockedUpdateDashboardKeyState.mockResolvedValue({
+      id: 'key-1',
+      key: 'LUXY-AAAA-BBBB-CCCC',
+      is_active: false,
+      status: 'disabled',
+      expires_at: '2026-06-18T00:00:00.000Z',
+      created_at: '2026-06-17T00:00:00.000Z',
+    })
+
+    const response = await updateDashboardKeyRoute(jsonRequest({ is_active: false }), params({ id: 'key-1' }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockedUpdateDashboardKeyState).toHaveBeenCalledWith('key-1', false)
+    expect(body.key.status).toBe('disabled')
   })
 })

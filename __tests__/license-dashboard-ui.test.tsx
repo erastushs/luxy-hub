@@ -55,17 +55,36 @@ describe('license dashboard UI', () => {
     expect(html).not.toContain('customer_identifier_hash')
   })
 
-  it('adds licenses to dashboard navigation', () => {
+  it('hides licenses from dashboard navigation without removing license UI', () => {
     const html = renderToStaticMarkup(<Sidebar />)
 
-    expect(html).toContain('/dashboard/licenses')
-    expect(html).toContain('Licenses')
+    expect(html).not.toContain('/dashboard/licenses')
+    expect(html).not.toContain('Licenses')
   })
 
-  it('renders paid key issuance controls', () => {
-    const html = renderToStaticMarkup(<KeysClient />)
+  it('renders key management and paid key issuance controls', () => {
+    const html = renderToStaticMarkup(
+      <KeysClient
+        initialKeys={[{
+          id: 'key-1',
+          key: 'LUXY-AAAA-BBBB-CCCC',
+          is_active: true,
+          status: 'active',
+          expires_at: '2026-06-18T00:00:00.000Z',
+          created_at: '2026-06-17T00:00:00.000Z',
+        }]}
+        initialSummary={{ total: 1, active: 1, expired: 0, disabled: 0 }}
+      />
+    )
 
-    expect(html).toContain('Dashboard Key Issuance')
+    expect(html).toContain('Dashboard Keys')
+    expect(html).toContain('Total Keys')
+    expect(html).toContain('Active Keys')
+    expect(html).toContain('Expired Keys')
+    expect(html).toContain('Disabled Keys')
+    expect(html).toContain('Existing keys')
+    expect(html).toContain('LUXY-AAAA-BBBB-CCCC')
+    expect(html).toContain('Disable Key')
     expect(html).toContain('Weekly')
     expect(html).toContain('Monthly')
     expect(html).toContain('Custom')

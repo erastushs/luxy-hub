@@ -22,13 +22,14 @@ type NavItem = {
   label: string
   href: string
   icon: LucideIcon
+  hidden?: boolean
 }
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Scripts', href: '/dashboard/scripts', icon: FileCode },
   { label: 'Keys', href: '/dashboard/keys', icon: Ticket },
-  { label: 'Licenses', href: '/dashboard/licenses', icon: KeyRound },
+  { label: 'Licenses', href: '/dashboard/licenses', icon: KeyRound, hidden: true },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { label: 'Versions', href: '/dashboard/versions', icon: History },
   { label: 'Profile', href: '/dashboard/profile', icon: UserCircle },
@@ -48,7 +49,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-0.5 px-3 py-4" aria-label="Main navigation">
-        {navItems.map((item) => {
+        {navItems.filter((item) => !item.hidden).map((item) => {
           const isActive =
             item.href === '/dashboard'
               ? pathname === '/dashboard'

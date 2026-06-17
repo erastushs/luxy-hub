@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AuthError, requireAuth } from '@/app/lib/auth/session-auth'
+import { listDashboardKeys } from '@/app/lib/services/key-service'
 import { issuePaidKey, PaidKeyValidationError } from '@/app/lib/services/paid-key-service'
+
+export async function GET(req: NextRequest) {
+  try {
+    await requireAuth()
+
+    const search = new URL(req.url).searchParams.get('search')
+    const result = await listDashboardKeys(search)
+
+    return NextResponse.json({ success: true, ...result })
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return jsonError(error.message, error.status)
+    }
+
+    return jsonError('Failed to list keys', 500)
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
