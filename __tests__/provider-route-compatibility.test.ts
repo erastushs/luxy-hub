@@ -74,6 +74,7 @@ describe('provider route compatibility', () => {
     mockedIssueProviderKey.mockResolvedValue({
       success: false,
       message: 'Invalid token',
+      errorCode: 'invalid_token',
       verification: { success: false, message: 'Invalid token', validToken: false },
     })
     response = await generateKeyRoute(jsonRequest('https://example.test/api/generate-key', { token: 'bad' }))
@@ -118,6 +119,7 @@ describe('provider route compatibility', () => {
     mockedIssueProviderKey.mockResolvedValueOnce({
       success: false,
       message: 'Token already used',
+      errorCode: 'token_used',
       verification: { success: false, message: 'Token already used', validToken: false },
     })
 
@@ -128,6 +130,7 @@ describe('provider route compatibility', () => {
     mockedIssueProviderKey.mockResolvedValueOnce({
       success: false,
       message: 'Internal server error',
+      errorCode: 'internal_error',
       verification: { success: false, message: 'Internal server error', validToken: false },
     })
 

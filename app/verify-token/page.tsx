@@ -8,6 +8,7 @@ import { headers } from 'next/headers'
 type TokenStatus = {
   success: boolean
   message: string
+  providerName: string
   key?: string
   expires_at?: string
 }
@@ -15,9 +16,10 @@ type TokenStatus = {
 export default async function VerifyTokenPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>
+  searchParams: Promise<{ provider?: string; token?: string }>
 }) {
-  const { token } = await searchParams
+  const { provider = 'workink', token } = await searchParams
+  const providerName = provider === 'workink' ? 'Work.ink' : 'selected provider'
 
   if (!token) {
     return (
@@ -32,7 +34,7 @@ export default async function VerifyTokenPage({
             <h1 className="mb-3 text-3xl font-bold">No Token Found</h1>
 
             <p className="mb-8 text-zinc-400">
-              No verification token was provided. Please go through the Work.ink flow to
+              No verification token was provided. Please go through the {providerName} flow to
               get a key.
             </p>
 
@@ -56,20 +58,21 @@ export default async function VerifyTokenPage({
   const clientIP = forwarded ? forwarded.split(',')[0].trim() : '127.0.0.1'
 
   try {
-    const issuance = await issueProviderKey({ providerKey: 'workink', token, clientIP })
+    const issuance = await issueProviderKey({ providerKey: provider, token, clientIP })
 
     if (!issuance.success) {
-      status = { success: false, message: issuance.message }
+      status = { success: false, message: issuance.message, providerName }
     } else {
       status = {
         success: true,
         message: 'Key generated successfully',
+        providerName,
         key: issuance.key,
         expires_at: issuance.expires_at,
       }
     }
   } catch {
-    status = { success: false, message: 'Verification service unavailable' }
+    status = { success: false, message: 'Verification service unavailable', providerName }
   }
 
   if (!status.success) {
@@ -99,7 +102,7 @@ export default async function VerifyTokenPage({
             <p className="mb-4 text-zinc-400">
               {isAlreadyUsed
                 ? 'This verification token has already been redeemed. Each offer can only be used once.'
-                : 'This token is invalid or expired. Please complete a new Work.ink offer to receive a valid key.'}
+                : `This token is invalid or expired. Please complete a new ${status.providerName} offer to receive a valid key.`}
             </p>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">

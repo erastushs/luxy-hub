@@ -1,8 +1,13 @@
 import { KeyRound, Clock, Shield, ExternalLink, CheckCircle } from 'lucide-react'
 import Navbar from '@/app/components/Navbar'
 import Footer from '@/app/components/Footer'
+import { getProviderRuntimeConfig } from '@/app/lib/providers/config'
+import { listProviderMetadata } from '@/app/lib/providers/registry'
+import type { ProviderMetadata } from '@/app/lib/providers/types'
 
 export default function GetKeyPage() {
+  const providers = listProviderMetadata()
+
   return (
     <>
       <Navbar keyPage />
@@ -19,19 +24,14 @@ export default function GetKeyPage() {
             <p className="text-lg text-zinc-400">Complete one quick offer to unlock your LuxyHub access key.</p>
           </div>
 
-          <a
-            href="https://work.ink/2Dlr/luxyhub"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-8 py-4 text-lg font-semibold transition-all hover:bg-red-500 hover:shadow-[0_0_30px_rgba(239,68,68,0.4)] active:scale-[0.98]"
-          >
-            <ExternalLink className="h-5 w-5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-
-            <span>Generate Key via Work.ink</span>
-          </a>
+          <div className="space-y-3">
+            {providers.map((provider) => (
+              <ProviderCard key={provider.key} provider={provider} />
+            ))}
+          </div>
 
           <p className="mt-4 text-center text-xs text-zinc-600">
-            You will be redirected to Work.ink to complete a quick verification.
+            Choose an available provider to complete a quick verification.
           </p>
 
           <div className="mt-10 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
@@ -80,7 +80,7 @@ export default function GetKeyPage() {
                 <div>
                   <p className="font-medium">Click Generate Key</p>
 
-                  <p className="text-sm text-zinc-400">Tap the button above to open Work.ink in a new tab.</p>
+                  <p className="text-sm text-zinc-400">Choose an available provider above to open the verification flow in a new tab.</p>
                 </div>
               </div>
 
@@ -93,7 +93,7 @@ export default function GetKeyPage() {
                   <p className="font-medium">Complete an offer</p>
 
                   <p className="text-sm text-zinc-400">
-                    Work.ink will show you a short offer. Complete it to verify you are human.
+                    The provider will show you a short offer. Complete it to verify you are human.
                   </p>
                 </div>
               </div>
@@ -118,5 +118,55 @@ export default function GetKeyPage() {
 
       <Footer />
     </>
+  )
+}
+
+function ProviderCard({ provider }: { provider: ProviderMetadata }) {
+  const config = getProviderRuntimeConfig(provider.key)
+  const href = provider.enabled ? config?.href : undefined
+
+  if (!provider.enabled || !href) {
+    return (
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 opacity-70">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-zinc-200">{provider.displayName}</h2>
+              <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-xs text-zinc-500">Coming soon</span>
+            </div>
+            <p className="mt-1 text-sm text-zinc-500">{provider.description}</p>
+            <p className="mt-2 text-xs text-zinc-600">{provider.estimatedTimeLabel}</p>
+          </div>
+          <button
+            type="button"
+            disabled
+            className="rounded-xl border border-zinc-800 px-5 py-3 text-sm font-semibold text-zinc-600"
+          >
+            {provider.ctaLabel}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block rounded-xl border border-red-500/30 bg-red-600/10 p-5 transition-all hover:border-red-500/50 hover:bg-red-600/15 hover:shadow-[0_0_30px_rgba(239,68,68,0.25)] active:scale-[0.99]"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-white">{provider.displayName}</h2>
+          <p className="mt-1 text-sm text-zinc-400">{provider.description}</p>
+          <p className="mt-2 text-xs text-red-300/80">{provider.estimatedTimeLabel}</p>
+        </div>
+        <span className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition group-hover:bg-red-500">
+          <ExternalLink className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          {provider.ctaLabel}
+        </span>
+      </div>
+    </a>
   )
 }

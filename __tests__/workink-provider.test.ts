@@ -19,14 +19,14 @@ describe('Work.ink provider adapter', () => {
   it('rejects missing tokens without calling Work.ink', async () => {
     const result = await workinkProvider.verifyToken({ token: '   ', clientIP: '127.0.0.1' })
 
-    expect(result).toEqual({ success: false, message: 'Token required', validToken: false })
+    expect(result).toEqual({ success: false, message: 'Token required', validToken: false, errorCode: 'invalid_token' })
     expect(mockedFetch).not.toHaveBeenCalled()
   })
 
   it('rejects oversized tokens without calling Work.ink', async () => {
     const result = await workinkProvider.verifyToken({ token: 'a'.repeat(257), clientIP: '127.0.0.1' })
 
-    expect(result).toEqual({ success: false, message: 'Invalid token', validToken: false })
+    expect(result).toEqual({ success: false, message: 'Invalid token', validToken: false, errorCode: 'invalid_token' })
     expect(mockedFetch).not.toHaveBeenCalled()
   })
 
@@ -35,7 +35,7 @@ describe('Work.ink provider adapter', () => {
 
     const result = await workinkProvider.verifyToken({ token: 'abc123', clientIP: '127.0.0.1' })
 
-    expect(result).toEqual({ success: false, message: 'Invalid token', validToken: false })
+    expect(result).toEqual({ success: false, message: 'Invalid token', validToken: false, errorCode: 'invalid_token' })
     expect(mockedFetch).toHaveBeenCalledWith('https://work.ink/_api/v2/token/isValid/abc123')
   })
 
@@ -74,7 +74,7 @@ describe('Work.ink provider adapter', () => {
 
     const result = await workinkProvider.verifyToken({ token: 'abc123', clientIP: '127.0.0.1' })
 
-    expect(result).toEqual({ success: false, message: 'Token already used', validToken: false })
+    expect(result).toEqual({ success: false, message: 'Token already used', validToken: false, errorCode: 'token_used' })
   })
 
   it('returns internal server error on Work.ink failures', async () => {
@@ -83,7 +83,7 @@ describe('Work.ink provider adapter', () => {
 
     const result = await workinkProvider.verifyToken({ token: 'abc123', clientIP: '127.0.0.1' })
 
-    expect(result).toEqual({ success: false, message: 'Internal server error', validToken: false })
+    expect(result).toEqual({ success: false, message: 'Internal server error', validToken: false, errorCode: 'provider_unavailable' })
     expect(error).toHaveBeenCalledWith('Work.ink verification error')
     error.mockRestore()
   })
