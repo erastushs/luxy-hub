@@ -24,6 +24,7 @@ describe('paid key service', () => {
     expect(mockedCreateKeyRecord).toHaveBeenCalledWith({
       expiresAt: new Date('2026-06-23T00:00:00.000Z'),
       keyCategory: 'premium',
+      keyType: 'weekly',
       name: 'Monthly Discord',
       description: 'supporter',
     })
@@ -42,6 +43,7 @@ describe('paid key service', () => {
     expect(mockedCreateKeyRecord).toHaveBeenCalledWith({
       expiresAt: new Date('2026-07-16T00:00:00.000Z'),
       keyCategory: 'premium',
+      keyType: 'monthly',
       name: 'Tester',
       description: null,
     })
@@ -52,6 +54,21 @@ describe('paid key service', () => {
     const expiresAt = resolvePaidKeyExpiration({ duration: 'custom', expiresAt: '2026-07-01T12:30:00.000Z', name: 'Giveaway Winner' })
 
     expect(expiresAt.toISOString()).toBe('2026-07-01T12:30:00.000Z')
+  })
+
+  it('issues custom keys with custom key type', async () => {
+    mockedCreateKeyRecord.mockResolvedValue({ key: 'LUXY-PREM-CUST-CCCC', expires_at: '2026-07-01T12:30:00.000Z' })
+
+    const result = await issuePaidKey({ duration: 'custom', expiresAt: '2026-07-01T12:30:00.000Z', name: 'Giveaway Winner' })
+
+    expect(mockedCreateKeyRecord).toHaveBeenCalledWith({
+      expiresAt: new Date('2026-07-01T12:30:00.000Z'),
+      keyCategory: 'premium',
+      keyType: 'custom',
+      name: 'Giveaway Winner',
+      description: null,
+    })
+    expect(result.duration).toBe('custom')
   })
 
   it('rejects invalid or past custom expirations', () => {

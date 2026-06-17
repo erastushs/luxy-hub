@@ -18,8 +18,8 @@ Key products:
 | Free Key | Ad provider | 24 hours | 1 | Ad-supported access through provider completion. |
 | Weekly Key | Paid key issuance | 7 days | 1 | Paid key, not a premium license. |
 | Monthly Key | Paid key issuance | 30 days | 3 | Paid key with larger device allowance. |
-| Team Key | Paid/custom issuance | Custom | 5 | Higher device allowance for small teams. |
 | Custom Key | Admin/dashboard issuance | Custom | Custom | Operational/support issuance. |
+| Legacy Key | Pre-alignment issuance | Existing expiration | Existing behavior | Existing keys retained without inference. |
 
 Conceptual key model:
 
@@ -200,7 +200,7 @@ Required analytics events:
 Recommended event dimensions:
 
 - Provider source: Work.ink, Linkvertise, LootLabs, paid, manual/admin, future provider.
-- Key type: free, weekly, monthly, team, custom.
+- Key type: free, weekly, monthly, custom, legacy.
 - Result: generated, validated, expired, denied.
 - Denial reason category: invalid, inactive, expired, missing_key, provider_failed, replayed_provider_token, device_limit_exceeded.
 - Device count at validation time.
@@ -219,7 +219,7 @@ Data minimization rules:
 - Reduced provider dependency because Work.ink, Linkvertise, LootLabs, and future providers can use one normalized model.
 - Reduced key sharing through device-limited keys.
 - Simpler support model than HWID because administrative resets are explicit and narrow.
-- Better monetization flexibility through free, weekly, monthly, team, and custom key products.
+- Better monetization flexibility through free, weekly, monthly, custom, and legacy key classifications.
 - Clearer roadmap boundary because paid keys stay separate from premium licenses.
 
 ## 9. Tradeoffs

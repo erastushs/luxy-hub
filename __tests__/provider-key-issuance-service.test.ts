@@ -51,6 +51,7 @@ describe('provider key issuance service', () => {
     expect(mockedCreateKeyRecord).toHaveBeenCalledWith({
       expiresAt: new Date('2026-06-17T00:00:00.000Z'),
       keyCategory: 'free',
+      keyType: 'free',
     })
     expect(result).toEqual({
       success: true,

@@ -69,6 +69,7 @@ describe('license dashboard UI', () => {
           id: 'key-1',
           key: 'LUXY-PREM-AAAA-BBBB',
           key_category: 'premium',
+          key_type: 'monthly',
           name: 'Monthly Discord',
           description: 'June supporter',
           is_active: true,
@@ -86,6 +87,8 @@ describe('license dashboard UI', () => {
     expect(html).toContain('Expired Keys')
     expect(html).toContain('Disabled Keys')
     expect(html).toContain('Existing keys')
+    expect(html).toContain('Type')
+    expect(html).toContain('monthly')
     expect(html).toContain('Monthly Discord')
     expect(html).toContain('June supporter')
     expect(html).toContain('LUXY-PREM-AAAA-BBBB')

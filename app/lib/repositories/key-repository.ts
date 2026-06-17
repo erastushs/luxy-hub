@@ -4,6 +4,7 @@ export type KeyRow = {
   id: string
   key: string
   key_category: KeyCategory
+  key_type: KeyType
   name: string | null
   description: string | null
   is_active: boolean
@@ -12,16 +13,18 @@ export type KeyRow = {
 }
 
 export type KeyCategory = 'free' | 'premium' | 'legacy'
+export type KeyType = 'free' | 'weekly' | 'monthly' | 'custom' | 'legacy'
 
 export type InsertKeyParams = {
   key: string
   expiresAt: string
   keyCategory?: KeyCategory
+  keyType?: KeyType
   name?: string | null
   description?: string | null
 }
 
-const KEY_SELECT = 'id, key, key_category, name, description, is_active, expires_at, created_at'
+const KEY_SELECT = 'id, key, key_category, key_type, name, description, is_active, expires_at, created_at'
 
 export async function findKey(key: string) {
   const { data, error } = await supabaseAdmin
@@ -61,6 +64,7 @@ export async function insertKey(params: InsertKeyParams) {
     key: params.key,
     expires_at: params.expiresAt,
     key_category: params.keyCategory ?? 'legacy',
+    key_type: params.keyType ?? 'legacy',
     name: params.name ?? null,
     description: params.description ?? null,
   })

@@ -117,7 +117,7 @@ describe('dashboard key API', () => {
 
   it('lists dashboard keys with summary data', async () => {
     mockedListDashboardKeys.mockResolvedValue({
-      keys: [{ id: 'key-1', key: 'LUXY-PREM-AAAA-BBBB', key_category: 'premium', name: 'Monthly Discord', description: null, is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
+      keys: [{ id: 'key-1', key: 'LUXY-PREM-AAAA-BBBB', key_category: 'premium', key_type: 'monthly', name: 'Monthly Discord', description: null, is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
       summary: { total: 1, active: 1, expired: 0, disabled: 0 },
     })
 
@@ -128,7 +128,7 @@ describe('dashboard key API', () => {
     expect(mockedListDashboardKeys).toHaveBeenCalledWith('AAAA')
     expect(body).toEqual({
       success: true,
-      keys: [{ id: 'key-1', key: 'LUXY-PREM-AAAA-BBBB', key_category: 'premium', name: 'Monthly Discord', description: null, is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
+      keys: [{ id: 'key-1', key: 'LUXY-PREM-AAAA-BBBB', key_category: 'premium', key_type: 'monthly', name: 'Monthly Discord', description: null, is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
       summary: { total: 1, active: 1, expired: 0, disabled: 0 },
     })
   })
@@ -138,6 +138,7 @@ describe('dashboard key API', () => {
       id: 'key-1',
       key: 'LUXY-PREM-AAAA-BBBB',
       key_category: 'premium',
+      key_type: 'weekly',
       name: 'Monthly Discord',
       description: null,
       is_active: false,

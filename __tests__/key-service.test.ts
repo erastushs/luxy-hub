@@ -45,6 +45,7 @@ describe('key service', () => {
       key: 'LUXY-AAAA-BBBB-CCCC',
       expiresAt: '2026-06-17T00:00:00.000Z',
       keyCategory: 'legacy',
+      keyType: 'legacy',
       name: null,
       description: null,
     })
@@ -75,6 +76,25 @@ describe('key service', () => {
       key: 'LUXY-FREE-AAAA-BBBB',
       expiresAt: '2026-06-20T00:00:00.000Z',
       keyCategory: 'free',
+      keyType: 'legacy',
+      name: null,
+      description: null,
+    })
+  })
+
+  it('propagates explicit free key type', async () => {
+    const expiresAt = new Date('2026-06-20T00:00:00.000Z')
+    mockedGenerateFreeKey.mockReturnValue('LUXY-FREE-AAAA-BBBB')
+    mockedInsertKey.mockResolvedValue(true)
+
+    const record = await createKeyRecord({ expiresAt, keyCategory: 'free', keyType: 'free' })
+
+    expect(record.key).toBe('LUXY-FREE-AAAA-BBBB')
+    expect(mockedInsertKey).toHaveBeenCalledWith({
+      key: 'LUXY-FREE-AAAA-BBBB',
+      expiresAt: '2026-06-20T00:00:00.000Z',
+      keyCategory: 'free',
+      keyType: 'free',
       name: null,
       description: null,
     })
@@ -97,6 +117,7 @@ describe('key service', () => {
       key: 'LUXY-PREM-AAAA-BBBB',
       expiresAt: '2026-06-20T00:00:00.000Z',
       keyCategory: 'premium',
+      keyType: 'legacy',
       name: 'Monthly Discord',
       description: 'June supporter',
     })
@@ -118,7 +139,7 @@ describe('key service', () => {
       { id: 'key-1', key: 'LUXY-AAAA-BBBB-CCCC', is_active: true, expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-16T00:00:00.000Z' },
       { id: 'key-2', key: 'LUXY-DDDD-EEEE-FFFF', is_active: true, expires_at: '2026-06-16T00:00:00.000Z', created_at: '2026-06-15T00:00:00.000Z' },
       { id: 'key-3', key: 'LUXY-GGGG-HHHH-IIII', is_active: false, expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-14T00:00:00.000Z' },
-    ].map((key) => ({ ...key, key_category: 'premium' as const, name: 'Premium Key', description: null })))
+    ].map((key) => ({ ...key, key_category: 'premium' as const, key_type: 'weekly' as const, name: 'Premium Key', description: null })))
 
     const result = await listDashboardKeys('AAAA')
 
@@ -134,6 +155,7 @@ describe('key service', () => {
       id: 'key-1',
       key: 'LUXY-AAAA-BBBB-CCCC',
       key_category: 'premium',
+      key_type: 'monthly',
       name: 'Monthly Discord',
       description: null,
       is_active: false,

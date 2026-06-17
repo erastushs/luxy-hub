@@ -125,8 +125,8 @@ Key types:
 | Free | Ad provider | 24 hours | 1 device |
 | Weekly | Paid key issuance | 7 days | 1 device |
 | Monthly | Paid key issuance | 30 days | 3 devices |
-| Team | Paid/custom key issuance | Custom | 5 devices |
 | Custom | Dashboard/admin issuance | Custom | Custom |
+| Legacy | Pre-alignment key issuance | Existing expiration | Existing behavior |
 
 The table is product guidance, not a schema migration. Any eventual schema changes must be reviewed separately during implementation planning.
 
@@ -306,7 +306,7 @@ Required events:
 Recommended analytics dimensions:
 
 - Provider source: Work.ink, Linkvertise, LootLabs, manual/admin, paid, future provider.
-- Key type: free, weekly, monthly, team, custom.
+- Key type: free, weekly, monthly, custom, legacy.
 - Denial reason category: invalid, expired, inactive, device_limit_exceeded, provider_failed, missing_key.
 - Device registration count.
 - Reset count.
@@ -320,7 +320,7 @@ Analytics that overcollect raw keys, provider tokens, or raw fingerprints can le
 - Reduced provider dependency because Work.ink, Linkvertise, LootLabs, and future providers can share one normalized model.
 - Reduced key sharing through device-limited keys.
 - Simpler support model than full HWID licensing.
-- Better monetization flexibility through free, weekly, monthly, team, and custom keys.
+- Better monetization flexibility through free, weekly, monthly, custom, and legacy key classifications.
 - Cleaner Phase 7C boundary because paid keys do not require premium license assignments or entitlements.
 
 ## 15. Tradeoffs
@@ -390,7 +390,7 @@ Nice-to-have items are not required for the first Phase 7B platform release unle
 5. Productize `key_required` script access configuration.
 6. Add provider adapter contract and migrate Work.ink behind it.
 7. Add Linkvertise and LootLabs provider adapters.
-8. Add dashboard key issuance for free, weekly, monthly, team, and custom keys.
+8. Add dashboard key issuance for free, weekly, monthly, and custom keys while preserving legacy key classification.
 9. Add device registration and administrative reset workflow.
 10. Add loader key/fingerprint forwarding only to the delivery-session endpoint.
 11. Add key analytics for generated, validated, expired, denied, provider source, and device outcomes.

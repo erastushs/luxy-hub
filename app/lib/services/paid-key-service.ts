@@ -34,6 +34,7 @@ export async function issuePaidKey(input: PaidKeyIssuanceInput): Promise<PaidKey
   const key = await createKeyRecord({
     expiresAt,
     keyCategory: 'premium',
+    keyType: input.duration,
     name,
     description: normalizeDescription(input.description),
   })

@@ -1,4 +1,4 @@
-import { findKey, insertKey, deactivateExpiredKeys, listKeys, setKeyActiveState, type KeyCategory, type KeyRow } from '@/app/lib/repositories/key-repository'
+import { findKey, insertKey, deactivateExpiredKeys, listKeys, setKeyActiveState, type KeyCategory, type KeyRow, type KeyType } from '@/app/lib/repositories/key-repository'
 import { generateFreeKey, generateKey, generatePremiumKey } from '@/app/lib/key-generator'
 import { isValidKeyFormat } from '@/app/lib/validators'
 
@@ -25,6 +25,7 @@ const KEY_GENERATION_ATTEMPTS = 20
 export type CreateKeyRecordInput = {
   expiresAt: Date
   keyCategory?: KeyCategory
+  keyType?: KeyType
   name?: string | null
   description?: string | null
 }
@@ -76,6 +77,7 @@ export async function createKeyRecord(input: Date | CreateKeyRecordInput): Promi
       key,
       expiresAt: expiresAt.toISOString(),
       keyCategory: params.keyCategory ?? 'legacy',
+      keyType: params.keyType ?? 'legacy',
       name: params.name ?? null,
       description: params.description ?? null,
     })

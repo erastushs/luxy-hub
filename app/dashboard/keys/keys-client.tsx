@@ -193,6 +193,7 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
                 <tr>
                   <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">Key</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Expires</th>
                   <th className="px-4 py-3 font-medium">Created</th>
@@ -202,7 +203,7 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
               <tbody className="divide-y divide-zinc-800 bg-zinc-900/20">
                 {keys.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">No keys found.</td>
+                    <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">No keys found.</td>
                   </tr>
                 ) : keys.map((key) => (
                   <tr key={key.id}>
@@ -215,6 +216,7 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
                     <td className="px-4 py-3">
                       <code className="whitespace-nowrap text-xs text-zinc-200">{key.key}</code>
                     </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-zinc-300">{key.key_type}</td>
                     <td className="px-4 py-3"><StatusBadge status={key.status} /></td>
                     <td className="whitespace-nowrap px-4 py-3 text-zinc-400">{formatDate(key.expires_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-zinc-400">{formatDate(key.created_at)}</td>
