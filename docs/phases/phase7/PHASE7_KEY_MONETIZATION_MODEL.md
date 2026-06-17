@@ -1,15 +1,23 @@
 # Phase 7B Key Monetization Model
 
-Status: Planning
-Date: 2026-06-16
+Status: Backend Complete / Runtime Integration Blocked
+Date: 2026-06-17
 
-Scope: Product and architecture model for Phase 7B Key Monetization Platform. This document is documentation only. It does not implement code, create migrations, change runtime behavior, or add license features.
+Scope: Product and architecture model for Phase 7B Key Monetization Platform. Backend monetization infrastructure is complete for the current scope; Roblox runtime popup validation is not integrated yet. This document is documentation only. It does not implement code, create migrations, change runtime behavior, or add license features.
 
 ## 1. Product Model
 
 Phase 7B is the Key Monetization Platform.
 
-The platform supports keys as the monetization primitive for `access_mode = key_required` scripts.
+The platform supports keys as the monetization primitive for runtime validation through `POST /api/validate`.
+
+Current implementation boundary:
+
+- Device Limits protect `POST /api/validate`.
+- Premium Keys protect `POST /api/validate`.
+- Free Keys protect `POST /api/validate`.
+- Popup validation has not yet been integrated into the Roblox runtime.
+- The runtime loader currently executes delivered payloads directly.
 
 Key products:
 
@@ -134,12 +142,13 @@ Device Registration
 
 Validation behavior:
 
-1. Receive key and device fingerprint at delivery-session creation.
-2. Validate key format, active state, and expiration.
-3. Find device registrations for the key.
+1. Runtime submits key and device identifiers to `POST /api/validate`.
+2. Server validates key format, active state, and expiration.
+3. Server finds device registrations for the key.
 4. If the fingerprint is already registered, update `last_seen_at` and allow.
 5. If the fingerprint is new and registration count is below `max_devices`, register it and allow.
 6. If the fingerprint is new and `max_devices` is exhausted, deny.
+7. Runtime gates Main Script execution on a successful validation response.
 
 Example device limits:
 
@@ -191,11 +200,11 @@ Recommended reset reasons:
 
 Required analytics events:
 
-- Key generated.
-- Key validated.
-- Key expired.
-- Key denied.
-- Provider source.
+- `KEY_VALIDATED`.
+- `KEY_VALIDATION_FAILED`.
+- `DEVICE_REGISTERED`.
+- `DEVICE_REUSED`.
+- `DEVICE_LIMIT_DENIED`.
 
 Recommended event dimensions:
 
@@ -250,11 +259,99 @@ Phase 7C owns Premium License System work:
 
 Phase 7C may require migrations or database functions. Those risks must not be introduced into Phase 7B documentation as implemented behavior.
 
-## 11. Main Branch Readiness
+## 11. Runtime Integration Model
 
-Current Phase 7B completion estimate: 35%.
+Target runtime architecture:
 
-Already available in MAIN:
+```text
+Delivery
+↓
+Bootstrap
+↓
+Popup UI
+↓
+Key Entry
+↓
+POST /api/validate
+↓
+Validation Success
+↓
+Main Script
+↓
+Feature Execution
+```
+
+Runtime validation request:
+
+```json
+{
+  "key": "USER_KEY",
+  "executor_identifier": "...",
+  "client_identifier": "..."
+}
+```
+
+Validation success:
+
+```json
+{
+  "success": true
+}
+```
+
+Validation failure:
+
+```json
+{
+  "success": false,
+  "message": "..."
+}
+```
+
+Execution gate:
+
+```text
+validation_success == true
+```
+
+Main Script execution must not occur before validation succeeds.
+
+Protected components that must remain unchanged during Phase 7B.6:
+
+- Delivery Session Architecture.
+- Delivery Fetch Architecture.
+- Runtime Payload Delivery.
+- Event Platform.
+- Analytics Pipeline.
+- Build System.
+
+## 12. Future Backlog
+
+Lifetime Keys are a potential future key type:
+
+```text
+lifetime
+```
+
+Example:
+
+```text
+key_category = premium
+key_type = lifetime
+expires_at = NULL
+```
+
+Lifetime Keys are not part of Phase 7B and are deferred until monetization requirements justify implementation.
+
+## 13. Main Branch Readiness
+
+Current Phase 7B completion estimate: 85-90%.
+
+Backend Infrastructure estimate: 100%.
+
+Runtime Integration estimate: 0%.
+
+Already available in MAIN/backend infrastructure:
 
 - Free key generation.
 - Work.ink verification foundation.
@@ -263,17 +360,20 @@ Already available in MAIN:
 - Token replay protection.
 - `access_mode` foundation.
 - Session-boundary key authorization foundation.
+- Provider Foundation.
+- Premium Key Infrastructure.
+- Provider Hardening.
+- Dashboard UX Refinement.
+- Key Management Refinement.
+- Key Type Alignment.
+- Device Limits V1.
+- Custom Device Limits.
 
-Missing in MAIN:
+Remaining work:
 
-- Provider abstraction.
-- Linkvertise provider support.
-- LootLabs provider support.
-- Paid key issuance.
-- Device-limited key model.
-- Device registration storage.
-- Administrative device reset workflow.
-- Key analytics with provider source and device outcomes.
-- Dashboard key issuance.
-- Loader key/fingerprint forwarding.
-- Raw endpoint protection.
+- Phase 7B.6 Runtime Key Integration.
+- Phase 7B.7 Analytics Foundation.
+- Phase 7B.8 Device Analytics Dashboard.
+- Phase 7B.9 Device Reset.
+- Phase 7B.10 Provider Expansion for Linkvertise and LootLabs.
+- Phase 7B.11 Monetization Analytics.

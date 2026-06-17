@@ -49,6 +49,20 @@ export default function DocsIndexPage() {
               event reporting, and Discord webhook delivery.
             </p>
           </Link>
+
+          <Link
+            href="/docs/phase-7b-runtime-integration"
+            className="group block rounded-xl border border-gray-800 bg-gray-900/50 p-6 hover:border-gray-600 hover:bg-gray-900 transition-colors"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-red-400">Phase 7</p>
+            <h2 className="mt-2 text-xl font-semibold text-white group-hover:text-blue-400 transition-colors">
+              Phase 7B Runtime Integration
+            </h2>
+            <p className="text-gray-400 mt-2 text-sm leading-relaxed">
+              Implement runtime popup validation against <code className="rounded bg-gray-800 px-1 py-0.5 text-gray-200">POST /api/validate</code>
+              before Main Script execution.
+            </p>
+          </Link>
         </div>
       </div>
     </div>

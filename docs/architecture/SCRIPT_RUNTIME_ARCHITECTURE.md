@@ -8,10 +8,10 @@ Scope: Future script-side runtime architecture for shared loaders, authorization
 Design freeze status:
 
 - Script Runtime Architecture: DESIGN FROZEN
-- Phase 7B Key Monetization: DESIGN REALIGNED
-- Implementation: Not Started
+- Phase 7B Key Monetization: RUNTIME INTEGRATION BLOCKED
+- Implementation: Phase 7B.6 Runtime Key Integration not started in this document
 - Contract freeze: Complete in `contracts/`
-- Phase 7B Key Monetization implementation remains deferred until explicitly approved after the Production Stabilization Window. Premium license runtime behavior belongs to Phase 7C.
+- Phase 7B.6 Runtime Key Integration must add popup validation against `POST /api/validate` before Main Script execution without changing this frozen architecture's delivery, event, analytics pipeline, or build-system boundaries. Premium license runtime behavior belongs to Phase 7C.
 
 Frozen contract documents:
 

@@ -40,7 +40,7 @@ The repository implementation is structurally sound in code and includes the cur
 - CSP still uses inline allowances and should move to nonce-based policy later.
 - Stats calculations use live aggregate queries and may need query consolidation or caching at scale.
 - Cleanup endpoint logs per-step errors but still returns success when non-critical cleanup steps fail.
-- Phase 7B has been refined to Key Monetization Platform and remains deferred because of the Production Stabilization Window. Premium license runtime enforcement, assignment capacity enforcement, strict customer identifier handling, license counters, and runtime audit trail have moved to Phase 7C.
+- Phase 7B has been refined to Key Monetization Platform. Backend monetization infrastructure is complete, but runtime popup validation is not integrated into the Roblox runtime yet. Premium license runtime enforcement, assignment capacity enforcement, strict customer identifier handling, license counters, and runtime audit trail remain Phase 7C.
 - Production validation cannot fully confirm migration drift or RLS behavior without deployed database access.
 
 ## Recommendations
@@ -63,7 +63,7 @@ Phase 7A License Foundation readiness: 100/100 for the implemented foundation/da
 
 ## Final Decision
 
-GO for current implemented scope. Phase 7A is complete and production ready. Production Stabilization is active. Phase 7B Key Monetization Platform is deferred because of the Production Stabilization Window. Phase 7C Premium License System is deferred until after Phase 7B.
+GO for current implemented scope. Phase 7A is complete and production ready. Production Stabilization is active. Phase 7B backend monetization infrastructure is complete, with Phase 7B.6 Runtime Key Integration remaining as the critical blocker. Phase 7C Premium License System is deferred until after Phase 7B.
 
 ## Basis
 

@@ -1,11 +1,11 @@
 # Phase 7B Threat Model — Key Monetization Platform
 
-Status: Deferred / Planning Refined
-Date: 2026-06-16
+Status: Runtime Integration Blocked
+Date: 2026-06-17
 
-Reason: Product direction was refined. Phase 7B is now the provider-agnostic Key Monetization Platform. Premium License System threats and controls remain deferred to Phase 7C.
+Reason: Backend monetization infrastructure is complete, but popup validation has not yet been integrated into the Roblox runtime. Premium License System threats and controls remain deferred to Phase 7C.
 
-Implementation: Not part of this documentation update.
+Implementation: Not part of this documentation update. Phase 7B.6 must integrate runtime popup validation with `POST /api/validate` before Main Script execution.
 
 Design: Refined
 
@@ -14,6 +14,28 @@ Threat Model: Refined
 Documentation: Refined
 
 This document records the intended threat model for Phase 7B Key Monetization Platform. It does not implement controls. It must not be used to start premium license, customer identifier, HWID binding, device transfer workflow, license entitlement, license analytics, or license hardening work. Those concerns belong to Phase 7C.
+
+## Threat: Runtime Validation Bypass
+
+Description:
+The runtime loader currently executes delivered payloads directly. If popup validation is not inserted before Main Script execution, users can run Free Key, Premium Key, or Device Limit protected scripts without a successful `POST /api/validate` response.
+
+Impact:
+Backend monetization controls exist but are not applied to runtime execution, allowing key and device-limit bypass.
+
+Mitigation Strategy:
+Implement Phase 7B.6 Runtime Key Integration. The runtime must show popup validation, request key input, call `POST /api/validate`, show validation status/errors, and require `validation_success == true` before Main Script execution.
+
+## Threat: Runtime Validation Scope Creep
+
+Description:
+Runtime integration may attempt to reimplement device-limit, premium-key, delivery-session, analytics-pipeline, or build-system logic instead of using the completed backend validation boundary.
+
+Impact:
+Duplicate validation logic can diverge from backend enforcement, leak credentials, or destabilize protected delivery/event/build components.
+
+Mitigation Strategy:
+Keep Device Limits, Premium Keys, and Free Keys enforced exclusively through `POST /api/validate`. Do not change `DeviceLimitService`, Premium Key backend enforcement, Delivery Session Architecture, Delivery Fetch Architecture, Runtime Payload Delivery, Event Platform, Analytics Pipeline, or Build System for Phase 7B.6.
 
 ## Threat: Provider Lock-In
 
@@ -48,16 +70,16 @@ Attackers can bypass provider flows, paid keys, device limits, and key authoriza
 Mitigation Strategy:
 Before Phase 7B release, raw delivery must respect key-required access or be disabled for key-required scripts. Authorization remains server-side and must not rely on client behavior.
 
-## Threat: Missing Loader Key Or Fingerprint Forwarding
+## Threat: Missing Runtime Key Or Identifier Submission
 
 Description:
-The server can require keys and device fingerprints at delivery-session creation, but the production loader may not forward them.
+The server can validate keys and device identifiers through `POST /api/validate`, but the Roblox runtime may not submit `key`, `executor_identifier`, and `client_identifier`.
 
 Impact:
-Legitimate users with valid keys cannot run key-required scripts through the default loader, causing false denials and support burden.
+Legitimate users with valid keys cannot complete validation through the runtime popup, causing false denials and support burden.
 
 Mitigation Strategy:
-Add a key/fingerprint forwarding path for `POST /api/delivery/session`. Do not forward keys or fingerprints to delivery fetch, runtime payload delivery, event reporting, or unrelated runtime APIs.
+Add runtime submission to `POST /api/validate`. Do not forward raw keys or identifiers to delivery fetch, runtime payload delivery, event reporting, unrelated runtime APIs, or logs.
 
 ## Threat: Key Leakage
 
@@ -184,6 +206,6 @@ Keep Phase 7B limited to Key Monetization Platform. Move premium licenses, runti
 
 ## Review Notes
 
-Phase 7B implementation should remain deferred until the Production Stabilization Window completes. When resumed, implementation should be reviewed against this threat model before code changes begin and again before production rollout.
+Phase 7B.6 Runtime Key Integration is the critical blocker. Implementation should be reviewed against this threat model before code changes begin and again before production rollout.
 
 Phase 7C requires its own premium-license threat model before implementing premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, or license hardening.

@@ -295,7 +295,7 @@ Approved Phase 7 authorization boundary:
 - `key_required` currently reuses the existing Work.ink key ecosystem and is planned to become a provider-agnostic free/paid key platform in Phase 7B.
 - `license_required` uses premium creator-generated licenses and assignment/HWID limits; runtime hardening is Phase 7C.
 
-Phase 7A implemented the access-mode foundation, key validation integration, license foundation, creator license lifecycle management, assignment create/remove workflows, and dashboard analytics. Phase 7B is deferred during Production Stabilization and has been refined to Key Monetization Platform: provider-agnostic access for Work.ink, Linkvertise, LootLabs, and future providers; free 24-hour keys; paid weekly/monthly/team/custom keys; device-limited keys; administrative device reset; `key_required` script access; loader key/fingerprint forwarding; raw endpoint protection; and key analytics. Premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, and license hardening are Phase 7C.
+Phase 7A implemented the access-mode foundation, key validation integration, license foundation, creator license lifecycle management, assignment create/remove workflows, and dashboard analytics. Phase 7B backend monetization infrastructure is complete for Provider Foundation, Premium Key Infrastructure, Access Mode Support, Provider Hardening, Dashboard UX Refinement, Key Management Refinement, Key Type Alignment, Device Limits V1, and Custom Device Limits. Phase 7B is now blocked by Roblox runtime integration: popup validation must call `POST /api/validate` and Main Script execution must require `validation_success == true`. Premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, and license hardening are Phase 7C.
 
 ## Analytics Architecture
 
@@ -408,7 +408,7 @@ Current accepted decisions:
 Current phase:
 
 - Production Stabilization Program: active.
-- Phase 7B — Key Monetization Platform: deferred / planning refined. MAIN already contains the free key, Work.ink, expiration, access-mode, and session-boundary foundation; provider abstraction, paid keys, device-limited keys, device reset, and expanded analytics are not implemented.
+- Phase 7B — Key Monetization Platform: runtime integration blocked. Backend monetization infrastructure is complete; remaining work starts with Phase 7B.6 Runtime Key Integration, followed by Analytics Foundation, Device Analytics Dashboard, Device Reset, Provider Expansion, and Monetization Analytics.
 - Phase 7C — Premium License System: deferred / not started under the new roadmap. MAIN contains Phase 7A foundation only.
 
 Completed phases:

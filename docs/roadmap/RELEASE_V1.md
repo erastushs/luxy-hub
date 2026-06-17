@@ -203,21 +203,22 @@ Completed after Release V1:
 Current active track:
 
 - Production Stabilization Program: active observation window for production behavior, analytics accuracy, event platform stability, secure delivery stability, build stability, bug reports, user feedback, and runtime errors.
+- Phase 7B.6 Runtime Key Integration: critical blocker for connecting Roblox runtime popup validation to `POST /api/validate` before Main Script execution.
 
 Deferred tracks:
 
-- Phase 7B — Key Monetization Platform: deferred because of the Production Stabilization Window. MAIN already contains free key generation, Work.ink flow, key validation, key expiration, `access_mode`, and key-required authorization foundation. Remaining work is provider-agnostic access, Linkvertise/LootLabs/future provider support, paid keys, device-limited keys, device reset, dashboard key issuance, `key_required` script access, loader key/fingerprint forwarding, raw endpoint protection, and key analytics.
+- Phase 7B — Key Monetization Platform: backend monetization infrastructure is complete; runtime integration remains. Remaining work is Phase 7B.6 Runtime Key Integration, Phase 7B.7 Analytics Foundation, Phase 7B.8 Device Analytics Dashboard, Phase 7B.9 Device Reset, Phase 7B.10 Provider Expansion, and Phase 7B.11 Monetization Analytics.
 - Phase 7C — Premium License System: deferred until after Phase 7B. Premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, license hardening, runtime license enforcement, assignment lifecycle, and assignment capacity enforcement belong to Phase 7C.
 
 Future ordering:
 
-1. Analytics V2
-2. QA & Test Coverage Expansion
-3. Operational Hardening
-4. Security Review
-5. Phase 7B — Key Monetization Platform
-6. Final Security Audit
-7. Release Candidate
+1. Phase 7B.6 Runtime Key Integration
+2. Phase 7B.7 Analytics Foundation
+3. Phase 7B.8 Device Analytics Dashboard
+4. Phase 7B.9 Device Reset
+5. Phase 7B.10 Provider Expansion
+6. Phase 7B.11 Monetization Analytics
+7. Analytics V2
 8. V1 Release
 
 Deferred Event Platform enhancements:

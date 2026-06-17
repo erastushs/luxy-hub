@@ -31,7 +31,7 @@ Important separation of concerns:
 | Phase 8 Event Platform | Complete, production verified, Roblox verified |
 | Phase 7A | Complete, production ready |
 | Production Stabilization Program | Active |
-| Phase 7B | Key Monetization Platform, deferred / planning refined, estimated 35% foundation complete |
+| Phase 7B | Key Monetization Platform, runtime integration blocked, estimated 85-90% complete overall; backend infrastructure complete |
 | Phase 7C | Premium License System, deferred / not started under new roadmap |
 
 Analytics V1 is complete and uses `script_executions` as the canonical execution event table for secure delivery sessions. Phase 7B should add key monetization visibility for generated, validated, expired, denied, provider source, and device-limit outcomes without redefining execution-count semantics. Phase 7C should add license analytics after premium runtime enforcement is designed.
@@ -53,19 +53,26 @@ Analytics V1 is complete and uses `script_executions` as the canonical execution
 - License Analytics dashboard at `/dashboard/licenses/analytics`.
 - License dashboard UX polish: search, filters, sorting, selection UI, confirmation dialogs, loading states, empty states, responsive remediation, and breadcrumb integration.
 
+### Phase 7B Completed Backend Infrastructure
+
+- Provider Foundation.
+- Premium Key Infrastructure.
+- Access Mode Support.
+- Provider Hardening.
+- Dashboard UX Refinement.
+- Key Management Refinement.
+- Key Type Alignment.
+- Device Limits V1.
+- Custom Device Limits.
+
 ### Phase 7B Remaining Work
 
-- Provider-agnostic access system for Work.ink, Linkvertise, LootLabs, and future providers.
-- Free 24-hour keys via ad providers.
-- Paid weekly, monthly, team, and custom-expiration keys.
-- Device-limited keys with `max_devices`.
-- Device registrations and administrative device reset workflow.
-- Dashboard key issuance.
-- Productized `key_required` script access controls.
-- Loader key and fingerprint forwarding to `POST /api/delivery/session` only.
-- Raw endpoint protection for key-required scripts.
-- Key analytics for generated, validated, expired, denied, provider source, and device-limit outcomes.
-- Production rollout checklist and key-specific tests.
+- Phase 7B.6 Runtime Key Integration.
+- Phase 7B.7 Analytics Foundation.
+- Phase 7B.8 Device Analytics Dashboard.
+- Phase 7B.9 Device Reset.
+- Phase 7B.10 Provider Expansion.
+- Phase 7B.11 Monetization Analytics.
 
 ### Phase 7C Deferred Work
 
@@ -521,23 +528,21 @@ Premium counters should be updated atomically with authorization decisions where
 - Assignment metadata loading/error states.
 - Analytics initial loading and stale refresh protection.
 
-### Phase 7B — Key Monetization Platform — Deferred / Planning Refined
+### Phase 7B — Key Monetization Platform — Runtime Integration Blocked
 
-- Free key access.
-- 24-hour free keys via ad providers.
-- Provider-agnostic access system.
-- Work.ink, Linkvertise, LootLabs, and future providers.
-- Key expiration.
-- Paid weekly keys.
-- Paid monthly keys.
-- Custom expiration keys.
-- Device-limited keys.
-- Administrative device reset workflow.
-- Dashboard key issuance.
-- Key analytics.
-- `key_required` script access.
-- Loader key and fingerprint forwarding.
-- Raw endpoint protection.
+- Backend monetization infrastructure complete.
+- Free Keys enforced through `POST /api/validate`.
+- Premium Keys enforced through `POST /api/validate`.
+- Device Limits enforced through `POST /api/validate`.
+- Phase 7B.6 Runtime Key Integration.
+- Runtime popup UI.
+- Runtime key input and validation status/error states.
+- Runtime execution gate requiring `validation_success == true`.
+- Phase 7B.7 Analytics Foundation.
+- Phase 7B.8 Device Analytics Dashboard.
+- Phase 7B.9 Device Reset.
+- Phase 7B.10 Provider Expansion.
+- Phase 7B.11 Monetization Analytics.
 
 ### Phase 7C — Premium License System — Deferred
 
@@ -557,7 +562,7 @@ Premium counters should be updated atomically with authorization decisions where
 
 ## 12. Migration Strategy
 
-This documentation update does not create migrations. Refined Phase 7B implementation planning must review storage needs because the provider-agnostic and device-limited model goes beyond the current MAIN schema.
+This documentation update does not create migrations. Phase 7B.6 runtime integration must use the existing `POST /api/validate` backend boundary and must not require schema changes.
 
 MAIN already has:
 
@@ -566,7 +571,7 @@ MAIN already has:
 - `scripts.access_mode` with `key_required`.
 - Operational logging/event tables that can support minimal analytics.
 
-Likely storage concepts that need explicit future review before implementation:
+Storage concepts for later Phase 7B operational tooling and analytics may need explicit future review before implementation:
 
 - Provider source.
 - Key type.
@@ -575,7 +580,7 @@ Likely storage concepts that need explicit future review before implementation:
 - Device reset history.
 - Provider-specific replay markers for Linkvertise, LootLabs, and future providers.
 
-Phase 7B should avoid accidental migrations. Any schema work for provider source, device limits, device registrations, or analytics must be separately reviewed and approved during implementation planning.
+Phase 7B.6 should avoid accidental migrations. Any later schema work for provider source, device limits, device registrations, or analytics must be separately reviewed and approved during implementation planning.
 
 Phase 7C may require migrations or database functions for premium license hardening, especially atomic assignment capacity enforcement, customer identifiers, HWID binding, verifier storage, license entitlements, and license analytics.
 
@@ -623,12 +628,16 @@ Known limits:
 Accepted approach:
 
 - Secure Delivery remains the payload protection layer.
-- Phase 7 controls who can create sessions.
-- Runtime and event layers remain separate from authorization decisions.
+- Phase 7 backend validation remains centralized in `POST /api/validate` for keys/devices.
+- Runtime key integration gates execution after delivery/bootstrap without redesigning delivery fetch, payload delivery, events, analytics pipeline, or build system.
 
 ## 14. Implementation Readiness
 
-Phase 7B Key Monetization Platform readiness based on MAIN: 35%.
+Phase 7B Key Monetization Platform readiness: 85-90% overall.
+
+Backend Infrastructure readiness: 100%.
+
+Runtime Integration readiness: 0%.
 
 Ready foundation:
 
@@ -639,20 +648,20 @@ Ready foundation:
 - Token replay protection.
 - `access_mode` schema foundation.
 - Session-boundary key authorization foundation.
+- Provider Foundation.
+- Premium Key Infrastructure.
+- Access Mode Support.
+- Provider Hardening.
+- Dashboard UX Refinement.
+- Key Management Refinement.
+- Key Type Alignment.
+- Device Limits V1.
+- Custom Device Limits.
 
 Not ready / blockers:
 
-- Provider-agnostic access model.
-- Linkvertise provider support.
-- LootLabs provider support.
-- Paid key issuance.
-- Device-limited keys.
-- Device registration and reset workflow.
-- Dashboard key issuance.
-- Weekly/monthly/custom expiration issuance UI/service path.
-- Productized `key_required` access-mode controls.
-- Loader key/fingerprint forwarding.
-- Raw endpoint protection.
-- Key analytics with provider source and device outcomes.
+- Runtime popup validation is not integrated into the Roblox runtime.
+- The runtime loader currently executes delivered payloads directly.
+- Main Script execution is not yet gated by `validation_success == true`.
 
 Phase 7C Premium License System readiness: foundation exists, but runtime hardening is deferred and should not start until Phase 7B is stable.

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { CalendarClock, CheckCircle2, KeyRound, Loader2, Search } from 'lucide-react'
 import { CopyButton } from '@/app/dashboard/components/CopyButton'
 import { cn } from '@/app/lib/utils'
@@ -142,12 +143,20 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-red-400">Key Management</p>
-        <h1 className="mt-2 text-2xl font-bold text-white">Dashboard Keys</h1>
-        <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-          Generate paid access keys and manage existing key activation state.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-red-400">Key Management</p>
+          <h1 className="mt-2 text-2xl font-bold text-white">Dashboard Keys</h1>
+          <p className="mt-1 max-w-2xl text-sm text-zinc-400">
+            Generate paid access keys and manage existing key activation state.
+          </p>
+        </div>
+        <Link
+          href="/docs/phase-7b-runtime-integration"
+          className="inline-flex w-fit items-center justify-center rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition hover:border-red-400 hover:bg-red-500/20 hover:text-white"
+        >
+          Runtime Integration Docs
+        </Link>
       </div>
 
       {error && (
