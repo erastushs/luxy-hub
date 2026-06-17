@@ -3,12 +3,25 @@ import { supabaseAdmin } from '@/app/lib/supabase'
 export type KeyRow = {
   id: string
   key: string
+  key_category: KeyCategory
+  name: string | null
+  description: string | null
   is_active: boolean
   expires_at: string
   created_at: string
 }
 
-const KEY_SELECT = 'id, key, is_active, expires_at, created_at'
+export type KeyCategory = 'free' | 'premium' | 'legacy'
+
+export type InsertKeyParams = {
+  key: string
+  expiresAt: string
+  keyCategory?: KeyCategory
+  name?: string | null
+  description?: string | null
+}
+
+const KEY_SELECT = 'id, key, key_category, name, description, is_active, expires_at, created_at'
 
 export async function findKey(key: string) {
   const { data, error } = await supabaseAdmin
@@ -21,16 +34,20 @@ export async function findKey(key: string) {
   return data as KeyRow
 }
 
-export async function listKeys(params: { search?: string | null; limit?: number } = {}): Promise<KeyRow[]> {
+export async function listKeys(params: { search?: string | null; limit?: number; category?: KeyCategory } = {}): Promise<KeyRow[]> {
   let query = supabaseAdmin
     .from('keys')
     .select(KEY_SELECT)
     .order('created_at', { ascending: false })
     .limit(params.limit ?? 100)
 
+  if (params.category) {
+    query = query.eq('key_category', params.category)
+  }
+
   const search = params.search?.trim()
   if (search) {
-    query = query.ilike('key', `%${search}%`)
+    query = query.or(`key.ilike.%${search}%,name.ilike.%${search}%,description.ilike.%${search}%`)
   }
 
   const { data, error } = await query
@@ -39,10 +56,13 @@ export async function listKeys(params: { search?: string | null; limit?: number 
   return (data ?? []) as KeyRow[]
 }
 
-export async function insertKey(key: string, expiresAt: string) {
+export async function insertKey(params: InsertKeyParams) {
   const { error } = await supabaseAdmin.from('keys').insert({
-    key,
-    expires_at: expiresAt,
+    key: params.key,
+    expires_at: params.expiresAt,
+    key_category: params.keyCategory ?? 'legacy',
+    name: params.name ?? null,
+    description: params.description ?? null,
   })
 
   if (error && error.code !== '23505') {
@@ -66,6 +86,7 @@ export async function setKeyActiveState(keyId: string, isActive: boolean): Promi
     .from('keys')
     .update({ is_active: isActive })
     .eq('id', keyId)
+    .eq('key_category', 'premium')
     .select(KEY_SELECT)
     .single()
 

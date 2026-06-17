@@ -15,6 +15,12 @@ vi.mock('@/app/lib/auth/session-auth', () => ({
 }))
 
 vi.mock('@/app/lib/services/paid-key-service', () => ({
+  PaidKeyValidationError: class PaidKeyValidationError extends Error {
+    constructor(message: string) {
+      super(message)
+      this.name = 'PaidKeyValidationError'
+    }
+  },
   issuePaidKey: vi.fn(),
 }))
 
@@ -24,7 +30,7 @@ vi.mock('@/app/lib/services/key-service', () => ({
 }))
 
 import { requireAuth } from '@/app/lib/auth/session-auth'
-import { issuePaidKey } from '@/app/lib/services/paid-key-service'
+import { issuePaidKey, PaidKeyValidationError } from '@/app/lib/services/paid-key-service'
 import { listDashboardKeys, updateDashboardKeyState } from '@/app/lib/services/key-service'
 import { GET as listDashboardKeysRoute, POST as issueDashboardKeyRoute } from '@/app/api/dashboard/keys/route'
 import { PATCH as updateDashboardKeyRoute } from '@/app/api/dashboard/keys/[id]/route'
@@ -58,18 +64,29 @@ describe('dashboard key API', () => {
   })
 
   it('issues authenticated weekly keys', async () => {
-    mockedIssuePaidKey.mockResolvedValue({
-      key: 'LUXY-WEEK-BBBB-CCCC',
-      expires_at: '2026-06-23T00:00:00.000Z',
-      duration: 'weekly',
-    })
+    mockedIssuePaidKey.mockRejectedValue(new PaidKeyValidationError('Premium key name is required'))
 
     const response = await issueDashboardKeyRoute(jsonRequest({ duration: 'weekly' }))
     const body = await response.json()
 
+    expect(response.status).toBe(400)
+    expect(body).toEqual({ success: false, message: 'Premium key name is required' })
+    expect(mockedIssuePaidKey).toHaveBeenCalledWith({ duration: 'weekly', name: '', description: null })
+  })
+
+  it('issues authenticated weekly keys with required premium metadata', async () => {
+    mockedIssuePaidKey.mockResolvedValue({
+      key: 'LUXY-PREM-BBBB-CCCC',
+      expires_at: '2026-06-23T00:00:00.000Z',
+      duration: 'weekly',
+    })
+
+    const response = await issueDashboardKeyRoute(jsonRequest({ duration: 'weekly', name: 'Monthly Discord', description: 'June supporter' }))
+    const body = await response.json()
+
     expect(response.status).toBe(201)
-    expect(body).toEqual({ success: true, key: 'LUXY-WEEK-BBBB-CCCC', expires_at: '2026-06-23T00:00:00.000Z' })
-    expect(mockedIssuePaidKey).toHaveBeenCalledWith({ duration: 'weekly' })
+    expect(body).toEqual({ success: true, key: 'LUXY-PREM-BBBB-CCCC', expires_at: '2026-06-23T00:00:00.000Z' })
+    expect(mockedIssuePaidKey).toHaveBeenCalledWith({ duration: 'weekly', name: 'Monthly Discord', description: 'June supporter' })
   })
 
   it('passes custom expiration to the paid key service', async () => {
@@ -81,11 +98,12 @@ describe('dashboard key API', () => {
 
     const response = await issueDashboardKeyRoute(jsonRequest({
       duration: 'custom',
+      name: 'Giveaway Winner',
       expires_at: '2026-07-01T00:00:00.000Z',
     }))
 
     expect(response.status).toBe(201)
-    expect(mockedIssuePaidKey).toHaveBeenCalledWith({ duration: 'custom', expiresAt: '2026-07-01T00:00:00.000Z' })
+    expect(mockedIssuePaidKey).toHaveBeenCalledWith({ duration: 'custom', expiresAt: '2026-07-01T00:00:00.000Z', name: 'Giveaway Winner', description: null })
   })
 
   it('rejects invalid durations before issuing', async () => {
@@ -99,7 +117,7 @@ describe('dashboard key API', () => {
 
   it('lists dashboard keys with summary data', async () => {
     mockedListDashboardKeys.mockResolvedValue({
-      keys: [{ id: 'key-1', key: 'LUXY-AAAA-BBBB-CCCC', is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
+      keys: [{ id: 'key-1', key: 'LUXY-PREM-AAAA-BBBB', key_category: 'premium', name: 'Monthly Discord', description: null, is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
       summary: { total: 1, active: 1, expired: 0, disabled: 0 },
     })
 
@@ -110,7 +128,7 @@ describe('dashboard key API', () => {
     expect(mockedListDashboardKeys).toHaveBeenCalledWith('AAAA')
     expect(body).toEqual({
       success: true,
-      keys: [{ id: 'key-1', key: 'LUXY-AAAA-BBBB-CCCC', is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
+      keys: [{ id: 'key-1', key: 'LUXY-PREM-AAAA-BBBB', key_category: 'premium', name: 'Monthly Discord', description: null, is_active: true, status: 'active', expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-17T00:00:00.000Z' }],
       summary: { total: 1, active: 1, expired: 0, disabled: 0 },
     })
   })
@@ -118,7 +136,10 @@ describe('dashboard key API', () => {
   it('updates dashboard key active state', async () => {
     mockedUpdateDashboardKeyState.mockResolvedValue({
       id: 'key-1',
-      key: 'LUXY-AAAA-BBBB-CCCC',
+      key: 'LUXY-PREM-AAAA-BBBB',
+      key_category: 'premium',
+      name: 'Monthly Discord',
+      description: null,
       is_active: false,
       status: 'disabled',
       expires_at: '2026-06-18T00:00:00.000Z',

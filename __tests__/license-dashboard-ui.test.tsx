@@ -67,7 +67,10 @@ describe('license dashboard UI', () => {
       <KeysClient
         initialKeys={[{
           id: 'key-1',
-          key: 'LUXY-AAAA-BBBB-CCCC',
+          key: 'LUXY-PREM-AAAA-BBBB',
+          key_category: 'premium',
+          name: 'Monthly Discord',
+          description: 'June supporter',
           is_active: true,
           status: 'active',
           expires_at: '2026-06-18T00:00:00.000Z',
@@ -83,8 +86,12 @@ describe('license dashboard UI', () => {
     expect(html).toContain('Expired Keys')
     expect(html).toContain('Disabled Keys')
     expect(html).toContain('Existing keys')
-    expect(html).toContain('LUXY-AAAA-BBBB-CCCC')
+    expect(html).toContain('Monthly Discord')
+    expect(html).toContain('June supporter')
+    expect(html).toContain('LUXY-PREM-AAAA-BBBB')
     expect(html).toContain('Disable Key')
+    expect(html).toContain('Name')
+    expect(html).toContain('Description')
     expect(html).toContain('Weekly')
     expect(html).toContain('Monthly')
     expect(html).toContain('Custom')

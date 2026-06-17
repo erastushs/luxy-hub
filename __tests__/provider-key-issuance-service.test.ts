@@ -48,7 +48,10 @@ describe('provider key issuance service', () => {
 
     expect(mockedResolveEnabledProvider).toHaveBeenCalledWith('workink')
     expect(provider.verifyToken).toHaveBeenCalledWith({ token: 'token-1', clientIP: '127.0.0.1' })
-    expect(mockedCreateKeyRecord).toHaveBeenCalledWith(new Date('2026-06-17T00:00:00.000Z'))
+    expect(mockedCreateKeyRecord).toHaveBeenCalledWith({
+      expiresAt: new Date('2026-06-17T00:00:00.000Z'),
+      keyCategory: 'free',
+    })
     expect(result).toEqual({
       success: true,
       key: 'LUXY-AAAA-BBBB-CCCC',

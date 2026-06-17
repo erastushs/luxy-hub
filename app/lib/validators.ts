@@ -1,6 +1,6 @@
 import { MAX_SCRIPT_REQUEST_BODY_BYTES, MAX_SCRIPT_SIZE_BYTES } from '@/app/lib/constants/size-limits'
 
-const KEY_REGEX = /^LUXY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
+const KEY_REGEX = /^LUXY-(?:[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}|FREE-[A-Z0-9]{4}-[A-Z0-9]{4}|PREM-[A-Z0-9]{4}-[A-Z0-9]{4})$/
 const MAX_TOKEN_LENGTH = 256
 const MAX_BODY_SIZE = MAX_SCRIPT_REQUEST_BODY_BYTES
 

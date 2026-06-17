@@ -31,6 +31,8 @@ const options: Array<{
 
 export function KeysClient({ initialKeys, initialSummary, initialError = null }: KeysClientProps) {
   const [duration, setDuration] = useState<Duration>('weekly')
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [customExpiresAt, setCustomExpiresAt] = useState('')
   const [issuedKey, setIssuedKey] = useState<IssuedKey | null>(null)
   const [keys, setKeys] = useState(initialKeys)
@@ -69,6 +71,12 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
     event.preventDefault()
     setError(null)
     setIssuedKey(null)
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setError('Premium key name is required')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -77,6 +85,8 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           duration,
+          name: trimmedName,
+          description: description.trim() || undefined,
           expires_at: duration === 'custom' && customExpiresAt
             ? new Date(customExpiresAt).toISOString()
             : undefined,
@@ -90,6 +100,8 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
       }
 
       setIssuedKey({ key: String(body.key), expires_at: String(body.expires_at) })
+      setName('')
+      setDescription('')
       await refreshKeys()
     } catch {
       setError('Failed to issue key')
@@ -179,6 +191,7 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
             <table className="min-w-full divide-y divide-zinc-800 text-sm">
               <thead className="bg-zinc-950/70 text-left text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
+                  <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">Key</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Expires</th>
@@ -189,10 +202,16 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
               <tbody className="divide-y divide-zinc-800 bg-zinc-900/20">
                 {keys.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">No keys found.</td>
+                    <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">No keys found.</td>
                   </tr>
                 ) : keys.map((key) => (
                   <tr key={key.id}>
+                    <td className="px-4 py-3">
+                      <div className="max-w-48">
+                        <p className="truncate font-medium text-zinc-200">{key.name}</p>
+                        {key.description && <p className="mt-1 truncate text-xs text-zinc-500">{key.description}</p>}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <code className="whitespace-nowrap text-xs text-zinc-200">{key.key}</code>
                     </td>
@@ -218,6 +237,10 @@ export function KeysClient({ initialKeys, initialSummary, initialError = null }:
 
         <aside className="space-y-6">
           <CreateKeyForm
+            name={name}
+            setName={setName}
+            description={description}
+            setDescription={setDescription}
             duration={duration}
             setDuration={setDuration}
             customExpiresAt={customExpiresAt}
@@ -249,6 +272,10 @@ function SummaryCard({ label, value, tone = 'red' }: { label: string; value: num
 }
 
 function CreateKeyForm({
+  name,
+  setName,
+  description,
+  setDescription,
   duration,
   setDuration,
   customExpiresAt,
@@ -256,6 +283,10 @@ function CreateKeyForm({
   isSubmitting,
   onSubmit,
 }: {
+  name: string
+  setName: (value: string) => void
+  description: string
+  setDescription: (value: string) => void
   duration: Duration
   setDuration: (duration: Duration) => void
   customExpiresAt: string
@@ -272,6 +303,32 @@ function CreateKeyForm({
         <div>
           <h2 className="text-base font-semibold text-white">Create paid key</h2>
           <p className="text-sm text-zinc-500">Weekly, monthly, or custom expiration.</p>
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-4">
+        <div>
+          <label htmlFor="premium-key-name" className="block text-sm font-medium text-zinc-200">Name <span className="text-red-400">*</span></label>
+          <input
+            id="premium-key-name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+            placeholder="Monthly Discord"
+            className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-red-500 focus:ring-2 focus:ring-red-600/40"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="premium-key-description" className="block text-sm font-medium text-zinc-200">Description</label>
+          <textarea
+            id="premium-key-description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            rows={3}
+            placeholder="Optional support context"
+            className="mt-2 block w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-red-500 focus:ring-2 focus:ring-red-600/40"
+          />
         </div>
       </div>
 

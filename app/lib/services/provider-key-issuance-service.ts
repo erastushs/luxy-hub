@@ -55,7 +55,10 @@ export async function issueProviderKey({
     }
   }
 
-  const key = await createKeyRecord(new Date(Date.now() + DEFAULT_KEY_DURATION_MS))
+  const key = await createKeyRecord({
+    expiresAt: new Date(Date.now() + DEFAULT_KEY_DURATION_MS),
+    keyCategory: 'free',
+  })
 
   return {
     success: true,

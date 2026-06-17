@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({})) as Record<string, unknown>
     const duration = body.duration
+    const name = typeof body.name === 'string' ? body.name : ''
+    const description = typeof body.description === 'string' ? body.description : null
 
     if (duration !== 'weekly' && duration !== 'monthly' && duration !== 'custom') {
       return jsonError('Invalid key duration', 400)
@@ -33,8 +35,8 @@ export async function POST(req: NextRequest) {
 
     const result = await issuePaidKey(
       duration === 'custom'
-        ? { duration, expiresAt: typeof body.expires_at === 'string' ? body.expires_at : '' }
-        : { duration }
+        ? { duration, expiresAt: typeof body.expires_at === 'string' ? body.expires_at : '', name, description }
+        : { duration, name, description }
     )
 
     return NextResponse.json({ success: true, key: result.key, expires_at: result.expires_at }, { status: 201 })

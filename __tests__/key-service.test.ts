@@ -9,14 +9,19 @@ vi.mock('@/app/lib/repositories/key-repository', () => ({
 }))
 
 vi.mock('@/app/lib/key-generator', () => ({
+  generateFreeKey: vi.fn(),
   generateKey: vi.fn(),
+  generatePremiumKey: vi.fn(),
 }))
 
-import { generateKey } from '@/app/lib/key-generator'
+import { generateFreeKey, generateKey, generatePremiumKey } from '@/app/lib/key-generator'
 import { insertKey, listKeys, setKeyActiveState } from '@/app/lib/repositories/key-repository'
-import { createKey, createKeyWithExpiration, getDashboardKeyStatus, listDashboardKeys, updateDashboardKeyState } from '@/app/lib/services/key-service'
+import { createKey, createKeyRecord, createKeyWithExpiration, getDashboardKeyStatus, listDashboardKeys, updateDashboardKeyState } from '@/app/lib/services/key-service'
+import { isValidKeyFormat } from '@/app/lib/validators'
 
+const mockedGenerateFreeKey = vi.mocked(generateFreeKey)
 const mockedGenerateKey = vi.mocked(generateKey)
+const mockedGeneratePremiumKey = vi.mocked(generatePremiumKey)
 const mockedInsertKey = vi.mocked(insertKey)
 const mockedListKeys = vi.mocked(listKeys)
 const mockedSetKeyActiveState = vi.mocked(setKeyActiveState)
@@ -36,7 +41,13 @@ describe('key service', () => {
     const key = await createKey()
 
     expect(key).toBe('LUXY-AAAA-BBBB-CCCC')
-    expect(mockedInsertKey).toHaveBeenCalledWith('LUXY-AAAA-BBBB-CCCC', '2026-06-17T00:00:00.000Z')
+    expect(mockedInsertKey).toHaveBeenCalledWith({
+      key: 'LUXY-AAAA-BBBB-CCCC',
+      expiresAt: '2026-06-17T00:00:00.000Z',
+      keyCategory: 'legacy',
+      name: null,
+      description: null,
+    })
   })
 
   it('retries when a generated key collides', async () => {
@@ -50,6 +61,45 @@ describe('key service', () => {
 
     expect(key).toBe('LUXY-UNIQ-BBBB-CCCC')
     expect(mockedInsertKey).toHaveBeenCalledTimes(2)
+  })
+
+  it('creates free keys with the free format and category', async () => {
+    const expiresAt = new Date('2026-06-20T00:00:00.000Z')
+    mockedGenerateFreeKey.mockReturnValue('LUXY-FREE-AAAA-BBBB')
+    mockedInsertKey.mockResolvedValue(true)
+
+    const record = await createKeyRecord({ expiresAt, keyCategory: 'free' })
+
+    expect(record.key).toBe('LUXY-FREE-AAAA-BBBB')
+    expect(mockedInsertKey).toHaveBeenCalledWith({
+      key: 'LUXY-FREE-AAAA-BBBB',
+      expiresAt: '2026-06-20T00:00:00.000Z',
+      keyCategory: 'free',
+      name: null,
+      description: null,
+    })
+  })
+
+  it('creates premium keys with the premium format, category, and metadata', async () => {
+    const expiresAt = new Date('2026-06-20T00:00:00.000Z')
+    mockedGeneratePremiumKey.mockReturnValue('LUXY-PREM-AAAA-BBBB')
+    mockedInsertKey.mockResolvedValue(true)
+
+    const record = await createKeyRecord({
+      expiresAt,
+      keyCategory: 'premium',
+      name: 'Monthly Discord',
+      description: 'June supporter',
+    })
+
+    expect(record.key).toBe('LUXY-PREM-AAAA-BBBB')
+    expect(mockedInsertKey).toHaveBeenCalledWith({
+      key: 'LUXY-PREM-AAAA-BBBB',
+      expiresAt: '2026-06-20T00:00:00.000Z',
+      keyCategory: 'premium',
+      name: 'Monthly Discord',
+      description: 'June supporter',
+    })
   })
 
   it('derives dashboard key status from active and expiration fields', () => {
@@ -68,11 +118,11 @@ describe('key service', () => {
       { id: 'key-1', key: 'LUXY-AAAA-BBBB-CCCC', is_active: true, expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-16T00:00:00.000Z' },
       { id: 'key-2', key: 'LUXY-DDDD-EEEE-FFFF', is_active: true, expires_at: '2026-06-16T00:00:00.000Z', created_at: '2026-06-15T00:00:00.000Z' },
       { id: 'key-3', key: 'LUXY-GGGG-HHHH-IIII', is_active: false, expires_at: '2026-06-18T00:00:00.000Z', created_at: '2026-06-14T00:00:00.000Z' },
-    ])
+    ].map((key) => ({ ...key, key_category: 'premium' as const, name: 'Premium Key', description: null })))
 
     const result = await listDashboardKeys('AAAA')
 
-    expect(mockedListKeys).toHaveBeenCalledWith({ search: 'AAAA', limit: 200 })
+    expect(mockedListKeys).toHaveBeenCalledWith({ search: 'AAAA', limit: 200, category: 'premium' })
     expect(result.keys.map((key) => key.status)).toEqual(['active', 'expired', 'disabled'])
     expect(result.summary).toEqual({ total: 3, active: 1, expired: 1, disabled: 1 })
   })
@@ -83,6 +133,9 @@ describe('key service', () => {
     mockedSetKeyActiveState.mockResolvedValue({
       id: 'key-1',
       key: 'LUXY-AAAA-BBBB-CCCC',
+      key_category: 'premium',
+      name: 'Monthly Discord',
+      description: null,
       is_active: false,
       expires_at: '2026-06-18T00:00:00.000Z',
       created_at: '2026-06-16T00:00:00.000Z',
@@ -94,3 +147,9 @@ describe('key service', () => {
     expect(result?.status).toBe('disabled')
   })
 })
+  it('validates legacy, free, and premium key formats', () => {
+    expect(isValidKeyFormat('LUXY-AAAA-BBBB-CCCC')).toBe(true)
+    expect(isValidKeyFormat('LUXY-FREE-AAAA-BBBB')).toBe(true)
+    expect(isValidKeyFormat('LUXY-PREM-AAAA-BBBB')).toBe(true)
+    expect(isValidKeyFormat('LUXY-OTHER-AAAA-BBBB')).toBe(false)
+  })

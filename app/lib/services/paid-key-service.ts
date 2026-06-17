@@ -1,11 +1,11 @@
-import { createKeyWithExpiration } from '@/app/lib/services/key-service'
+import { createKeyRecord } from '@/app/lib/services/key-service'
 
 export type PaidKeyDuration = 'weekly' | 'monthly' | 'custom'
 
 export type PaidKeyIssuanceInput =
-  | { duration: 'weekly' }
-  | { duration: 'monthly' }
-  | { duration: 'custom'; expiresAt: string }
+  | { duration: 'weekly'; name: string; description?: string | null }
+  | { duration: 'monthly'; name: string; description?: string | null }
+  | { duration: 'custom'; expiresAt: string; name: string; description?: string | null }
 
 export type PaidKeyIssuance = {
   key: string
@@ -29,11 +29,17 @@ const MAX_CUSTOM_DURATION_MS = 366 * 24 * 60 * 60 * 1000
 const MIN_CUSTOM_DURATION_MS = 60 * 1000
 
 export async function issuePaidKey(input: PaidKeyIssuanceInput): Promise<PaidKeyIssuance> {
+  const name = normalizePremiumKeyName(input.name)
   const expiresAt = resolveExpiration(input)
-  const key = await createKeyWithExpiration(expiresAt)
+  const key = await createKeyRecord({
+    expiresAt,
+    keyCategory: 'premium',
+    name,
+    description: normalizeDescription(input.description),
+  })
 
   return {
-    key,
+    key: key.key,
     expires_at: expiresAt.toISOString(),
     duration: input.duration,
   }
@@ -70,4 +76,19 @@ function resolveExpiration(input: PaidKeyIssuanceInput): Date {
   }
 
   return expiresAt
+}
+
+function normalizePremiumKeyName(name: string): string {
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    throw new PaidKeyValidationError('Premium key name is required')
+  }
+
+  return name.trim()
+}
+
+function normalizeDescription(description: string | null | undefined): string | null {
+  if (typeof description !== 'string') return null
+  const trimmed = description.trim()
+
+  return trimmed.length > 0 ? trimmed : null
 }
