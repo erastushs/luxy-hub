@@ -13,7 +13,8 @@ type QueryChain = {
   select: Mock
   delete: Mock
   lt: Mock
-  limit: Mock
+  order: Mock
+  range: Mock
   in: Mock
 }
 
@@ -22,7 +23,8 @@ function selectChain(data: unknown[], error: unknown = null): QueryChain {
   chain.select = vi.fn(() => chain)
   chain.delete = vi.fn(() => chain)
   chain.lt = vi.fn(() => chain)
-  chain.limit = vi.fn(async () => ({ data, error }))
+  chain.order = vi.fn(() => chain)
+  chain.range = vi.fn(async () => ({ data, error }))
   chain.in = vi.fn(async () => ({ data, error }))
   return chain
 }
@@ -32,7 +34,8 @@ function deleteChain(count: number, error: unknown = null): QueryChain {
   chain.select = vi.fn(() => chain)
   chain.delete = vi.fn(() => chain)
   chain.lt = vi.fn(() => chain)
-  chain.limit = vi.fn(() => chain)
+  chain.order = vi.fn(() => chain)
+  chain.range = vi.fn(() => chain)
   chain.in = vi.fn(async () => ({ count, error }))
   return chain
 }
@@ -59,7 +62,9 @@ describe('delivery session repository cleanup', () => {
     expect(mockedFrom).toHaveBeenNthCalledWith(1, 'delivery_sessions')
     expect(expiredSessions.select).toHaveBeenCalledWith('id')
     expect(expiredSessions.lt).toHaveBeenCalledWith('expires_at', '2026-01-01T00:00:00.000Z')
-    expect(expiredSessions.limit).toHaveBeenCalledWith(100)
+    expect(expiredSessions.order).toHaveBeenCalledWith('expires_at', { ascending: true })
+    expect(expiredSessions.order).toHaveBeenCalledWith('id', { ascending: true })
+    expect(expiredSessions.range).toHaveBeenCalledWith(0, 99)
     expect(mockedFrom).toHaveBeenNthCalledWith(2, 'script_executions')
     expect(executions.in).toHaveBeenCalledWith('session_id', ['session-1', 'session-2'])
     expect(mockedFrom).toHaveBeenNthCalledWith(3, 'delivery_sessions')
@@ -78,5 +83,30 @@ describe('delivery session repository cleanup', () => {
 
     expect(count).toBe(0)
     expect(mockedFrom).toHaveBeenCalledTimes(2)
+  })
+
+  it('continues scanning when the first expired batch only has execution rows', async () => {
+    const firstExpiredBatch = selectChain([{ id: 'session-1' }])
+    const firstExecutions = selectChain([{ session_id: 'session-1' }])
+    const secondExpiredBatch = selectChain([{ id: 'session-2' }])
+    const secondExecutions = selectChain([])
+    const deleted = deleteChain(1)
+    mockedFrom
+      .mockReturnValueOnce(firstExpiredBatch)
+      .mockReturnValueOnce(firstExecutions)
+      .mockReturnValueOnce(secondExpiredBatch)
+      .mockReturnValueOnce(secondExecutions)
+      .mockReturnValueOnce(deleted)
+
+    const count = await deleteExpiredSessionsWithoutExecutions(
+      new Date('2026-01-01T00:00:00.000Z'),
+      1,
+      2
+    )
+
+    expect(count).toBe(1)
+    expect(firstExpiredBatch.range).toHaveBeenCalledWith(0, 0)
+    expect(secondExpiredBatch.range).toHaveBeenCalledWith(1, 1)
+    expect(deleted.in).toHaveBeenCalledWith('id', ['session-2'])
   })
 })

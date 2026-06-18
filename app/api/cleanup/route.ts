@@ -9,30 +9,109 @@ import { deleteExpiredSessionsWithoutExecutions } from '@/app/lib/repositories/d
 
 const CLEANUP_BATCHES = 25
 const RATE_LIMIT_CLEANUP_BATCH_SIZE = 10000
+const GENERAL_CLEANUP_BATCH_SIZE = 1000
 
-async function deleteOldRateLimits(beforeIso: string): Promise<number> {
+type CleanupStatus = 'success' | 'partial' | 'failed'
+
+type CleanupResult = {
+  deleted: number
+  status: CleanupStatus
+}
+
+type CleanupErrorResult = CleanupResult & {
+  error: 'cleanup_failed'
+}
+
+type CleanupTable =
+  | 'rate_limits'
+  | 'used_workink_tokens'
+  | 'verification_logs'
+  | 'script_downloads'
+
+async function deleteOldRowsById(params: {
+  table: CleanupTable
+  timestampColumn: string
+  beforeIso: string
+  batchSize: number
+  maxBatches: number
+}): Promise<number> {
   let totalDeleted = 0
 
-  for (let batch = 0; batch < CLEANUP_BATCHES; batch++) {
-    const { count, error } = await supabaseAdmin
-      .from('rate_limits')
-      .delete({ count: 'exact' })
-      .lt('created_at', beforeIso)
-      .limit(RATE_LIMIT_CLEANUP_BATCH_SIZE)
+  for (let batch = 0; batch < params.maxBatches; batch++) {
+    const { data: rows, error: selectError } = await supabaseAdmin
+      .from(params.table)
+      .select('id')
+      .lt(params.timestampColumn, params.beforeIso)
+      .order(params.timestampColumn, { ascending: true })
+      .order('id', { ascending: true })
+      .limit(params.batchSize)
 
-    if (error) {
-      throw error
+    if (selectError) {
+      throw selectError
     }
 
-    const deleted = count ?? 0
-    totalDeleted += deleted
+    const ids = (rows ?? [])
+      .map((row) => row.id)
+      .filter((id): id is string => typeof id === 'string')
 
-    if (deleted < RATE_LIMIT_CLEANUP_BATCH_SIZE) {
+    if (ids.length === 0) {
+      break
+    }
+
+    const { count, error: deleteError } = await supabaseAdmin
+      .from(params.table)
+      .delete({ count: 'exact' })
+      .in('id', ids)
+
+    if (deleteError) {
+      throw deleteError
+    }
+
+    totalDeleted += count ?? 0
+
+    if (ids.length < params.batchSize) {
       break
     }
   }
 
   return totalDeleted
+}
+
+async function runCleanupTarget(
+  name: string,
+  cleanup: () => Promise<number>
+): Promise<CleanupResult | CleanupErrorResult> {
+  try {
+    const deleted = await cleanup()
+    return { deleted, status: 'success' }
+  } catch (error) {
+    console.error(`Cleanup ${name} error`, error)
+    return { deleted: 0, status: 'failed', error: 'cleanup_failed' }
+  }
+}
+
+async function disableExpiredKeys(nowIso: string): Promise<number> {
+  const { count, error } = await supabaseAdmin
+    .from('keys')
+    .update({ is_active: false }, { count: 'exact' })
+    .lt('expires_at', nowIso)
+    .eq('is_active', true)
+
+  if (error) {
+    throw error
+  }
+
+  return count ?? 0
+}
+
+async function deleteOldRateLimits(beforeIso: string): Promise<number> {
+  return deleteOldRowsById({
+    table: 'rate_limits',
+    timestampColumn: 'created_at',
+    beforeIso,
+    batchSize: RATE_LIMIT_CLEANUP_BATCH_SIZE,
+    maxBatches: CLEANUP_BATCHES,
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -55,65 +134,56 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const startedAt = Date.now()
     const now = new Date().toISOString()
 
-    const { error: keysError } = await supabaseAdmin
-      .from('keys')
-      .update({ is_active: false })
-      .lt('expires_at', now)
-      .eq('is_active', true)
-
-    if (keysError) {
-      console.error('Cleanup keys error')
-    }
+    const keysResult = await runCleanupTarget('keys', () => disableExpiredKeys(now))
 
     const threeDaysAgo = new Date(
       Date.now() - 3 * 24 * 60 * 60 * 1000
     ).toISOString()
 
-    const { error: tokensError } = await supabaseAdmin
-      .from('used_workink_tokens')
-      .delete()
-      .lt('used_at', threeDaysAgo)
-      .limit(5000)
+    const usedWorkinkTokensResult = await runCleanupTarget('used_workink_tokens', () =>
+      deleteOldRowsById({
+        table: 'used_workink_tokens',
+        timestampColumn: 'used_at',
+        beforeIso: threeDaysAgo,
+        batchSize: GENERAL_CLEANUP_BATCH_SIZE,
+        maxBatches: CLEANUP_BATCHES,
+      })
+    )
 
-    if (tokensError) {
-      console.error('Cleanup tokens error')
-    }
-
-    try {
-      await deleteOldRateLimits(threeDaysAgo)
-    } catch {
-      console.error('Cleanup rate_limits error')
-    }
+    const rateLimitsResult = await runCleanupTarget('rate_limits', () =>
+      deleteOldRateLimits(threeDaysAgo)
+    )
 
     const thirtyDaysAgo = new Date(
       Date.now() - 30 * 24 * 60 * 60 * 1000
     ).toISOString()
 
-    const { error: logsError } = await supabaseAdmin
-      .from('verification_logs')
-      .delete()
-      .lt('created_at', thirtyDaysAgo)
-      .limit(5000)
-
-    if (logsError) {
-      console.error('Cleanup logs error')
-    }
+    const verificationLogsResult = await runCleanupTarget('verification_logs', () =>
+      deleteOldRowsById({
+        table: 'verification_logs',
+        timestampColumn: 'created_at',
+        beforeIso: thirtyDaysAgo,
+        batchSize: GENERAL_CLEANUP_BATCH_SIZE,
+        maxBatches: CLEANUP_BATCHES,
+      })
+    )
 
     const ninetyDaysAgo = new Date(
       Date.now() - 90 * 24 * 60 * 60 * 1000
     ).toISOString()
 
-    const { error: downloadsError } = await supabaseAdmin
-      .from('script_downloads')
-      .delete()
-      .lt('created_at', ninetyDaysAgo)
-      .limit(10000)
-
-    if (downloadsError) {
-      console.error('Cleanup script_downloads error')
-    }
+    const scriptDownloadsResult = await runCleanupTarget('script_downloads', () =>
+      deleteOldRowsById({
+        table: 'script_downloads',
+        timestampColumn: 'created_at',
+        beforeIso: ninetyDaysAgo,
+        batchSize: GENERAL_CLEANUP_BATCH_SIZE,
+        maxBatches: CLEANUP_BATCHES,
+      })
+    )
 
     const sevenDaysAgo = new Date(
       Date.now() - 7 * 24 * 60 * 60 * 1000
@@ -125,18 +195,38 @@ export async function POST(req: NextRequest) {
       pending: await deletePendingEventsBefore(sevenDaysAgo),
     }
 
-    try {
-      await deleteExpiredSessionsWithoutExecutions(new Date())
-    } catch {
-      console.error('Cleanup delivery_sessions error')
-    }
+    const deliverySessionsResult = await runCleanupTarget('delivery_sessions', () =>
+      deleteExpiredSessionsWithoutExecutions(new Date())
+    )
+
+    const cleanupResults = [
+      keysResult,
+      usedWorkinkTokensResult,
+      rateLimitsResult,
+      verificationLogsResult,
+      scriptDownloadsResult,
+      deliverySessionsResult,
+    ]
+    const status: CleanupStatus = cleanupResults.some((result) => result.status === 'failed')
+      ? cleanupResults.some((result) => result.status === 'success')
+        ? 'partial'
+        : 'failed'
+      : 'success'
 
     return NextResponse.json({
-      success: true,
+      success: status !== 'failed',
+      status,
       message: 'Cleanup completed',
       timestamp: now,
+      execution_time_ms: Date.now() - startedAt,
+      keys_disabled: keysResult,
+      used_workink_tokens_deleted: usedWorkinkTokensResult,
+      rate_limits_deleted: rateLimitsResult,
+      verification_logs_deleted: verificationLogsResult,
+      script_downloads_deleted: scriptDownloadsResult,
+      delivery_sessions_deleted: deliverySessionsResult,
       event_logs: eventCleanup,
-    })
+    }, { status: status === 'failed' ? 500 : 200 })
   } catch {
     return NextResponse.json(
       { success: false, message: 'Cleanup failed' },

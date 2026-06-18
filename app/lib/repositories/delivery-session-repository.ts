@@ -85,49 +85,65 @@ export async function deleteExpiredSessions(before: Date = new Date()): Promise<
 
 export async function deleteExpiredSessionsWithoutExecutions(
   before: Date = new Date(),
-  limit: number = 5000
+  limit: number = 5000,
+  maxScanBatches: number = 10
 ): Promise<number> {
   const cappedLimit = Math.max(1, Math.min(limit, 10000))
-  const { data: expiredSessions, error: expiredError } = await supabaseAdmin
-    .from('delivery_sessions')
-    .select('id')
-    .lt('expires_at', before.toISOString())
-    .limit(cappedLimit)
+  const cappedScanBatches = Math.max(1, Math.min(maxScanBatches, 50))
+  let offset = 0
 
-  if (expiredError) throw expiredError
+  for (let batch = 0; batch < cappedScanBatches; batch++) {
+    const { data: expiredSessions, error: expiredError } = await supabaseAdmin
+      .from('delivery_sessions')
+      .select('id')
+      .lt('expires_at', before.toISOString())
+      .order('expires_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(offset, offset + cappedLimit - 1)
 
-  const expiredSessionIds = (expiredSessions ?? [])
-    .map((row) => row.id)
-    .filter((sessionId): sessionId is string => typeof sessionId === 'string')
+    if (expiredError) throw expiredError
 
-  if (expiredSessionIds.length === 0) {
-    return 0
-  }
-
-  const { data: executionRows, error: executionError } = await supabaseAdmin
-    .from('script_executions')
-    .select('session_id')
-    .in('session_id', expiredSessionIds)
-
-  if (executionError) throw executionError
-
-  const executionSessionIds = new Set(
-    (executionRows ?? [])
-      .map((row) => row.session_id)
+    const expiredSessionIds = (expiredSessions ?? [])
+      .map((row) => row.id)
       .filter((sessionId): sessionId is string => typeof sessionId === 'string')
-  )
 
-  const deletableSessionIds = expiredSessionIds.filter((sessionId) => !executionSessionIds.has(sessionId))
+    if (expiredSessionIds.length === 0) {
+      return 0
+    }
 
-  if (deletableSessionIds.length === 0) {
-    return 0
+    const { data: executionRows, error: executionError } = await supabaseAdmin
+      .from('script_executions')
+      .select('session_id')
+      .in('session_id', expiredSessionIds)
+
+    if (executionError) throw executionError
+
+    const executionSessionIds = new Set(
+      (executionRows ?? [])
+        .map((row) => row.session_id)
+        .filter((sessionId): sessionId is string => typeof sessionId === 'string')
+    )
+
+    const deletableSessionIds = expiredSessionIds.filter(
+      (sessionId) => !executionSessionIds.has(sessionId)
+    )
+
+    if (deletableSessionIds.length > 0) {
+      const { count, error } = await supabaseAdmin
+        .from('delivery_sessions')
+        .delete({ count: 'exact' })
+        .in('id', deletableSessionIds)
+
+      if (error) throw error
+      return count ?? 0
+    }
+
+    if (expiredSessionIds.length < cappedLimit) {
+      return 0
+    }
+
+    offset += cappedLimit
   }
 
-  const { count, error } = await supabaseAdmin
-    .from('delivery_sessions')
-    .delete({ count: 'exact' })
-    .in('id', deletableSessionIds)
-
-  if (error) throw error
-  return count ?? 0
+  return 0
 }
