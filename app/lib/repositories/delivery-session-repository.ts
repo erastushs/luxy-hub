@@ -179,10 +179,10 @@ export async function deleteExpiredSessions(before: Date = new Date()): Promise<
 
 export async function deleteExpiredSessionsWithoutExecutions(
   before: Date = new Date(),
-  limit: number = 5000,
+  limit: number = 1000,
   maxScanBatches: number = 10
 ): Promise<number> {
-  const cappedLimit = Math.max(1, Math.min(limit, 10000))
+  const cappedLimit = Math.max(1, Math.min(limit, 1000))
   const cappedScanBatches = Math.max(1, Math.min(maxScanBatches, 50))
   let totalDeleted = 0
 

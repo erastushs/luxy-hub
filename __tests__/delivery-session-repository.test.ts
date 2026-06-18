@@ -61,6 +61,34 @@ describe('delivery session repository cleanup', () => {
 
     expect(count).toBe(0)
     expect(mockedRpc).toHaveBeenCalledTimes(1)
+    expect(mockedRpc).toHaveBeenCalledWith(
+      'cleanup_expired_delivery_sessions_without_executions',
+      {
+        before_timestamp: '2026-01-01T00:00:00.000Z',
+        batch_size: 1000,
+      }
+    )
+  })
+
+  it('caps large requested cleanup batches to 1000', async () => {
+    mockedRpc.mockResolvedValueOnce(rpcResult({
+      deleted_count: 0,
+      processed_count: 0,
+      remaining_candidates: 0,
+    }))
+
+    await deleteExpiredSessionsWithoutExecutions(
+      new Date('2026-01-01T00:00:00.000Z'),
+      5000
+    )
+
+    expect(mockedRpc).toHaveBeenCalledWith(
+      'cleanup_expired_delivery_sessions_without_executions',
+      {
+        before_timestamp: '2026-01-01T00:00:00.000Z',
+        batch_size: 1000,
+      }
+    )
   })
 
   it('does not delete sessions referenced by script executions', async () => {
