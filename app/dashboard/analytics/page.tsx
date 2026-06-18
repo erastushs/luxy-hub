@@ -38,7 +38,7 @@ export default async function AnalyticsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-white">Analytics</h1>
-        <p className="mt-1 text-sm text-zinc-400">Track your script performance</p>
+        <p className="mt-1 text-sm text-zinc-400">View execution statistics.</p>
       </div>
 
       {error && <ErrorBanner message={error} />}

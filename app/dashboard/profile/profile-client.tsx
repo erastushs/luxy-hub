@@ -7,6 +7,7 @@ import { updateProfileAction } from '@/app/actions/profile'
 import { changePasswordAction } from '@/app/actions/security'
 import { logout } from '@/app/actions/auth'
 import { CopyButton } from '@/app/dashboard/components/CopyButton'
+import { DashboardModal } from '@/app/dashboard/components/DashboardModal'
 import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
 import { formatDateLong } from '@/app/dashboard/lib/format-date'
 import type { AuthenticatedUser } from '@/app/lib/auth/session-auth'
@@ -56,7 +57,7 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Profile</h1>
@@ -73,7 +74,7 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
         )}
       </div>
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600/20 text-red-400" aria-hidden="true">
             <UserCircle className="h-7 w-7" />
@@ -86,7 +87,7 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <ProfileField label="Display Name">
             <p className="text-sm font-medium text-white">
               {user.profile.display_name}
@@ -127,7 +128,7 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
           </ProfileField>
         </div>
 
-        <div className="mt-6 border-t border-zinc-800 pt-5">
+        <div className="mt-5 border-t border-zinc-800 pt-5">
           <form action={logout}>
             <button
               type="submit"
@@ -141,13 +142,34 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
       </div>
 
       {editing && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-          <h2 className="text-lg font-semibold text-white">Edit Profile</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Update your display name and username.
-          </p>
-
-          <form action={formAction} className="mt-6 space-y-5">
+        <DashboardModal
+          title="Edit Profile"
+          description="Update your display name and username."
+          onClose={() => setEditing(false)}
+          closeDisabled={isPending}
+          footer={(
+            <>
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                disabled={isPending}
+                className="h-10 rounded-lg border border-zinc-800 px-4 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                form="profile-edit-form"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="h-10 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                form="profile-edit-form"
+              >
+                {isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </>
+          )}
+        >
+          <form id="profile-edit-form" action={formAction} className="space-y-4">
             {state.message && !state.success && (
               <ErrorBanner message={state.message} />
             )}
@@ -166,7 +188,8 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
                 required
                 defaultValue={user.profile.display_name}
                 maxLength={80}
-                className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                autoFocus
+                className="mt-1.5 block h-10 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
               />
             </div>
 
@@ -188,33 +211,15 @@ export function ProfileClient({ user }: { user: AuthenticatedUser }) {
                 defaultValue={user.profile.username ?? ''}
                 maxLength={30}
                 pattern="^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$"
-                className="mt-1.5 block w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                className="mt-1.5 block h-10 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
                 placeholder="my-username"
               />
             </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="submit"
-                disabled={isPending}
-                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-              >
-                {isPending ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                disabled={isPending}
-                className="rounded-lg border border-zinc-800 px-4 py-2.5 text-sm text-zinc-400 transition hover:bg-zinc-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
-              >
-                Cancel
-              </button>
-            </div>
           </form>
-        </div>
+        </DashboardModal>
       )}
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600/20 text-red-400" aria-hidden="true">
             <Lock className="h-5 w-5" />

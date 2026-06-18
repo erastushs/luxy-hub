@@ -96,13 +96,14 @@ describe('license dashboard UI', () => {
       />
     )
 
-    expect(html).toContain('Dashboard Keys')
+    expect(html).toContain('Keys')
+    expect(html).toContain('Generate and manage access keys.')
+    expect(html).toContain('Create Key')
     expect(html).toContain('Total Keys')
     expect(html).toContain('Active Keys')
     expect(html).toContain('Expired Keys')
     expect(html).toContain('Disabled Keys')
     expect(html).toContain('Existing keys')
-    expect(html).toContain('Type')
     expect(html).toContain('monthly')
     expect(html).toContain('Devices')
     expect(html).toContain('2 / 3')
@@ -111,12 +112,6 @@ describe('license dashboard UI', () => {
     expect(html).toContain('June supporter')
     expect(html).toContain('LUXY-PREM-AAAA-BBBB')
     expect(html).toContain('Disable Key')
-    expect(html).toContain('Name')
-    expect(html).toContain('Description')
-    expect(html).toContain('Weekly')
-    expect(html).toContain('Monthly')
-    expect(html).toContain('Custom')
-    expect(html).toContain('Issue key')
   })
 
   it('adds keys to dashboard navigation', () => {
@@ -124,6 +119,8 @@ describe('license dashboard UI', () => {
 
     expect(html).toContain('/dashboard/keys')
     expect(html).toContain('Keys')
+    expect(html).toContain('/docs')
+    expect(html).toContain('Documentation')
   })
 
   it('serializes blank custom max devices as unlimited', () => {

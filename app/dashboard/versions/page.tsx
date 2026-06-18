@@ -30,7 +30,7 @@ export default async function VersionsPage() {
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-white">Versions</h1>
-        <p className="mt-1 text-sm text-zinc-400">View version history for your scripts</p>
+        <p className="mt-1 text-sm text-zinc-400">View script version history.</p>
       </div>
 
       {error && <ErrorBanner message={error} />}

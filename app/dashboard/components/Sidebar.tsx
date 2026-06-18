@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/app/lib/utils'
 import {
@@ -12,6 +13,7 @@ import {
   Ticket,
   UserCircle,
   LogOut,
+  BookOpen,
   type LucideIcon,
 } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
@@ -32,6 +34,7 @@ const navItems: NavItem[] = [
   { label: 'Licenses', href: '/dashboard/licenses', icon: KeyRound, hidden: true },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { label: 'Versions', href: '/dashboard/versions', icon: History },
+  { label: 'Documentation', href: '/docs', icon: BookOpen },
   { label: 'Profile', href: '/dashboard/profile', icon: UserCircle },
 ]
 
@@ -42,8 +45,8 @@ export function Sidebar() {
   const navContent = (
     <>
       <div className="flex h-14 items-center gap-2 border-b border-zinc-800 px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-sm font-bold text-white" aria-hidden="true">
-          L
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 p-1" aria-hidden="true">
+          <Image src="/LH.webp" alt="" width={24} height={24} className="rounded-md" priority />
         </div>
         <span className="text-base font-semibold text-white">LuxyHub</span>
       </div>
@@ -112,8 +115,8 @@ export function Sidebar() {
             className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
             aria-label="Open navigation menu"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-sm font-bold text-white">
-              L
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 p-1">
+              <Image src="/LH.webp" alt="" width={24} height={24} className="rounded-md" priority />
             </div>
           </button>
         </Tooltip>

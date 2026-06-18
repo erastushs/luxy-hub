@@ -79,10 +79,13 @@ export function ScriptsListClient({
         <div>
           <h1 className="text-2xl font-bold text-white">Scripts</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            {total > 0
-              ? `${total} script${total !== 1 ? 's' : ''}`
-              : 'Manage your scripts'}
+            Manage your published Roblox scripts.
           </p>
+          {total > 0 && (
+            <p className="mt-1 text-xs text-zinc-500">
+              {total} script{total !== 1 ? 's' : ''}
+            </p>
+          )}
         </div>
 
         <Link

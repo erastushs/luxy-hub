@@ -11,6 +11,7 @@ import { formatDate } from '@/app/dashboard/lib/format-date'
 import { useState } from 'react'
 import { BuildStatusBadge } from '@/app/dashboard/components/BuildStatusBadge'
 import { CopyLoaderButton } from '@/app/dashboard/components/CopyLoaderButton'
+import { DeleteDialog } from '@/app/dashboard/components/DeleteDialog'
 import { Tooltip } from '@/app/dashboard/components/Tooltip'
 import type { DashboardScriptListItem } from '@/app/dashboard/lib/script-list-item'
 
@@ -22,21 +23,20 @@ export function ScriptCard({
   onDelete: (slug: string) => void
 }) {
   const router = useRouter()
-  const [deleting, setDeleting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const vis = getVisibilityBadge(script.visibility)
   const VisIcon = vis.icon
 
-  async function handleDelete() {
-    setDeleting(true)
+  async function handleDelete(slug: string) {
     const result = await deleteScriptAction(script.slug)
     if (result.success) {
       toast.success('Script deleted')
-      onDelete(script.slug)
+      onDelete(slug)
     } else {
       toast.error(result.message ?? 'Failed to delete script')
     }
-    setDeleting(false)
+    setDeleteOpen(false)
   }
 
   return (
@@ -126,8 +126,7 @@ export function ScriptCard({
           <Tooltip text="Delete">
             <button
               type="button"
-              onClick={handleDelete}
-              disabled={deleting}
+              onClick={() => setDeleteOpen(true)}
               className="rounded-md p-1.5 text-zinc-500 transition hover:bg-red-900/30 hover:text-red-400 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
               aria-label={`Delete ${script.name}`}
             >
@@ -172,6 +171,14 @@ export function ScriptCard({
           <span>Built {formatDate(script.buildInfo.lastBuildAt)}</span>
         )}
       </div>
+      {deleteOpen && (
+        <DeleteDialog
+          scriptName={script.name}
+          scriptSlug={script.slug}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteOpen(false)}
+        />
+      )}
     </div>
   )
 }
