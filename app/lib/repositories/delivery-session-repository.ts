@@ -22,6 +22,91 @@ const SESSION_SELECT = [
   'created_at',
 ].join(', ')
 
+type CleanupRow = {
+  id?: unknown
+  expires_at?: unknown
+  [key: string]: unknown
+}
+
+function serializeCleanupError(error: unknown, depth = 0): unknown {
+  if (depth > 4) {
+    return '[Max error depth reached]'
+  }
+
+  if (error === null || typeof error !== 'object') {
+    return error
+  }
+
+  const serialized: Record<string, unknown> = {}
+
+  for (const key of Object.getOwnPropertyNames(error)) {
+    if (/authorization|apikey|cookie|password|secret|token/i.test(key)) {
+      serialized[key] = '[REDACTED]'
+      continue
+    }
+
+    const value = (error as Record<string, unknown>)[key]
+    serialized[key] = key === 'cause' ? serializeCleanupError(value, depth + 1) : value
+  }
+
+  for (const [key, value] of Object.entries(error as Record<string, unknown>)) {
+    if (key in serialized) continue
+    if (/authorization|apikey|cookie|password|secret|token/i.test(key)) {
+      serialized[key] = '[REDACTED]'
+      continue
+    }
+    serialized[key] = key === 'cause' ? serializeCleanupError(value, depth + 1) : value
+  }
+
+  return serialized
+}
+
+function stringifyCleanupError(error: unknown): string {
+  try {
+    return JSON.stringify(serializeCleanupError(error), null, 2)
+  } catch {
+    return '[Unable to stringify cleanup error]'
+  }
+}
+
+function logCleanupError(name: string, error: unknown) {
+  const errorRecord = error as Partial<{
+    code: unknown
+    message: unknown
+    details: unknown
+    hint: unknown
+    status: unknown
+    statusText: unknown
+    cause: unknown
+  }>
+
+  console.error(`Cleanup ${name} error`, {
+    error,
+    serialized: serializeCleanupError(error),
+    json: stringifyCleanupError(error),
+    code: errorRecord?.code,
+    message: errorRecord?.message,
+    details: errorRecord?.details,
+    hint: errorRecord?.hint,
+    status: errorRecord?.status,
+    statusText: errorRecord?.statusText,
+    cause: serializeCleanupError(errorRecord?.cause),
+  })
+}
+
+function logCleanupQuery(context: {
+  table: string
+  batchSize: number
+  selectedIdsCount: number
+  oldestTimestamp: string | null
+  newestTimestamp: string | null
+  operation: string
+  queryChain: string
+  idsPreview?: string[]
+}) {
+  console.log('Cleanup query context', context)
+}
+
 export async function createSession(params: {
   scriptId: string
   buildId: string
@@ -93,6 +178,18 @@ export async function deleteExpiredSessionsWithoutExecutions(
   let offset = 0
 
   for (let batch = 0; batch < cappedScanBatches; batch++) {
+    const selectQueryChain = `from(delivery_sessions).select(id).lt(expires_at, beforeIso).order(expires_at, ascending).order(id, ascending).range(${offset}, ${offset + cappedLimit - 1})`
+
+    logCleanupQuery({
+      table: 'delivery_sessions',
+      batchSize: cappedLimit,
+      selectedIdsCount: 0,
+      oldestTimestamp: null,
+      newestTimestamp: null,
+      operation: 'select_expired_sessions:start',
+      queryChain: selectQueryChain,
+    })
+
     const { data: expiredSessions, error: expiredError } = await supabaseAdmin
       .from('delivery_sessions')
       .select('id')
@@ -101,22 +198,67 @@ export async function deleteExpiredSessionsWithoutExecutions(
       .order('id', { ascending: true })
       .range(offset, offset + cappedLimit - 1)
 
-    if (expiredError) throw expiredError
+    if (expiredError) {
+      logCleanupError('delivery_sessions select', expiredError)
+      throw expiredError
+    }
 
-    const expiredSessionIds = (expiredSessions ?? [])
+    const expiredRows = (expiredSessions ?? []) as CleanupRow[]
+    const expiredTimestamps = expiredRows
+      .map((row) => row.expires_at)
+      .filter((timestamp): timestamp is string => typeof timestamp === 'string')
+    const expiredSessionIds = expiredRows
       .map((row) => row.id)
       .filter((sessionId): sessionId is string => typeof sessionId === 'string')
+
+    console.log('Cleanup select succeeded', {
+      table: 'delivery_sessions',
+      rowsReturned: expiredRows.length,
+      firstId: expiredSessionIds[0] ?? null,
+      lastId: expiredSessionIds[expiredSessionIds.length - 1] ?? null,
+      selectedIdsCount: expiredSessionIds.length,
+      oldestTimestamp: expiredTimestamps[0] ?? null,
+      newestTimestamp: expiredTimestamps[expiredTimestamps.length - 1] ?? null,
+      queryChain: selectQueryChain,
+    })
 
     if (expiredSessionIds.length === 0) {
       return 0
     }
+
+    const executionsQueryChain = 'from(script_executions).select(session_id).in(session_id, expiredSessionIds)'
+
+    logCleanupQuery({
+      table: 'script_executions',
+      batchSize: cappedLimit,
+      selectedIdsCount: expiredSessionIds.length,
+      oldestTimestamp: expiredTimestamps[0] ?? null,
+      newestTimestamp: expiredTimestamps[expiredTimestamps.length - 1] ?? null,
+      operation: 'select_execution_refs:start',
+      queryChain: executionsQueryChain,
+      idsPreview: expiredSessionIds.slice(0, 5),
+    })
 
     const { data: executionRows, error: executionError } = await supabaseAdmin
       .from('script_executions')
       .select('session_id')
       .in('session_id', expiredSessionIds)
 
-    if (executionError) throw executionError
+    if (executionError) {
+      logCleanupError('delivery_sessions script_executions select', executionError)
+      throw executionError
+    }
+
+    console.log('Cleanup select succeeded', {
+      table: 'script_executions',
+      rowsReturned: executionRows?.length ?? 0,
+      selectedIdsCount: expiredSessionIds.length,
+      idsPassedToInCount: expiredSessionIds.length,
+      idsPreview: expiredSessionIds.slice(0, 5),
+      oldestTimestamp: expiredTimestamps[0] ?? null,
+      newestTimestamp: expiredTimestamps[expiredTimestamps.length - 1] ?? null,
+      queryChain: executionsQueryChain,
+    })
 
     const executionSessionIds = new Set(
       (executionRows ?? [])
@@ -129,12 +271,37 @@ export async function deleteExpiredSessionsWithoutExecutions(
     )
 
     if (deletableSessionIds.length > 0) {
+      const deleteQueryChain = 'from(delivery_sessions).delete(count: exact).in(id, deletableSessionIds)'
+
+      logCleanupQuery({
+        table: 'delivery_sessions',
+        batchSize: cappedLimit,
+        selectedIdsCount: deletableSessionIds.length,
+        oldestTimestamp: expiredTimestamps[0] ?? null,
+        newestTimestamp: expiredTimestamps[expiredTimestamps.length - 1] ?? null,
+        operation: 'delete_expired_sessions_without_executions:start',
+        queryChain: deleteQueryChain,
+        idsPreview: deletableSessionIds.slice(0, 5),
+      })
+
       const { count, error } = await supabaseAdmin
         .from('delivery_sessions')
         .delete({ count: 'exact' })
         .in('id', deletableSessionIds)
 
-      if (error) throw error
+      if (error) {
+        logCleanupError('delivery_sessions delete', error)
+        throw error
+      }
+
+      console.log('Cleanup delete succeeded', {
+        table: 'delivery_sessions',
+        idsPassedToInCount: deletableSessionIds.length,
+        idsPreview: deletableSessionIds.slice(0, 5),
+        deletedCount: count ?? 0,
+        queryChain: deleteQueryChain,
+      })
+
       return count ?? 0
     }
 

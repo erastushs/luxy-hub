@@ -28,6 +28,101 @@ type CleanupTable =
   | 'verification_logs'
   | 'script_downloads'
 
+type CleanupRow = {
+  id?: unknown
+  [key: string]: unknown
+}
+
+function serializeCleanupError(error: unknown, depth = 0): unknown {
+  if (depth > 4) {
+    return '[Max error depth reached]'
+  }
+
+  if (error === null || typeof error !== 'object') {
+    return error
+  }
+
+  const serialized: Record<string, unknown> = {}
+
+  for (const key of Object.getOwnPropertyNames(error)) {
+    if (/authorization|apikey|cookie|password|secret|token/i.test(key)) {
+      serialized[key] = '[REDACTED]'
+      continue
+    }
+
+    const value = (error as Record<string, unknown>)[key]
+    serialized[key] = key === 'cause' ? serializeCleanupError(value, depth + 1) : value
+  }
+
+  for (const [key, value] of Object.entries(error as Record<string, unknown>)) {
+    if (key in serialized) continue
+    if (/authorization|apikey|cookie|password|secret|token/i.test(key)) {
+      serialized[key] = '[REDACTED]'
+      continue
+    }
+    serialized[key] = key === 'cause' ? serializeCleanupError(value, depth + 1) : value
+  }
+
+  return serialized
+}
+
+function stringifyCleanupError(error: unknown): string {
+  try {
+    return JSON.stringify(serializeCleanupError(error), null, 2)
+  } catch {
+    return '[Unable to stringify cleanup error]'
+  }
+}
+
+function logCleanupError(name: string, error: unknown) {
+  const errorRecord = error as Partial<{
+    code: unknown
+    message: unknown
+    details: unknown
+    hint: unknown
+    status: unknown
+    statusText: unknown
+    cause: unknown
+  }>
+
+  console.error(`Cleanup ${name} error`, {
+    error,
+    serialized: serializeCleanupError(error),
+    json: stringifyCleanupError(error),
+    code: errorRecord?.code,
+    message: errorRecord?.message,
+    details: errorRecord?.details,
+    hint: errorRecord?.hint,
+    status: errorRecord?.status,
+    statusText: errorRecord?.statusText,
+    cause: serializeCleanupError(errorRecord?.cause),
+  })
+}
+
+function getTimestampRange(rows: CleanupRow[], timestampColumn: string) {
+  const timestamps = rows
+    .map((row) => row[timestampColumn])
+    .filter((timestamp): timestamp is string => typeof timestamp === 'string')
+
+  return {
+    oldestTimestamp: timestamps[0] ?? null,
+    newestTimestamp: timestamps[timestamps.length - 1] ?? null,
+  }
+}
+
+function logCleanupQuery(context: {
+  table: string
+  batchSize: number
+  selectedIdsCount: number
+  oldestTimestamp: string | null
+  newestTimestamp: string | null
+  operation: string
+  queryChain: string
+  idsPreview?: string[]
+}) {
+  console.log('Cleanup query context', context)
+}
+
 async function deleteOldRowsById(params: {
   table: CleanupTable
   timestampColumn: string
@@ -38,6 +133,18 @@ async function deleteOldRowsById(params: {
   let totalDeleted = 0
 
   for (let batch = 0; batch < params.maxBatches; batch++) {
+    const selectQueryChain = `from(${params.table}).select(id).lt(${params.timestampColumn}, beforeIso).order(${params.timestampColumn}, ascending).order(id, ascending).limit(${params.batchSize})`
+
+    logCleanupQuery({
+      table: params.table,
+      batchSize: params.batchSize,
+      selectedIdsCount: 0,
+      oldestTimestamp: null,
+      newestTimestamp: null,
+      operation: 'select_ids_before_delete:start',
+      queryChain: selectQueryChain,
+    })
+
     const { data: rows, error: selectError } = await supabaseAdmin
       .from(params.table)
       .select('id')
@@ -47,16 +154,46 @@ async function deleteOldRowsById(params: {
       .limit(params.batchSize)
 
     if (selectError) {
+      logCleanupError(`${params.table} select`, selectError)
       throw selectError
     }
 
-    const ids = (rows ?? [])
+    const selectedRows = (rows ?? []) as CleanupRow[]
+    const { oldestTimestamp, newestTimestamp } = getTimestampRange(
+      selectedRows,
+      params.timestampColumn
+    )
+    const ids = selectedRows
       .map((row) => row.id)
       .filter((id): id is string => typeof id === 'string')
+
+    console.log('Cleanup select succeeded', {
+      table: params.table,
+      rowsReturned: selectedRows.length,
+      firstId: ids[0] ?? null,
+      lastId: ids[ids.length - 1] ?? null,
+      selectedIdsCount: ids.length,
+      oldestTimestamp,
+      newestTimestamp,
+      queryChain: selectQueryChain,
+    })
 
     if (ids.length === 0) {
       break
     }
+
+    const deleteQueryChain = `from(${params.table}).delete(count: exact).in(id, ids)`
+
+    logCleanupQuery({
+      table: params.table,
+      batchSize: params.batchSize,
+      selectedIdsCount: ids.length,
+      oldestTimestamp,
+      newestTimestamp,
+      operation: 'delete_by_selected_ids:start',
+      queryChain: deleteQueryChain,
+      idsPreview: ids.slice(0, 5),
+    })
 
     const { count, error: deleteError } = await supabaseAdmin
       .from(params.table)
@@ -64,8 +201,17 @@ async function deleteOldRowsById(params: {
       .in('id', ids)
 
     if (deleteError) {
+      logCleanupError(`${params.table} delete`, deleteError)
       throw deleteError
     }
+
+    console.log('Cleanup delete succeeded', {
+      table: params.table,
+      idsPassedToInCount: ids.length,
+      idsPreview: ids.slice(0, 5),
+      deletedCount: count ?? 0,
+      queryChain: deleteQueryChain,
+    })
 
     totalDeleted += count ?? 0
 
@@ -85,7 +231,7 @@ async function runCleanupTarget(
     const deleted = await cleanup()
     return { deleted, status: 'success' }
   } catch (error) {
-    console.error(`Cleanup ${name} error`, error)
+    logCleanupError(name, error)
     return { deleted: 0, status: 'failed', error: 'cleanup_failed' }
   }
 }
