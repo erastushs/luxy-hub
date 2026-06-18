@@ -63,6 +63,23 @@ const EVENT_LOG_SELECT = [
   'created_at',
 ].join(', ')
 
+const EVENT_LOG_WRITE_SELECT = [
+  'id',
+  'script_id',
+  'session_id',
+  'event_type',
+  'delivery_status',
+  'retry_count',
+  'timestamp',
+  'received_at',
+  'nonce',
+  'last_retry_at',
+  'delivered_at',
+  'error_message',
+  'claimed_at',
+  'created_at',
+].join(', ')
+
 export async function createEventLog(params: {
   scriptId: string
   sessionId?: string | null
@@ -85,7 +102,7 @@ export async function createEventLog(params: {
   const { data, error } = await supabaseAdmin
     .from('event_logs')
     .insert(insertData)
-    .select(EVENT_LOG_SELECT)
+    .select(EVENT_LOG_WRITE_SELECT)
     .single()
 
   if (error) throw error
@@ -225,7 +242,7 @@ export async function updateEventDeliveryStatus(params: {
     .from('event_logs')
     .update(updates)
     .eq('id', params.eventId)
-    .select(EVENT_LOG_SELECT)
+    .select(EVENT_LOG_WRITE_SELECT)
     .single()
 
   if (error) return null

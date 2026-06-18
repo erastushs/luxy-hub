@@ -121,6 +121,8 @@ describe('event repository', () => {
       timestamp: '2026-06-09T12:00:00.000Z',
       nonce: 'a'.repeat(32),
     })
+    expect(chain.select).toHaveBeenCalledTimes(1)
+    expect(chain.select.mock.calls[0][0]).not.toContain('payload')
   })
 
   it('propagates event insert errors from database constraints', async () => {
@@ -218,6 +220,8 @@ describe('event repository', () => {
       delivered_at: '2026-06-09T12:00:02.000Z',
       error_message: null,
     })
+    expect(chain.select).toHaveBeenCalledTimes(1)
+    expect(chain.select.mock.calls[0][0]).not.toContain('payload')
   })
 
   it('deletes delivered, dead-letter, and stale pending events for retention', async () => {
