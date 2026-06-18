@@ -240,9 +240,9 @@ Data minimization rules:
 - Provider abstraction adds planning and testing complexity.
 - Rich provider analytics may require later approved schema work.
 
-## 10. Deferred Phase 7C Scope
+## 10. Deferred Future License Scope
 
-Phase 7C owns Premium License System work:
+Current roadmap note (2026-06-18): Phase 7C now refers to completed Production Runtime Performance optimization. Premium License System work is deferred future license work:
 
 - Premium licenses.
 - License assignments.

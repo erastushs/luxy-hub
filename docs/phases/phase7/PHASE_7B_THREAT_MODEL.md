@@ -1,9 +1,11 @@
 # Phase 7B Threat Model — Key Monetization Platform
 
-Status: Runtime Integration Blocked
+Status: Backend Complete / Runtime Integration Planned
 Date: 2026-06-17
 
-Reason: Backend monetization infrastructure is complete, but popup validation has not yet been integrated into the Roblox runtime. Premium License System threats and controls remain deferred to Phase 7C.
+Current roadmap note (2026-06-18): Phase 7B backend key monetization infrastructure is complete. Phase 7C now refers to completed Production Runtime Performance optimization, and Phase 7D refers to planned Database Scalability & Runtime Optimization. Premium-license threats and controls in this document are deferred future license work, not completed Phase 7C work.
+
+Reason: Backend monetization infrastructure is complete, but popup validation has not yet been integrated into the Roblox runtime. Premium License System threats and controls remain deferred future license work.
 
 Implementation: Not part of this documentation update. Phase 7B.6 must integrate runtime popup validation with `POST /api/validate` before Main Script execution.
 
@@ -13,7 +15,7 @@ Threat Model: Refined
 
 Documentation: Refined
 
-This document records the intended threat model for Phase 7B Key Monetization Platform. It does not implement controls. It must not be used to start premium license, customer identifier, HWID binding, device transfer workflow, license entitlement, license analytics, or license hardening work. Those concerns belong to Phase 7C.
+This document records the intended threat model for Phase 7B Key Monetization Platform. It does not implement controls. It must not be used to start premium license, customer identifier, HWID binding, device transfer workflow, license entitlement, license analytics, or license hardening work. Those concerns are deferred future license work.
 
 ## Threat: Runtime Validation Bypass
 
@@ -112,7 +114,7 @@ Impact:
 Device-limited keys can still be shared beyond intended limits.
 
 Mitigation Strategy:
-Treat fingerprints as sharing friction, not full DRM. Enforce server-side device registration counts. Track suspicious reset and validation patterns. Keep higher assurance HWID binding deferred to Phase 7C if needed.
+Treat fingerprints as sharing friction, not full DRM. Enforce server-side device registration counts. Track suspicious reset and validation patterns. Keep higher assurance HWID binding deferred to future license work if needed.
 
 ## Threat: Device False Denial
 
@@ -139,13 +141,13 @@ Validate `expires_at` during every key authorization. Treat cleanup as operation
 ## Threat: Paid Key And License Confusion
 
 Description:
-Paid keys may be confused with Phase 7C premium licenses, license assignments, entitlements, or customer identifiers.
+Paid keys may be confused with premium licenses, license assignments, entitlements, or customer identifiers.
 
 Impact:
 Support, analytics, and entitlement semantics become unclear. Phase 7B may expand into premium-license risk unintentionally.
 
 Mitigation Strategy:
-Document paid keys as keys, not licenses. Keep them on the key validation/device limit model. Move license assignments, customer identifiers, HWID binding, license entitlements, license analytics, and license hardening to Phase 7C.
+Document paid keys as keys, not licenses. Keep them on the key validation/device limit model. Move license assignments, customer identifiers, HWID binding, license entitlements, license analytics, and license hardening to deferred future license work.
 
 ## Threat: Brute Force Attempts
 
@@ -178,7 +180,7 @@ Impact:
 Scripts may become unexpectedly inaccessible or monetization may be bypassed.
 
 Mitigation Strategy:
-Keep `visibility` and `access_mode` UI language separate. Restrict Phase 7B controls to key monetization behavior. Keep `license_required` and license entitlements deferred unless Phase 7C is explicitly active.
+Keep `visibility` and `access_mode` UI language separate. Restrict Phase 7B controls to key monetization behavior. Keep `license_required` and license entitlements deferred unless future license hardening is explicitly active.
 
 ## Threat: Scope Creep Into Premium License Work
 
@@ -189,7 +191,7 @@ Impact:
 The release becomes larger, requires migrations or atomic authorization design, and introduces higher production risk.
 
 Mitigation Strategy:
-Keep Phase 7B limited to Key Monetization Platform. Move premium licenses, runtime license enforcement, assignment lifecycle, assignment capacity enforcement, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, and license hardening to Phase 7C.
+Keep Phase 7B limited to Key Monetization Platform. Move premium licenses, runtime license enforcement, assignment lifecycle, assignment capacity enforcement, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, and license hardening to deferred future license work.
 
 ## Benefits
 
@@ -208,4 +210,4 @@ Keep Phase 7B limited to Key Monetization Platform. Move premium licenses, runti
 
 Phase 7B.6 Runtime Key Integration is the critical blocker. Implementation should be reviewed against this threat model before code changes begin and again before production rollout.
 
-Phase 7C requires its own premium-license threat model before implementing premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, or license hardening.
+Future premium license hardening requires its own threat model before implementing premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, or license hardening.

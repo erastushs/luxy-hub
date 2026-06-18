@@ -1,6 +1,6 @@
 # Build Pipeline Runtime
 
-Status: Documents current build behavior before Phase 7B. This file is documentation only.
+Status: Documents current build behavior after completed Phase 7C production runtime performance optimizations. This file is documentation only.
 
 Primary files:
 
@@ -69,9 +69,10 @@ Database validation:
 - Hash fields are constrained to SHA-256 hex format when present.
 - `payload_storage_kind` is constrained to `inline_encrypted`.
 
-Runtime validation:
+Delivery-time build validation:
 
-- Delivery session creation calls `getReadyBuild()` for the current version and expected build/payload versions.
+- Delivery session creation calls `getReadyBuildMetadata()` for the current version and expected build/payload versions, avoiding unnecessary `payload_ciphertext` reads.
+- The metadata query still filters for non-null/non-empty `payload_ciphertext`, preserving ready-build semantics without selecting ciphertext.
 - Fetch flow verifies ready status, inline encrypted storage, non-empty ciphertext, valid source hash, and valid payload hash.
 - Build/script consistency is checked through session `script_id` and build `script_id`.
 
@@ -112,7 +113,7 @@ Flow:
 2. Server action calls `requireAuth()`.
 3. Build operation verifies ownership by slug and user id.
 4. `rebuildVersion()` creates a new build.
-5. If new build succeeds, previous ready compatible build is invalidated as `superseded_by_rebuild`.
+5. If new build succeeds, previous ready compatible build metadata is used to invalidate the previous ready build as `superseded_by_rebuild` without loading old payload ciphertext.
 6. Dashboard cache paths are revalidated and creator is redirected to build operations view.
 
 Failure behavior:
@@ -231,4 +232,4 @@ HAVING COUNT(*) > 1;
 
 ## Phase Boundary
 
-This document does not define new build APIs, new payload formats, new encryption schemes, or Phase 7B behavior.
+This document does not define new build APIs, new payload formats, new encryption schemes, database decoupling, Redis/Valkey integration, premium license hardening, or planned runtime popup key validation behavior.

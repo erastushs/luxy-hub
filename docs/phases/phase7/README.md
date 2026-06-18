@@ -13,27 +13,33 @@ Phase 7B planning documents:
 - `../../roadmap/PHASE7_ROADMAP_REALIGNMENT_REPORT.md`
 
 Current Status:
-Phase 7A is complete / production ready. Production Stabilization is active. Phase 7B has been refined to Key Monetization Platform, and backend monetization infrastructure is complete. Phase 7B is now blocked by Roblox runtime integration: popup validation must call `POST /api/validate` and gate main script execution. Phase 7C owns Premium License System work, including runtime license enforcement and license hardening.
+Phase 7A is complete / production ready. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Production Stabilization is active. Runtime popup validation remains planned because the Roblox runtime does not yet call `POST /api/validate` before main script execution. Premium license runtime enforcement and license hardening are deferred future license work, not completed Phase 7C work.
 
 Phase 7B Status:
 
-- Name: Key Monetization Platform
-- Status: Runtime Integration Blocked
-- Reason: Runtime popup validation is not integrated into the Roblox runtime
+- Name: Backend Key Monetization Platform
+- Status: Complete for backend infrastructure
+- Runtime UX note: Runtime popup validation is not integrated into the Roblox runtime
 - Implementation: Backend monetization infrastructure is complete. Device Limits, Premium Keys, and Free Keys are enforced through `POST /api/validate`. Runtime loader execution is not yet gated and delivered payloads currently execute directly.
 - Design: Refined
 - Threat Model: Refined
 - Documentation: Refined
 - Backend Infrastructure estimate: 100%
-- Runtime Integration estimate: 0%
-- Current overall completion estimate: 85-90%
+- Runtime popup validation estimate: 0%
+- Backend platform completion estimate: 100%
 
 Phase 7C Status:
 
-- Name: Premium License System
-- Status: Deferred
-- Reason: Starts after Phase 7B Key Monetization Platform is stable
-- Implementation: Phase 7A foundation exists, but Phase 7C license hardening is not started under the new roadmap
+- Name: Production Runtime Performance
+- Status: Complete / Production Validated
+- Implementation: Delivery session creation avoids unnecessary `payload_ciphertext` reads; ready build metadata projection is implemented; event write projections omit payload; cleanup batching is improved; safe expired delivery session cleanup preserves execution analytics references; runtime API behavior is preserved
+
+Phase 7D Status:
+
+- Name: Database Scalability & Runtime Optimization
+- Status: Planned / Not Implemented
+- Scope: database decoupling, analytics aggregation, Redis/Valkey rate limiting, internal monitoring dashboard, and post-optimization infrastructure review
+- Non-goals for current state: database decoupling, Redis/Valkey integration, and database migrations are not implemented
 
 Approved access modes:
 
@@ -48,8 +54,8 @@ Implementation guardrails:
 - Existing Work.ink endpoints remain supported but must become one provider in a provider-agnostic key platform.
 - Phase 7B.6 runtime key integration must call `POST /api/validate` and must not change Delivery Session Architecture, Delivery Fetch Architecture, Runtime Payload Delivery, Event Platform, Analytics Pipeline, or Build System.
 - Device Limits and Premium Keys remain enforced through `POST /api/validate`; no `DeviceLimitService` or Premium Key backend changes are required for Phase 7B.6.
-- Phase 7B must not implement premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, or license hardening.
-- Premium licenses use hashed license keys, nullable `expires_at`, and assignment foundations from Phase 7A, but all runtime hardening and lifecycle expansion belongs to Phase 7C.
+- Phase 7B backend work must not be reopened for premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, or license hardening.
+- Premium licenses use hashed license keys, nullable `expires_at`, and assignment foundations from Phase 7A, but all runtime hardening and lifecycle expansion is deferred future license work.
 
 ## Phase 7A Completion
 
@@ -86,13 +92,13 @@ Completed milestones:
 - Disable active licenses.
 - Revoke eligible licenses.
 - Raw license keys are displayed only immediately after creation.
-- License hardening is deferred to Phase 7C.
+- License hardening is deferred future license work.
 
 ### Assignments
 
 - Create assignments with hashed customer identifiers and optional display names.
 - Remove assignments through the dashboard/API.
-- Assignment capacity enforcement, assignment lifecycle expansion, customer identifiers, HWID binding, and device transfer workflows are deferred to Phase 7C.
+- Assignment capacity enforcement, assignment lifecycle expansion, customer identifiers, HWID binding, and device transfer workflows are deferred future license work.
 
 ### Access Modes
 
@@ -150,37 +156,64 @@ Risks:
 - Changing protected delivery, event, analytics pipeline, or build-system components would expand Phase 7B.6 beyond the intended blocker.
 - Lifetime Keys are deferred until monetization requirements justify implementation.
 
-## Phase 7C — Premium License System
+## Phase 7C — Production Runtime Performance
 
 Objectives:
 
-- Harden premium license runtime enforcement after Phase 7B is stable.
-- Complete license assignment lifecycle and capacity enforcement.
-- Define and enforce customer identifiers and HWID binding.
-- Define device transfer workflows for licenses.
-- Define license entitlements.
-- Add license lookup hash/verifier storage strategy if needed.
-- Add license analytics and runtime license audit trail.
-- Complete license hardening.
+- Reduce production database read payloads and write return sizes without changing runtime API behavior.
+- Avoid loading `payload_ciphertext` during session creation and rebuild invalidation when metadata is sufficient.
+- Optimize event write return projections.
+- Improve cleanup batching.
+- Safely prune expired delivery sessions that are not referenced by execution analytics.
 
-Dependencies:
+Completed items:
 
-- Phase 7B Key Monetization Platform complete and stable.
-- Raw endpoint protection implemented for access modes.
-- Loader key/fingerprint forwarding pattern validated before adding premium credentials or license HWID behavior.
-- Premium request contract reviewed and frozen.
-- Customer identifier, HWID binding, device transfer, and entitlement design approved before implementation.
-- Atomic assignment capacity strategy selected.
+- [x] Delivery session creation uses ready build metadata projection and no longer selects `payload_ciphertext`.
+- [x] Ready build metadata projection implemented.
+- [x] Rebuild invalidation uses metadata-only previous ready build lookup.
+- [x] Event write return projections omit event `payload`.
+- [x] Rate-limit cleanup batching improved.
+- [x] Expired delivery session cleanup deletes only sessions without `script_executions` references.
+- [x] Runtime API behavior preserved.
+- [x] Production validation completed.
+- [x] Performance audit completed.
 
-Risks:
+Current caveats:
 
-- Assignment races can allow license sharing.
-- Customer identifier normalization changes can strand existing assignment records.
-- HWID binding can block legitimate customers.
-- Device transfer workflows can be abused without policy and audit controls.
-- Premium license credentials can leak if forwarding/logging boundaries are not strict.
-- License analytics can be misleading if counters are not atomic.
-- Phase 7C may require migrations and must not be folded into Phase 7B.
+- Runtime fetch still intentionally reads `payload_ciphertext` server-side to generate `runtime_payload`.
+- Sessions referenced by `script_executions` are retained; true delivery session TTL cleanup requires planned Phase 7D database decoupling.
+
+## Phase 7D — Database Scalability & Runtime Optimization
+
+Status: Planned / not implemented.
+
+Planned scope:
+
+- Phase 7D.1 Database Decoupling: decouple `script_executions` from `delivery_sessions`, allow true delivery session TTL cleanup, and preserve analytics without FK dependency.
+- Phase 7D.2 Analytics Aggregation: aggregate script executions into daily, weekly, and monthly statistics to reduce long-term raw row growth.
+- Phase 7D.3 Redis / Valkey Integration: move runtime rate limiting out of PostgreSQL, reduce write amplification, reduce cleanup load, and reduce database contention.
+- Phase 7D.4 Internal Monitoring Dashboard: database, cleanup, runtime, bandwidth, execution, storage growth, and operational health metrics.
+- Phase 7D.5 Post-Optimization Infrastructure Review: measure production impact, compare Supabase usage before and after optimization, and determine whether PostgreSQL migration is still justified.
+
+Phase 7D.5 is an evaluation milestone, not an implementation task.
+
+## Deferred Future License Work
+
+Premium license hardening is deferred and not part of completed Phase 7C.
+
+Deferred scope:
+
+- Premium licenses.
+- License assignments.
+- Customer identifiers.
+- HWID binding.
+- Device transfer workflows.
+- License entitlements.
+- License analytics.
+- License hardening.
+- Runtime license enforcement.
+- Assignment lifecycle.
+- Assignment capacity enforcement.
 
 ## TODO Classification
 
@@ -206,16 +239,16 @@ Risks:
 | Linkvertise provider | Phase 7B.10 | Provider expansion after runtime integration. |
 | LootLabs provider | Phase 7B.10 | Provider expansion after runtime integration. |
 | Monetization analytics | Phase 7B.11 | Unified analytics across Free Keys, Premium Keys, Providers, and Devices. |
-| Premium licenses | Phase 7C | Deferred premium system scope. |
-| License assignments | Phase 7C | Deferred premium system scope. |
-| Customer identifiers | Phase 7C | Deferred premium/customer binding scope. |
-| HWID binding | Phase 7C | Deferred premium/license hardening scope. |
-| Device transfer workflows | Phase 7C | Deferred premium license support workflow. |
-| License entitlements | Phase 7C | Deferred premium license model scope. |
-| License analytics | Phase 7C | Deferred premium analytics scope. |
-| License hardening | Phase 7C | Deferred premium hardening scope. |
-| Runtime license enforcement | Phase 7C | Moved out of Phase 7B. |
-| Assignment lifecycle | Phase 7C | Moved out of Phase 7B. |
-| Assignment capacity enforcement | Phase 7C | Moved out of Phase 7B. |
+| Premium licenses | Deferred Future License Work | Deferred premium system scope. |
+| License assignments | Deferred Future License Work | Deferred premium system scope. |
+| Customer identifiers | Deferred Future License Work | Deferred premium/customer binding scope. |
+| HWID binding | Deferred Future License Work | Deferred premium/license hardening scope. |
+| Device transfer workflows | Deferred Future License Work | Deferred premium license support workflow. |
+| License entitlements | Deferred Future License Work | Deferred premium license model scope. |
+| License analytics | Deferred Future License Work | Deferred premium analytics scope. |
+| License hardening | Deferred Future License Work | Deferred premium hardening scope. |
+| Runtime license enforcement | Deferred Future License Work | Moved out of completed Phase 7B backend and completed Phase 7C performance work. |
+| Assignment lifecycle | Deferred Future License Work | Moved out of completed Phase 7B backend and completed Phase 7C performance work. |
+| Assignment capacity enforcement | Deferred Future License Work | Moved out of completed Phase 7B backend and completed Phase 7C performance work. |
 | Production Stabilization | Operational/Ongoing | Active observation track. |
 | Marketplace / creator economy | Remove | Not part of current roadmap. |

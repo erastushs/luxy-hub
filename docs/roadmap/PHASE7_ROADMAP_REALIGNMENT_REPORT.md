@@ -2,6 +2,8 @@
 
 Date: 2026-06-17
 
+Superseded note (2026-06-18): This report is retained as a historical roadmap realignment record. The current roadmap now uses Phase 7C for completed Production Runtime Performance optimization and Phase 7D for planned Database Scalability & Runtime Optimization. References in this report to “Phase 7C Premium License System” now map to deferred future license work, not completed Phase 7C.
+
 Branch reviewed: current MAIN branch only.
 
 Scope: Documentation and roadmap realignment only. No application code, schema, migrations, runtime behavior, or license implementation were changed.

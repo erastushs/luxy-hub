@@ -17,7 +17,7 @@ LuxyHub delivers script runtime payloads through secure delivery rather than exp
 
 Delivery sessions are short-lived, one-time access records stored in `delivery_sessions`. Raw session tokens are returned to the loader, while only SHA-256 token hashes are stored in the database. Sessions expire after 60 seconds and are consumed during payload fetch.
 
-Phase 7A added `scripts.access_mode` with `public`, `key_required`, and `license_required` values. Phase 7B is now Key Monetization Platform, while premium runtime license enforcement has moved to Phase 7C. The architectural authorization boundary already exists at delivery session creation.
+Phase 7A added `scripts.access_mode` with `public`, `key_required`, and `license_required` values. Phase 7B backend key monetization is complete, Phase 7C production runtime performance optimization is complete, and premium runtime license enforcement is deferred future license work. The architectural authorization boundary already exists at delivery session creation.
 
 ## Problem
 
@@ -52,7 +52,7 @@ Authorization boundary:
 
 - `public` scripts authorize session creation when deliverable.
 - `key_required` scripts authorize session creation through the existing key validation path.
-- `license_required` scripts authorize session creation through license validation. Phase 7C will harden this path without moving the boundary.
+- `license_required` scripts authorize session creation through license validation. Future license work may harden this path without moving the boundary.
 - `creator_id` is never accepted from client input.
 
 Fetch authorization:
@@ -73,7 +73,7 @@ Positive consequences:
 - Authorization failures can stay generic and avoid leaking resource state.
 - Event reporting can reuse session-scoped `event_secret` without changing payload fetch semantics.
 - Phase 7B can productize key-required access while preserving the existing delivery boundary.
-- Phase 7C can harden license checks while preserving the existing delivery boundary.
+- Future license hardening can preserve the existing delivery boundary.
 
 Negative consequences:
 

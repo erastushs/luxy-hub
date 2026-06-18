@@ -1,8 +1,8 @@
 # Phase 7 — Access Modes, Keys, and License Authorization Architecture
 
-Status: Phase 7A Complete / Production Ready; Phase 7B Key Monetization Platform Refined; Phase 7C Premium License System Deferred
-Date: 2026-06-16
-Scope: Current MAIN architecture and roadmap ownership for access modes, provider-backed keys, device-limited key monetization, and premium license foundations. Phase 7B is the Key Monetization Platform. Phase 7C owns premium licenses, license assignments, customer identifiers, HWID binding, license entitlements, license analytics, and license hardening.
+Status: Phase 7A Complete / Production Ready; Phase 7B Backend Key Monetization Complete; Phase 7C Production Runtime Performance Complete; Phase 7D Database Scalability & Runtime Optimization Planned
+Date: 2026-06-18
+Scope: Current MAIN architecture and roadmap ownership for access modes, provider-backed keys, device-limited key monetization, premium license foundations, and completed runtime performance optimization. Phase 7B backend key monetization is complete. Phase 7C is now the completed production runtime performance optimization phase. Premium licenses, license assignments, customer identifiers, HWID binding, license entitlements, license analytics, and license hardening are deferred future license work.
 
 ## 1. Approved Direction
 
@@ -12,7 +12,7 @@ Phase 7 introduces script access authorization above the existing Secure Deliver
 |---|---|---|
 | `public` | Open access | No authorization required |
 | `key_required` | Free and paid key access | Provider-backed and dashboard-issued keys; Phase 7B productization |
-| `license_required` | Premium license access | Creator-generated premium licenses; Phase 7C hardening |
+| `license_required` | Premium license access | Creator-generated premium license foundation; future license hardening deferred |
 
 Important separation of concerns:
 
@@ -31,10 +31,12 @@ Important separation of concerns:
 | Phase 8 Event Platform | Complete, production verified, Roblox verified |
 | Phase 7A | Complete, production ready |
 | Production Stabilization Program | Active |
-| Phase 7B | Key Monetization Platform, runtime integration blocked, estimated 85-90% complete overall; backend infrastructure complete |
-| Phase 7C | Premium License System, deferred / not started under new roadmap |
+| Phase 7B | Backend Key Monetization Platform complete |
+| Runtime popup validation | Planned / not implemented |
+| Phase 7C | Production Runtime Performance complete |
+| Phase 7D | Database Scalability & Runtime Optimization planned / not implemented |
 
-Analytics V1 is complete and uses `script_executions` as the canonical execution event table for secure delivery sessions. Phase 7B should add key monetization visibility for generated, validated, expired, denied, provider source, and device-limit outcomes without redefining execution-count semantics. Phase 7C should add license analytics after premium runtime enforcement is designed.
+Analytics V1 is complete and uses `script_executions` as the canonical execution event table for secure delivery sessions. Future key analytics should add key monetization visibility for generated, validated, expired, denied, provider source, and device-limit outcomes without redefining execution-count semantics. Future premium license work should add license analytics only after premium runtime enforcement is designed.
 
 ## 2.1 Current Implementation Summary
 
@@ -65,7 +67,7 @@ Analytics V1 is complete and uses `script_executions` as the canonical execution
 - Device Limits V1.
 - Custom Device Limits.
 
-### Phase 7B Remaining Work
+### Planned Runtime/Key Work
 
 - Phase 7B.6 Runtime Key Integration.
 - Phase 7B.7 Analytics Foundation.
@@ -74,7 +76,7 @@ Analytics V1 is complete and uses `script_executions` as the canonical execution
 - Phase 7B.10 Provider Expansion.
 - Phase 7B.11 Monetization Analytics.
 
-### Phase 7C Deferred Work
+### Deferred Future License Work
 
 - Premium licenses beyond existing foundation.
 - Runtime license enforcement hardening.
@@ -92,7 +94,17 @@ Analytics V1 is complete and uses `script_executions` as the canonical execution
 - License counter updates during runtime authorization.
 - Runtime audit trail for license authorization decisions.
 
-### Future Work Outside Phase 7B/7C Minimum Scope
+### Phase 7D Planned Database Scalability & Runtime Optimization
+
+- Database decoupling: decouple `script_executions` from `delivery_sessions`, allow true delivery session TTL cleanup, and preserve analytics without FK dependency.
+- Analytics aggregation: daily, weekly, and monthly script execution statistics to reduce long-term raw row growth.
+- Redis / Valkey integration: move runtime rate limiting out of PostgreSQL, reduce write amplification, reduce cleanup load, and reduce database contention.
+- Internal monitoring dashboard: database, cleanup, runtime, bandwidth, execution, storage growth, and operational health metrics.
+- Post-optimization infrastructure review: measure production impact, compare Supabase usage before and after optimization, and decide whether PostgreSQL migration is still justified.
+
+Phase 7D is planned only. Database decoupling, Redis/Valkey integration, analytics aggregation, monitoring dashboards, schema changes, and migrations are not implemented.
+
+### Future Work Outside Current Phase 7 Minimum Scope
 
 - Analytics V2.
 - QA and test coverage expansion.
@@ -242,7 +254,7 @@ Current limitation:
 
 ### 5.3 `licenses`
 
-Implemented foundation for Phase 7C:
+Implemented license assignment foundation:
 
 | Column | Purpose |
 |---|---|
@@ -282,7 +294,7 @@ Implemented foundation for Phase 7C:
 | `created_at` | Creation timestamp |
 | `updated_at` | Update timestamp |
 
-Assignment capacity enforcement, customer identifier semantics, HWID binding, device transfer workflows, license entitlements, and assignment lifecycle expansion are Phase 7C.
+Assignment capacity enforcement, customer identifier semantics, HWID binding, device transfer workflows, license entitlements, and assignment lifecycle expansion are deferred future license work.
 
 ## 6. Phase 7B Key Monetization Platform Architecture
 
@@ -335,7 +347,7 @@ Risks:
 - Device-limited keys reduce sharing but are not a full anti-sharing solution.
 - Rich key attribution, device registration, or script scoping may require storage changes and must not be added implicitly.
 
-## 7. Phase 7C Premium License System Architecture
+## 7. Deferred Future Premium License System Architecture
 
 Objectives:
 
@@ -350,7 +362,7 @@ Objectives:
 
 Dependencies:
 
-- Phase 7B Key Monetization Platform is complete and stable.
+- Phase 7B backend key monetization is complete and stable.
 - Raw endpoint access-mode protection exists.
 - Loader key/fingerprint forwarding pattern is validated before adding license/customer/HWID forwarding.
 - Premium request contract is reviewed and frozen.
@@ -395,7 +407,7 @@ key_required
   -> allow or deny
 
 license_required
-  -> Phase 7C premium license validation and assignment/customer/HWID enforcement
+  -> future premium license validation and assignment/customer/HWID enforcement
   -> allow or deny
 ```
 
@@ -446,9 +458,9 @@ Phase 7B should track:
 
 Raw keys, raw provider tokens, and raw fingerprints must not be logged in analytics payloads.
 
-### Phase 7C Premium Analytics
+### Deferred Premium License Analytics
 
-Phase 7C should track:
+Future premium license work should track:
 
 - License activation.
 - License delivery authorization.
@@ -497,7 +509,7 @@ Premium counters should be updated atomically with authorization decisions where
 
 - Validate license hash, status, and `expires_at` foundation.
 - Existing assignment and new assignment creation foundation.
-- Deeper enforcement hardening moved to Phase 7C.
+- Deeper enforcement hardening is deferred future license work.
 
 ### Phase 7A.6 — License Dashboard UI — Complete
 
@@ -528,12 +540,15 @@ Premium counters should be updated atomically with authorization decisions where
 - Assignment metadata loading/error states.
 - Analytics initial loading and stale refresh protection.
 
-### Phase 7B — Key Monetization Platform — Runtime Integration Blocked
+### Phase 7B — Backend Key Monetization Platform — Complete
 
 - Backend monetization infrastructure complete.
 - Free Keys enforced through `POST /api/validate`.
 - Premium Keys enforced through `POST /api/validate`.
 - Device Limits enforced through `POST /api/validate`.
+
+Planned runtime/key expansion outside completed backend scope:
+
 - Phase 7B.6 Runtime Key Integration.
 - Runtime popup UI.
 - Runtime key input and validation status/error states.
@@ -544,7 +559,7 @@ Premium counters should be updated atomically with authorization decisions where
 - Phase 7B.10 Provider Expansion.
 - Phase 7B.11 Monetization Analytics.
 
-### Phase 7C — Premium License System — Deferred
+### Deferred Future Premium License System
 
 - Premium licenses.
 - License assignments.
@@ -582,7 +597,7 @@ Storage concepts for later Phase 7B operational tooling and analytics may need e
 
 Phase 7B.6 should avoid accidental migrations. Any later schema work for provider source, device limits, device registrations, or analytics must be separately reviewed and approved during implementation planning.
 
-Phase 7C may require migrations or database functions for premium license hardening, especially atomic assignment capacity enforcement, customer identifiers, HWID binding, verifier storage, license entitlements, and license analytics.
+Future premium license hardening may require migrations or database functions, especially atomic assignment capacity enforcement, customer identifiers, HWID binding, verifier storage, license entitlements, and license analytics. This is not part of completed Phase 7C runtime performance work and must remain separate from Phase 7D unless explicitly approved.
 
 Backward compatibility requirements:
 
@@ -612,7 +627,7 @@ Phase 7B key-specific controls:
 - Avoid raw fingerprint logging or analytics exposure.
 - Keep administrative device resets explicit and auditable.
 
-Phase 7C premium-specific controls:
+Future premium-license-specific controls:
 
 - Store premium license key hashes only.
 - Enforce assignment status and capacity atomically.
@@ -633,11 +648,9 @@ Accepted approach:
 
 ## 14. Implementation Readiness
 
-Phase 7B Key Monetization Platform readiness: 85-90% overall.
+Phase 7B Backend Key Monetization Platform readiness: 100% for backend infrastructure.
 
-Backend Infrastructure readiness: 100%.
-
-Runtime Integration readiness: 0%.
+Runtime popup validation readiness: 0%.
 
 Ready foundation:
 
@@ -664,4 +677,6 @@ Not ready / blockers:
 - The runtime loader currently executes delivered payloads directly.
 - Main Script execution is not yet gated by `validation_success == true`.
 
-Phase 7C Premium License System readiness: foundation exists, but runtime hardening is deferred and should not start until Phase 7B is stable.
+Phase 7C Production Runtime Performance readiness: complete.
+
+Future premium license hardening readiness: foundation exists, but runtime hardening is deferred and should not start until a future license design is approved.

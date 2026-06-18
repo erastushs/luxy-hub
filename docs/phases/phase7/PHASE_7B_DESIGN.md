@@ -1,9 +1,11 @@
 # Phase 7B Design — Key Monetization Platform
 
-Status: Runtime Integration Blocked
+Status: Backend Complete / Runtime Integration Planned
 Date: 2026-06-17
 
-Reason: Product direction was refined after backend monetization infrastructure reached completion. Phase 7B is now blocked by Roblox runtime integration, not backend key-platform work. Phase 7C remains the deferred Premium License System.
+Current roadmap note (2026-06-18): Phase 7B backend key monetization infrastructure is complete. Phase 7C now refers to completed Production Runtime Performance optimization, and Phase 7D refers to planned Database Scalability & Runtime Optimization. Any premium-license references in this document are deferred future license work, not completed Phase 7C work.
+
+Reason: Product direction was refined after backend monetization infrastructure reached completion. Backend key-platform work is complete. Runtime popup validation remains planned because the Roblox runtime does not yet call `POST /api/validate` before execution. Premium license hardening is deferred future license work.
 
 Implementation: Backend monetization infrastructure is complete for the current Phase 7B scope. Device Limits, Premium Keys, and Free Keys are enforced through `POST /api/validate`. Popup validation has not yet been integrated into the Roblox runtime, and the runtime loader currently executes delivered payloads directly. No runtime implementation is part of this documentation update.
 
@@ -13,7 +15,7 @@ Threat Model: Refined
 
 Documentation: Refined
 
-This document describes the updated Phase 7B roadmap and implementation boundary. Phase 7B must not implement premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, runtime license hardening, or license assignment capacity enforcement. Those items belong to Phase 7C.
+This document describes the updated Phase 7B roadmap and implementation boundary. Phase 7B must not implement premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, runtime license hardening, or license assignment capacity enforcement. Those items are deferred future license work.
 
 ## 1. Objective
 
@@ -323,9 +325,9 @@ Remaining work is primarily runtime integration and operational tooling, not bac
 6. Add Phase 7B.10 provider expansion for Linkvertise and LootLabs.
 7. Add Phase 7B.11 unified monetization analytics.
 
-## 18. Phase 7C Boundary
+## 18. Deferred Future License Boundary
 
-All premium-license work is Phase 7C:
+All premium-license work is deferred future license work:
 
 - Premium licenses.
 - License assignments.
@@ -341,4 +343,4 @@ All premium-license work is Phase 7C:
 - License counters and runtime audit trail.
 - `license_key` contract alignment.
 
-Phase 7C may require migrations or database functions. Those risks must not be introduced into Phase 7B documentation as implemented behavior.
+Future premium license hardening may require migrations or database functions. Those risks must not be introduced into Phase 7B documentation as implemented behavior or confused with completed Phase 7C production runtime performance work.

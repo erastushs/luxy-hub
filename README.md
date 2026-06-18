@@ -7,6 +7,7 @@ LuxyHub is a Next.js 16 application for Roblox script distribution, key validati
 - Public landing, key acquisition, token verification, and API docs pages
 - Work.ink-backed key generation and replay-protected token verification
 - Creator Dashboard for scripts, analytics, versions, delivery builds, and profile management
+- Backend key monetization infrastructure with Work.ink/free keys, premium keys, key type alignment, and device limits through `/api/validate`
 - Supabase email/password login protected by Cloudflare Turnstile
 - Server-side Turnstile verification before authentication
 - Failed-login rate limiting by IP and hashed email bucket
@@ -16,6 +17,7 @@ LuxyHub is a Next.js 16 application for Roblox script distribution, key validati
 - Secure loader bootstrap with one-time delivery sessions for ready public/unlisted builds
 - SHA-256 hashed delivery session tokens, consume-once validation, and 60-second TTL
 - Security headers, CORS controls, API body limits, route rate limiting, and cleanup retention jobs
+- Production runtime performance optimizations for delivery build metadata reads, event write projections, cleanup batching, and safe expired session pruning
 
 ## Tech Stack
 
@@ -63,7 +65,7 @@ DELIVERY_PAYLOAD_KEY_ID=
 NEXT_PUBLIC_SITE_URL=
 ```
 
-`ADMIN_API_KEY` is used only for admin-bearer access to private raw script reads. `CRON_SECRET` is used only by `/api/cleanup`; cron secrets are not accepted for admin access.
+`ADMIN_API_KEY` is used only for admin-bearer access to private raw script reads. `CRON_SECRET` protects `/api/cleanup`, `/api/internal/event-worker`, and `/api/internal/check-alerts`; cron secrets are not accepted for admin access.
 
 ## Authentication Flow
 
@@ -124,9 +126,13 @@ npm run build
 
 - `docs/README.md` — documentation index and source-of-truth map
 - `docs/architecture/ARCHITECTURE.md` — current system architecture
-- `docs/archive/integration/API_SPEC.md` — API reference and response shapes
+- `docs/api/REFERENCE.md` — current API reference and response shapes
+- `docs/runtime/SECURE_DELIVERY.md` — current secure delivery runtime behavior
+- `docs/runtime/EVENT_QUEUE.md` — current event queue/runtime behavior
+- `docs/runtime/BUILD_PIPELINE.md` — current build pipeline runtime behavior
+- `docs/roadmap/TODO.md` — current roadmap, completed phases, and planned Phase 7D scope
 - `docs/deployment/DEPLOYMENT_CHECKLIST.md` — deployment and production validation
-- `docs/archive/architecture/SECURE_DELIVERY_ARCHITECTURE.md` — secure delivery design and implementation notes
+- `docs/architecture/ARCHITECTURE.md` — secure delivery design and implementation notes
 - `docs/archive/integration/DASHBOARD_USER_GUIDE.md` — creator dashboard usage
 
 ## License

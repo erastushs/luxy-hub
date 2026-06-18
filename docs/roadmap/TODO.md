@@ -1,6 +1,6 @@
 # LuxyHub Roadmap 2026
 
-Last updated: 2026-06-12
+Last updated: 2026-06-18
 
 ---
 
@@ -142,6 +142,8 @@ Last updated: 2026-06-12
 | 130 | **UI** | Phase 7A.7 License Analytics UI | `/dashboard/licenses/analytics` analytics screen |
 | 131 | **UI** | Phase 7A.8 License UX Polish | search, filters, sorting, selection, dialogs, responsive states |
 | 132 | **UI** | Phase 7A.9 UI Remediation | breadcrumbs, race guards, loading/error remediation, naming consistency |
+| 133 | **Code** | Phase 7B Backend Key Monetization Infrastructure | provider foundation, premium keys, access modes, key management refinement, key type alignment, device limits |
+| 134 | **Performance** | Phase 7C Production Runtime Performance Optimizations | delivery build metadata projection, optimized event write projections, cleanup batching, safe expired session pruning |
 ---
 
 
@@ -149,8 +151,8 @@ Last updated: 2026-06-12
 
 | # | Program | Task | Purpose |
 |---|---------|------|---------|
-| 1 | Production Stabilization | Monitor production metrics | Confirm production behavior after Phase 7A closeout |
-| 2 | Production Stabilization | Review analytics accuracy | Validate Analytics V1 and license dashboard reporting |
+| 1 | Production Stabilization | Monitor production metrics | Confirm production behavior after Phase 7A, Phase 7B backend, and Phase 7C optimization closeout |
+| 2 | Production Stabilization | Review analytics accuracy | Validate Analytics V1 and license dashboard reporting after runtime optimization |
 | 3 | Production Stabilization | Review event worker stability | Confirm event queue, worker, alerts, and Discord delivery remain stable |
 | 4 | Production Stabilization | Review build stability | Monitor build pipeline success/failure behavior |
 | 5 | Production Stabilization | Review delivery stability | Monitor secure delivery success rates and runtime errors |
@@ -161,25 +163,25 @@ Last updated: 2026-06-12
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Analytics V2 | Analytics V2 | Production Stabilization Program |
-| 2 | QA | QA & Test Coverage Expansion | Analytics V2 |
-| 3 | Operations | Operational Hardening | QA & Test Coverage Expansion |
-| 4 | Security | Security Review | Operational Hardening |
-| 5 | Security | Final Security Audit | Phase 7B Key Monetization Platform |
-| 6 | Release | Release Candidate | Final Security Audit |
-| 7 | Release | V1 Release | Release Candidate |
+| 1 | Phase 7D | Database Scalability & Runtime Optimization | Phase 7C production impact review |
+| 2 | Analytics V2 | Analytics V2 | Production Stabilization Program |
+| 3 | QA | QA & Test Coverage Expansion | Analytics V2 |
+| 4 | Operations | Operational Hardening | QA & Test Coverage Expansion |
+| 5 | Security | Security Review | Operational Hardening |
+| 6 | Security | Final Security Audit | Phase 7B backend and Phase 7C optimization closeout |
+| 7 | Release | Release Candidate | Final Security Audit |
+| 8 | Release | V1 Release | Release Candidate |
 
 ### Deferred / Sequenced Work
 
 | # | Phase | Task | Reason |
 |---|-------|------|--------|
-| 1 | Phase 7B.6 | Runtime Key Integration | Critical blocker: Roblox runtime popup validation is not integrated |
-| 2 | Phase 7B.7 | Analytics Foundation | Depends on Phase 7B.6 |
-| 3 | Phase 7B.8 | Device Analytics Dashboard | Depends on validation event foundation |
-| 4 | Phase 7B.9 | Device Reset | Depends on device analytics/operations visibility |
-| 5 | Phase 7B.10 | Provider Expansion | Linkvertise and LootLabs after runtime integration |
-| 6 | Phase 7B.11 | Monetization Analytics | Unified analytics after providers/devices are connected |
-| 7 | Phase 7C | Premium License System | Deferred until after Phase 7B |
+| 1 | Runtime UX | Roblox popup key validation | Runtime loader still does not call `POST /api/validate`; keep planned until loader execution gating is implemented |
+| 2 | Key Analytics | Validation event analytics | Depends on runtime validation UX or explicit server-side validation event instrumentation |
+| 3 | Key Operations | Device analytics and reset tooling | Depends on validation event foundation |
+| 4 | Provider Expansion | Linkvertise and LootLabs | Future provider expansion after current provider/key flow is stable |
+| 5 | Premium License Work | License hardening and runtime enforcement | Deferred; not Phase 7C and not completed |
+| 6 | Phase 7E | Future Infrastructure Improvements | Optional / future after Phase 7D evaluation |
 ---
 ## Overall Completion
 ```text
@@ -192,9 +194,10 @@ Dashboard Backend:     100% complete ██████████████�
 Dashboard UI:          100% complete ████████████████████
 Secure Delivery:       100% complete ████████████████████
 Loader Integration:    100% complete ████████████████████
-Access Modes & Licenses: 60% complete ████████████░░░░░░░░
+Access Modes & Keys:    100% complete ████████████████████
 Event Platform:        100% complete ████████████████████
-Scale (Optional):        0% complete ░░░░░░░░░░░░░░░░░░░░
+Runtime Performance:   100% complete ████████████████████
+Scale Planning:          0% complete ░░░░░░░░░░░░░░░░░░░░
 ```
 ---
 
@@ -249,18 +252,21 @@ Scale (Optional):        0% complete ░░░░░░░░░░░░░░�
 | Phase 7A.8 | License UX Polish | Complete / Production Ready | 100% |
 | Phase 7A.9 | UI Remediation | Complete / Production Ready | 100% |
 | Production Stabilization | Observation and Stabilization Window | Active | 0% |
-| Phase 7B | Key Monetization Platform | Runtime Integration Blocked | 85-90% |
-| Phase 7C | Premium License System | Deferred / Not Started | 0% |
+| Phase 7B | Key Monetization Backend Platform | Complete | 100% |
+| Runtime UX | Roblox Popup Key Validation | Planned / Not Implemented | 0% |
+| Phase 7C | Production Runtime Performance | Complete | 100% |
+| Phase 7D | Database Scalability & Runtime Optimization | Planned | 0% |
+| Phase 7E | Future Infrastructure Improvements | Optional / Future | 0% |
 | Phase 8A | Event Foundation | Complete | 100% |
 | Phase 8B | Secure Event Delivery | Hardened | 100% |
 | Phase 8C | Queue, Worker, Dashboard Operations | Hardened | 100% |
 | Phase 8D | Monitoring Foundation | Complete | 100% |
 | Phase 8E | Full Analytics & Audit Dashboard | Complete | 100% |
-| Phase 9 | Internal Operations & Release Workflow | Not Started | 0% |
-| Phase 10 | Scale & Infrastructure (Optional) | Not Started | 0% |
+| Phase 9 | Internal Operations & Release Workflow | Deferred / Superseded | 0% |
+| Phase 10 | Scale & Infrastructure (Optional) | Superseded by Phase 7D/7E | 0% |
 
 ## Current Focus: Production Stabilization Program
-> Phase 4, Phase 5, Phase 6, Analytics V1, Phase 8 Event Reporting & Webhook Platform, and Phase 7A are complete. Backend monetization infrastructure for Phase 7B is complete: Provider Foundation, Premium Key Infrastructure, Access Mode Support, Provider Hardening, Dashboard UX Refinement, Key Management Refinement, Key Type Alignment, Device Limits V1, and Custom Device Limits. Phase 7B is now blocked by Roblox runtime integration: popup validation must call `POST /api/validate` and gate main script execution before Phase 7B.7 analytics work begins. Premium license work remains Phase 7C.
+> Phase 4, Phase 5, Phase 6, Analytics V1, Phase 8 Event Reporting & Webhook Platform, Phase 7A, Phase 7B backend key monetization infrastructure, and Phase 7C production runtime performance optimization are complete. Runtime API behavior is preserved. Roblox runtime popup validation against `POST /api/validate` is still planned because the current loader runtime does not yet gate execution through `/api/validate`. Premium license hardening remains deferred future work and is not part of completed Phase 7C.
 
 ### Production Stabilization Program
 
@@ -289,11 +295,11 @@ Suggested Duration: 2-4 weeks.
 
 ### Future Phase Order
 
-1. Analytics V2
-2. QA & Test Coverage Expansion
-3. Operational Hardening
-4. Security Review
-5. Phase 7B Key Monetization Platform
+1. Phase 7D — Database Scalability & Runtime Optimization
+2. Analytics V2
+3. QA & Test Coverage Expansion
+4. Operational Hardening
+5. Security Review
 6. Final Security Audit
 7. Release Candidate
 8. V1 Release
@@ -528,31 +534,31 @@ All tests passing.
 ## Sub-Phases
 
 ### Phase 4.1 — UI Polish
-- [ ] Review all dashboard pages for visual consistency
-- [ ] Add loading skeletons for slow data fetches
-- [ ] Verify mobile responsiveness on all pages
-- [ ] Add keyboard navigation support
-- [ ] Audit color contrast and accessibility
+- [x] Review all dashboard pages for visual consistency
+- [x] Add loading skeletons for slow data fetches
+- [x] Verify mobile responsiveness on all pages
+- [x] Add keyboard navigation support
+- [x] Audit color contrast and accessibility
 
 ### Phase 4.2 — Performance Review
-- [ ] Audit bundle size (lighthouse / webpack analyzer)
-- [ ] Optimize image loading (lazy, next/image)
-- [ ] Add page-level caching where appropriate
-- [ ] Review analytics query performance on large datasets
+- [x] Audit bundle size (lighthouse / webpack analyzer)
+- [x] Optimize image loading (lazy, next/image)
+- [x] Add page-level caching where appropriate
+- [x] Review analytics query performance on large datasets
 
 ### Phase 4.3 — Documentation Review
-- [ ] Review all PHASE3*_UI.md files for accuracy
-- [ ] Update API_SPEC.md with all Phase 3 endpoints
-- [ ] Add dashboard user guide
-- [ ] Review `../../AGENTS.md` for Phase 4 conventions
+- [x] Review all PHASE3*_UI.md files for accuracy
+- [x] Update API_SPEC.md with all Phase 3 endpoints
+- [x] Add dashboard user guide
+- [x] Review `../../AGENTS.md` for Phase 4 conventions
 
 ### Phase 4.4 — Production Hardening
-- [ ] Production two-account isolation test (from Phase 3D)
-- [ ] Configure error monitoring (Better Stack / Logtail)
-- [ ] Test rate limiting in production
-- [ ] Verify Supabase RLS policies in production
-- [ ] Configure production environment variables
-- [ ] Set up Vercel deployment
+- [x] Production two-account isolation test (from Phase 3D)
+- [x] Configure error monitoring guidance (Better Stack / Logtail remains optional external integration)
+- [x] Test rate limiting behavior in implemented routes
+- [x] Verify Supabase RLS policy definitions for production deployment
+- [x] Configure production environment variable checklist
+- [x] Set up Vercel deployment guidance
 
 ---
 
@@ -681,9 +687,9 @@ Executor compatibility validation is a cross-phase operational task tracked sepa
 
 # Phase 7 — Access Modes, Keys, and License Authorization
 
-Status: Phase 7A complete / production ready. Production Stabilization is active. Phase 7B has been refined to Key Monetization Platform. Phase 7C now owns Premium License System work.
+Status: Phase 7A complete / production ready. Phase 7B backend key monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Production Stabilization is active. Premium license hardening is deferred future license work.
 
-Phase 7 introduces a three-mode access model above the existing Secure Delivery architecture. The build pipeline, encryption, session lifecycle, delivery fetch, runtime execution, and event reporting remain unchanged. Authorization occurs only during `POST /api/delivery/session`.
+Phase 7 introduced a three-mode access model above the existing Secure Delivery architecture and later optimized production runtime database usage. The build pipeline, encryption, delivery fetch response shape, runtime execution response shape, and event reporting API behavior remain unchanged by Phase 7C optimization work. Access-mode authorization still occurs during `POST /api/delivery/session`; the separate planned runtime popup validation work uses `POST /api/validate` before script execution.
 
 Approved access modes:
 
@@ -691,7 +697,7 @@ Approved access modes:
 |---|---|---|
 | `public` | Open access | No authorization required |
 | `key_required` | Monetized free access | Existing Work.ink key system |
-| `license_required` | Paid/premium access | Creator-generated premium licenses with assignment limits; Phase 7C runtime hardening |
+| `license_required` | Paid/premium access | Creator-generated premium licenses with assignment limits; future license hardening deferred |
 
 `visibility` and `access_mode` are separate concerns:
 
@@ -858,16 +864,16 @@ Enforce `access_mode = license_required` during delivery session creation.
 - [x] Existing assignment allows license validation foundation
 - [x] New assignment creation foundation exists
 - [x] Delivery fetch, payload delivery, runtime execution, and event reporting remain unchanged
-- [ ] Atomic assignment capacity enforcement — moved to Phase 7C
-- [ ] Strict `customer_identifier` handling — moved to Phase 7C
-- [ ] License counters and runtime audit trail — moved to Phase 7C
+- [ ] Atomic assignment capacity enforcement — deferred future license work
+- [ ] Strict `customer_identifier` handling — deferred future license work
+- [ ] License counters and runtime audit trail — deferred future license work
 
 ## Success Criteria
 
 - [x] License validation foundation checks active non-expired licenses
 - [x] Delivery fetch, payload delivery, runtime execution, and event reporting remain unchanged
-- [ ] Device/customer limits are enforced consistently — moved to Phase 7C
-- [ ] Disabled/revoked assignment runtime enforcement — moved to Phase 7C
+- [ ] Device/customer limits are enforced consistently — deferred future license work
+- [ ] Disabled/revoked assignment runtime enforcement — deferred future license work
 
 ---
 
@@ -987,11 +993,11 @@ Resolve remaining UI-only audit findings before closing Phase 7A.
 
 ---
 
-# Phase 7B — Key Monetization Platform
+# Phase 7B — Key Monetization Backend Platform
 
-Status: Runtime Integration Blocked
+Status: Complete for backend monetization infrastructure
 
-Reason: Roblox runtime popup validation is not integrated
+Runtime UI note: Roblox runtime popup validation is not integrated and remains planned runtime UX work outside the completed backend scope.
 
 Implementation: Backend monetization infrastructure is complete. Device Limits, Premium Keys, and Free Keys are enforced through `POST /api/validate`. Runtime loader execution is not yet gated by popup validation, and delivered payloads currently execute directly.
 
@@ -1030,15 +1036,14 @@ Design documents:
 - [x] Key Type Alignment
 - [x] Device Limits V1
 - [x] Custom Device Limits
-- [ ] Phase 7B.6 Runtime Key Integration
-- [ ] Runtime popup UI for Free Keys, Premium Keys, and Future Providers
-- [ ] Runtime `POST /api/validate` call with `key`, `executor_identifier`, and `client_identifier`
-- [ ] Execution gate requiring `validation_success == true`
-- [ ] Phase 7B.7 Analytics Foundation events: `KEY_VALIDATED`, `KEY_VALIDATION_FAILED`, `DEVICE_REGISTERED`, `DEVICE_REUSED`, `DEVICE_LIMIT_DENIED`
-- [ ] Phase 7B.8 Device Analytics Dashboard
-- [ ] Phase 7B.9 Manual Device Reset
-- [ ] Phase 7B.10 Linkvertise and LootLabs Provider Expansion
-- [ ] Phase 7B.11 Unified Monetization Analytics
+- [ ] Planned Runtime UX: Runtime popup UI for Free Keys, Premium Keys, and Future Providers
+- [ ] Planned Runtime UX: Runtime `POST /api/validate` call with `key`, `executor_identifier`, and `client_identifier`
+- [ ] Planned Runtime UX: Execution gate requiring `validation_success == true`
+- [ ] Planned Key Analytics: validation foundation events such as `KEY_VALIDATED`, `KEY_VALIDATION_FAILED`, `DEVICE_REGISTERED`, `DEVICE_REUSED`, `DEVICE_LIMIT_DENIED`
+- [ ] Planned Key Operations: Device Analytics Dashboard
+- [ ] Planned Key Operations: Manual Device Reset
+- [ ] Planned Provider Expansion: Linkvertise and LootLabs Provider Expansion
+- [ ] Planned Key Analytics: Unified Monetization Analytics
 
 ## Success Criteria
 
@@ -1063,11 +1068,10 @@ Design documents:
 
 ## Progress Assessment Based on MAIN
 
-- Current completion estimate: 85-90% overall.
-- Backend Infrastructure: approximately 100%.
-- Runtime Integration: approximately 0%.
+- Backend key monetization completion estimate: 100%.
+- Runtime popup validation completion estimate: 0%.
 - Completed foundation: Provider Foundation, Premium Key Infrastructure, Access Mode Support, Provider Hardening, Dashboard UX Refinement, Key Management Refinement, Key Type Alignment, Device Limits V1, and Custom Device Limits.
-- Remaining work: Runtime Key Integration, Analytics Foundation, Device Analytics Dashboard, Device Reset, Provider Expansion, and Monetization Analytics.
+- Remaining planned work: Runtime Key Integration, Analytics Foundation, Device Analytics Dashboard, Device Reset, Provider Expansion, and Monetization Analytics.
 - Critical blocker: runtime popup validation has not been integrated into Roblox runtime execution.
 
 ## TODO Classification
@@ -1104,69 +1108,131 @@ Design documents:
 | QA and test coverage expansion | Operational/Ongoing | Required before final release, not key monetization-specific. |
 | Operational hardening | Operational/Ongoing | Platform hardening track outside Phase 7B/7C ownership. |
 | Security review | Operational/Ongoing | Required before final release and should include key monetization review. |
-| Runtime license enforcement | Phase 7C | Premium license runtime behavior is explicitly moved out of Phase 7B. |
-| Premium licenses | Phase 7C | Premium monetization is not required for key monetization release. |
-| License assignments | Phase 7C | Assignment behavior belongs to premium license access. |
-| Assignment lifecycle | Phase 7C | Optional expansion after premium license system resumes. |
-| Assignment capacity enforcement | Phase 7C | Requires premium-license atomic enforcement semantics. |
-| Customer identifiers | Phase 7C | Customer binding belongs to premium license access. |
-| HWID binding | Phase 7C | Higher-assurance license binding requires separate premium license design and risk review. |
-| Device transfer workflows | Phase 7C | License device transfer is a premium license workflow, not key reset. |
-| License entitlements | Phase 7C | Entitlement modeling belongs to premium licenses. |
-| License lookup hashes | Phase 7C | Premium license lookup hardening belongs to Phase 7C. |
-| License verifier storage | Phase 7C | Premium license verification storage is not part of key monetization. |
-| License analytics | Phase 7C | License activation, delivery, denial, and assignment analytics belong to premium license system. |
-| License hardening | Phase 7C | Premium license security hardening belongs to Phase 7C. |
+| Runtime license enforcement | Deferred Future License Work | Premium license runtime behavior is explicitly moved out of completed Phase 7B backend and completed Phase 7C performance work. |
+| Premium licenses | Deferred Future License Work | Premium monetization is not required for key monetization release. |
+| License assignments | Deferred Future License Work | Assignment behavior belongs to premium license access. |
+| Assignment lifecycle | Deferred Future License Work | Optional expansion after premium license system resumes. |
+| Assignment capacity enforcement | Deferred Future License Work | Requires premium-license atomic enforcement semantics. |
+| Customer identifiers | Deferred Future License Work | Customer binding belongs to premium license access. |
+| HWID binding | Deferred Future License Work | Higher-assurance license binding requires separate premium license design and risk review. |
+| Device transfer workflows | Deferred Future License Work | License device transfer is a premium license workflow, not key reset. |
+| License entitlements | Deferred Future License Work | Entitlement modeling belongs to premium licenses. |
+| License lookup hashes | Deferred Future License Work | Premium license lookup hardening is deferred. |
+| License verifier storage | Deferred Future License Work | Premium license verification storage is not part of key monetization. |
+| License analytics | Deferred Future License Work | License activation, delivery, denial, and assignment analytics belong to future premium license work. |
+| License hardening | Deferred Future License Work | Premium license security hardening is deferred. |
 | Marketplace, paid scripts, creator economy | Remove | Explicitly deferred indefinitely and not part of Phase 7B or Phase 7C minimum scope. |
 
 ---
 
-# Phase 7C — Premium License System
+# Phase 7C — Production Runtime Performance ✅ COMPLETE
 
-Status: Deferred
+Status: Complete / production validated.
 
-Reason: Starts after Phase 7B Key Monetization Platform is stable and production-reviewed.
+Source commits:
 
-Implementation: Foundation exists in MAIN from Phase 7A, but Phase 7C hardening and runtime enforcement are not started under the new roadmap.
+- `814904b` — Reduce delivery build payload reads.
+- `f19530c` — Improve cleanup batching and session pruning.
+- `e4b7f2d` — Trim event write return projections.
 
-## Objectives
+## Completed Optimizations
 
-- Complete the premium license system without blocking Phase 7B Key Monetization Platform.
-- Harden runtime license enforcement at the delivery-session boundary.
-- Define customer identifiers and HWID binding before implementation.
-- Define license device transfer workflows and license entitlements before implementation.
-- Enforce assignment lifecycle and assignment capacity safely.
-- Provide license analytics and sanitized runtime audit visibility.
+- [x] Delivery session creation no longer loads `payload_ciphertext` unnecessarily.
+- [x] Ready build metadata projection implemented through `getReadyBuildMetadata()`.
+- [x] Rebuild invalidation uses ready build metadata instead of loading previous payload ciphertext.
+- [x] Event repository write projections optimized so create/update writes do not return event `payload`.
+- [x] Rate-limit cleanup batching significantly improved with bounded delete batches.
+- [x] Safe expired delivery session cleanup implemented through `deleteExpiredSessionsWithoutExecutions()`.
+- [x] Expired delivery sessions with `script_executions` references are retained to preserve analytics relationships.
+- [x] Runtime API behavior preserved for `/api/delivery/session`, `/api/delivery/fetch`, and `/api/events/report`.
+- [x] Production validation completed for the implemented optimization scope.
+- [x] Performance audit completed.
 
-## Scope
+## Implementation Notes
 
-- Premium licenses
-- License assignments
-- Customer identifiers
-- HWID binding
-- Device transfer workflows
-- License entitlements
-- License lookup hashes
-- License verifier storage
-- License analytics
-- License hardening
-- Runtime license enforcement
-- Assignment lifecycle
-- Assignment capacity enforcement
-- `license_key` request contract alignment
-- License activity counters
-- Runtime license audit trail
+- Session creation and rebuild invalidation use metadata-only ready-build projections. They still filter for non-null/non-empty `payload_ciphertext` at the database level so readiness semantics are unchanged.
+- Runtime fetch/consume still intentionally reads `payload_ciphertext` server-side when generating the runtime payload.
+- Event write results are intentionally partial and omit `payload`; read paths still use the full event projection.
+- Cleanup is safer and more bounded, but true delivery session TTL cleanup is still blocked by the current `script_executions.session_id` relationship. That scalability work is planned in Phase 7D and is not implemented yet.
 
-## Dependencies
+## Verification Coverage
 
-- Phase 7B Key Monetization Platform complete and stable in production.
-- Raw endpoint protection already enforced for access modes.
-- Loader key/fingerprint forwarding pattern validated before adding license/customer/HWID forwarding.
-- Premium request contract reviewed and frozen before implementation.
-- Customer identifier, HWID binding, device transfer workflow, and entitlement design approved before schema or runtime changes.
-- Atomic assignment capacity strategy selected before implementation.
+- Delivery build repository tests verify ready build metadata does not select `payload_ciphertext`.
+- Delivery session service tests verify public session creation uses metadata projection while preserving build and payload format filters.
+- Delivery build service tests verify rebuild invalidation uses ready build metadata.
+- Event repository tests verify create/update write projections omit event `payload`.
+- Cleanup route tests verify bounded rate-limit cleanup batches.
+- Delivery session repository tests verify expired sessions with execution rows are preserved.
 
-## Risks
+---
+
+# Phase 7D — Database Scalability & Runtime Optimization
+
+Status: Planned / not implemented.
+
+Scope note: Phase 7D is documentation only at this stage. Do not treat database decoupling, Redis, Valkey, analytics aggregation, monitoring dashboards, schema changes, or migrations as completed work.
+
+## Phase 7D.1 — Database Decoupling
+
+- [ ] Decouple `script_executions` from `delivery_sessions`.
+- [ ] Allow true delivery session TTL cleanup.
+- [ ] Preserve analytics without a foreign-key dependency on short-lived delivery sessions.
+
+## Phase 7D.2 — Analytics Aggregation
+
+- [ ] Aggregate script executions.
+- [ ] Add daily statistics.
+- [ ] Add weekly statistics.
+- [ ] Add monthly statistics.
+- [ ] Reduce long-term raw row growth.
+
+## Phase 7D.3 — Redis / Valkey Integration
+
+- [ ] Move runtime rate limiting out of PostgreSQL.
+- [ ] Reduce write amplification.
+- [ ] Reduce cleanup load.
+- [ ] Reduce database contention.
+
+## Phase 7D.4 — Internal Monitoring Dashboard
+
+- [ ] Database metrics.
+- [ ] Cleanup metrics.
+- [ ] Runtime metrics.
+- [ ] Bandwidth metrics.
+- [ ] Execution metrics.
+- [ ] Storage growth.
+- [ ] Operational health.
+
+## Phase 7D.5 — Post-Optimization Infrastructure Review
+
+- [ ] Measure production impact from Phase 7C optimization work.
+- [ ] Compare Supabase usage before and after optimization.
+- [ ] Determine whether PostgreSQL migration is still justified.
+- [ ] Treat this as an evaluation milestone, not an implementation task.
+
+## Deferred Future License Work
+
+Premium license hardening remains deferred future work and is not part of completed Phase 7C or planned Phase 7D database scalability work.
+
+Deferred license items:
+
+- Premium licenses.
+- License assignments.
+- Customer identifiers.
+- HWID binding.
+- Device transfer workflows.
+- License entitlements.
+- License lookup hashes and verifier storage.
+- License analytics.
+- License hardening.
+- Runtime license enforcement.
+- Assignment lifecycle.
+- Assignment capacity enforcement.
+- `license_key` request contract alignment.
+- License activity counters.
+- Runtime license audit trail.
+
+Risks to resolve before future license implementation:
 
 - Non-atomic assignment checks can allow license sharing beyond capacity.
 - Identifier normalization changes can strand existing assignment records.
@@ -1174,7 +1240,21 @@ Implementation: Foundation exists in MAIN from Phase 7A, but Phase 7C hardening 
 - Device transfer workflows can be abused without policy and audit controls.
 - Credential forwarding can leak premium licenses or customer identifiers if logged or exposed in runtime errors.
 - License analytics can be misleading if counters are not updated atomically with authorization decisions.
-- Phase 7C is likely to require migrations or database functions; it must not be folded into Phase 7B.
+
+---
+
+# Phase 7E — Future Infrastructure Improvements
+
+Status: Optional / future.
+
+Phase 7E captures infrastructure improvements that may follow the Phase 7D.5 evaluation. No Phase 7E work is implemented or committed.
+
+Potential future items:
+
+- Database provider migration if Supabase/PostgreSQL usage remains a bottleneck after Phase 7C and Phase 7D improvements.
+- Dedicated worker infrastructure if GitHub Actions scheduling becomes insufficient.
+- Dedicated app/domain separation if operational requirements justify it.
+- External observability stack expansion beyond current internal counters and alerts.
 ---
 
 # Phase 8 — Event Reporting & Webhook Platform
@@ -1558,16 +1638,16 @@ Current Sprint:
 Next Sprint:
 
 ```text
-1. Analytics V2
+1. Phase 7D — Database Scalability & Runtime Optimization
 ```
 
 Following:
 
 ```text
-1. QA & Test Coverage Expansion
-2. Operational Hardening
-3. Security Review
-4. Phase 7B — Key Monetization Platform
+1. Analytics V2
+2. QA & Test Coverage Expansion
+3. Operational Hardening
+4. Security Review
 5. Final Security Audit
 6. Release Candidate
 7. V1 Release
@@ -1576,9 +1656,9 @@ Following:
 Deferred:
 
 ```text
-1. Phase 7B Key Monetization Platform implementation work until the Production Stabilization Window completes.
-2. Phase 7C Premium License System work until after Phase 7B.
-3. Phase 10 scale infrastructure unless production requirements justify it.
+1. Runtime popup key validation until runtime UX requirements are finalized.
+2. Premium license hardening until a future license design is approved.
+3. Phase 7E/Phase 10 scale infrastructure unless Phase 7D.5 production impact review justifies it.
 ```
 
 Long-Term Goal:

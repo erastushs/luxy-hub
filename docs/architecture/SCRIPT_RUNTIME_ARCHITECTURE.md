@@ -8,10 +8,10 @@ Scope: Future script-side runtime architecture for shared loaders, authorization
 Design freeze status:
 
 - Script Runtime Architecture: DESIGN FROZEN
-- Phase 7B Key Monetization: RUNTIME INTEGRATION BLOCKED
+- Phase 7B Backend Key Monetization: COMPLETE
 - Implementation: Phase 7B.6 Runtime Key Integration not started in this document
 - Contract freeze: Complete in `contracts/`
-- Phase 7B.6 Runtime Key Integration must add popup validation against `POST /api/validate` before Main Script execution without changing this frozen architecture's delivery, event, analytics pipeline, or build-system boundaries. Premium license runtime behavior belongs to Phase 7C.
+- Runtime Key Integration must add popup validation against `POST /api/validate` before Main Script execution without changing this frozen architecture's delivery, event, analytics pipeline, or build-system boundaries. Premium license runtime behavior is deferred future license work, not completed Phase 7C performance work.
 
 Frozen contract documents:
 
@@ -1270,7 +1270,7 @@ Implementation guardrails for the future:
 - Do not let main game logic load before authorization succeeds.
 - Do not treat loader or runtime code as trusted security boundaries.
 - Do not add game-specific branches directly into the universal loader except for stable metadata routing.
-- Do not begin Phase 7C runtime license enforcement as part of script runtime architecture work.
+- Do not begin premium runtime license enforcement as part of script runtime architecture work.
 - Do not ship runtime contract changes without compatibility handling.
 - Do not ship experimental runtime behavior without server-owned feature flags and fallback behavior.
 - Do not scale beyond a few modules without a registry and ownership model.

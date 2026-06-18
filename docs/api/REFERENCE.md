@@ -955,7 +955,7 @@ Side effects: Creates or resolves `alert_events` records and may send internal a
 
 ### POST `/api/cleanup`
 
-Purpose: Run production cleanup for expired keys, old Work.ink tokens, rate-limit rows, verification logs, script download analytics, and event logs.
+Purpose: Run production cleanup for expired keys, old Work.ink tokens, rate-limit rows, verification logs, script download analytics, event logs, and expired delivery sessions that are not referenced by execution analytics.
 
 Authentication model: Cron bearer token. Requires `Authorization: Bearer <CRON_SECRET>`.
 
@@ -981,6 +981,19 @@ Response format:
 }
 ```
 
+Cleanup behavior:
+
+- Expired keys are deactivated.
+- Old Work.ink token rows, verification logs, and script download analytics are deleted with retention windows.
+- Rate-limit rows are deleted in bounded batches to reduce cleanup pressure during large backlogs.
+- Delivered, dead-letter, and stale pending event logs are deleted according to their retention windows.
+- Expired delivery sessions are pruned only when no `script_executions` row references the session. Sessions with execution references are retained to preserve analytics relationships.
+
+Failure behavior:
+
+- Expired key, token, rate-limit, verification-log, script-download, and expired-session cleanup substeps log errors and continue where implemented.
+- Event log retention cleanup errors are treated as unexpected cleanup failures and return `500`.
+
 Error responses:
 
 | Status | Body | Cause |
@@ -991,4 +1004,4 @@ Error responses:
 
 Ownership requirements: None. This is an internal service operation.
 
-Side effects: Deactivates expired keys and deletes old operational/analytics/event records according to retention rules.
+Side effects: Deactivates expired keys and deletes old operational/analytics/event records according to retention rules. It does not perform Phase 7D database decoupling or true TTL deletion for delivery sessions that still have execution analytics references.

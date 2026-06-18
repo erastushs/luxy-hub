@@ -1,7 +1,7 @@
 # LuxyHub V1 Production Deployment Guide
 
 Status: Canonical V1 production deployment guide  
-Last updated: 2026-06-11
+Last updated: 2026-06-18
 
 This guide replaces outdated deployment instructions for the current LuxyHub V1 implemented scope. It is documentation only and does not change runtime behavior.
 
@@ -13,8 +13,10 @@ Expected production systems:
 - Analytics: key validation logs, script download analytics, event analytics, license analytics, security monitoring signals.
 - Event Platform: signed event reporting, database-backed queue, Discord delivery, dead-letter handling, internal alerts, GitHub Actions worker scheduler.
 - License Foundation: license schema, license lifecycle APIs, assignment APIs, license management dashboard, license analytics dashboard.
+- Phase 7B Backend Key Monetization: provider foundation, premium keys, access modes, provider hardening, key management refinement, key type alignment, device limits, and custom device limits.
+- Phase 7C Production Runtime Performance: metadata-only delivery build readiness reads, optimized event write projections, improved cleanup batching, and safe expired session pruning.
 
-Phase 7B Key Monetization Platform and Phase 7C Premium License System work are planned separately and are not part of this deployment guide. Premium runtime license enforcement hardening belongs to Phase 7C.
+Runtime popup key validation, Phase 7D database scalability/runtime optimization, Redis/Valkey integration, database decoupling, analytics aggregation, and premium runtime license hardening are planned or deferred separately and are not part of this deployment guide.
 
 ## 1. Environment Setup
 

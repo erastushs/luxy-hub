@@ -1,6 +1,6 @@
 # Event Queue Runtime
 
-Status: Documents current event reporting and queue behavior before Phase 7B. This file is documentation only.
+Status: Documents current event reporting and queue behavior after completed Phase 7C production runtime performance optimizations. This file is documentation only.
 
 Primary files:
 
@@ -61,6 +61,12 @@ Validation sequence:
 13. Per-session event rate limit allows up to 10 events per minute.
 14. Nonce must not already exist for the session.
 15. Event is inserted into `event_logs` with `delivery_status = 'pending'`.
+
+Performance note:
+
+- Event insert/update write projections intentionally omit `payload` from returned rows to reduce database response size.
+- Event read paths still select `payload` when dashboard, queue, replay, or nonce workflows require it.
+- Runtime event reporting API behavior is unchanged; successful event reports still return `{ "success": true }` after storage.
 
 Failure behavior:
 
@@ -219,9 +225,16 @@ Event cleanup is handled by cleanup repository functions and `/api/cleanup`:
 - Delivered events can be deleted after retention.
 - Dead-letter events can be deleted after retention.
 - Stale pending events can be deleted after retention.
+- Rate-limit cleanup is batched in bounded batches.
+- Expired delivery session cleanup deletes only expired sessions without `script_executions` references.
 
 Do not delete recent pending or dead-letter events during active incidents unless data volume threatens availability and the incident lead approves.
 
+Current cleanup caveats:
+
+- Event log retention deletes are not batched in the current repository functions.
+- Delivery sessions referenced by execution analytics are intentionally retained. True delivery session TTL cleanup requires Phase 7D database decoupling and is not implemented yet.
+
 ## Phase Boundary
 
-This document describes the current event queue and webhook delivery system. It does not add event types, providers, APIs, schemas, runtime delivery changes, or Phase 7B behavior.
+This document describes the current event queue and webhook delivery system. It does not add event types, providers, APIs, schemas, Redis/Valkey, database decoupling, analytics aggregation, runtime delivery changes, or planned key-validation runtime behavior.

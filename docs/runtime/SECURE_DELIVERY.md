@@ -1,6 +1,6 @@
 # Secure Delivery Runtime
 
-Status: Documents current runtime behavior before Phase 7B Key Monetization Platform. This file is documentation only.
+Status: Documents current secure delivery runtime behavior after completed Phase 7C production runtime performance optimizations. This file is documentation only.
 
 Primary files:
 
@@ -28,7 +28,7 @@ Primary files:
 5. Server loads script by slug using delivery repository lookup.
 6. Server rejects missing scripts, scripts without current versions, and non-deliverable visibility with `Delivery unavailable`.
 7. Server authorizes access based on `scripts.access_mode`.
-8. Server selects latest ready build for `script.current_version_id` matching `DELIVERY_BUILD_VERSION` and `PAYLOAD_FORMAT_VERSION`.
+8. Server selects latest ready build metadata for `script.current_version_id` matching `DELIVERY_BUILD_VERSION` and `PAYLOAD_FORMAT_VERSION`.
 9. Server creates a raw random session token and event secret.
 10. Server stores only `session_token_hash`, `event_secret`, `script_id`, `build_id`, and expiration in `delivery_sessions`.
 11. Server records a `script_executions` row for execution analytics.
@@ -69,7 +69,7 @@ Security boundaries:
 
 - Client never supplies or controls `creator_id`.
 - Raw session token is returned once and never stored.
-- Session creation does not return payload ciphertext.
+- Session creation does not select or return `payload_ciphertext`; it uses ready build metadata and still filters for non-empty ciphertext at the database level.
 - All responses include `Cache-Control: no-store`.
 
 ## Fetch Flow
@@ -112,6 +112,7 @@ Security boundaries:
 - Fetch validates build/script consistency after session lookup.
 - Event reporting does not consume `delivery_sessions.consumed_at`.
 - Raw payload decryption is handled by runtime payload consumer logic, not by exposing source in database queries.
+- Runtime fetch intentionally loads `payload_ciphertext` server-side only after validating the delivery session, because ciphertext is required to generate `runtime_payload`.
 
 ## Payload Delivery
 
@@ -145,6 +146,14 @@ Operational caveats:
 - `script_executions.session_id` is unique, preventing duplicate execution rows per delivery session.
 - Database trigger increments `scripts.execute_count` and updates `scripts.last_executed_at`.
 
+## Phase 7C Performance Optimizations
+
+- `createDeliverySession()` uses ready build metadata projection and no longer loads `payload_ciphertext` during session creation.
+- Ready build metadata includes deliverability metadata such as status, storage kind, byte size, source hash, payload hash, build version, and payload format version.
+- Rebuild invalidation also uses ready build metadata when only the previous ready build id is required.
+- Runtime API response behavior is unchanged: `/api/delivery/session` returns `session_token`, `event_secret`, and `expires_in`; `/api/delivery/fetch` returns runtime-safe payload fields and does not expose ciphertext or hashes.
+- True TTL cleanup for all delivery sessions is not implemented yet because sessions referenced by `script_executions` are intentionally retained. Database decoupling for true TTL cleanup is planned for Phase 7D.
+
 ## Security Checklist
 
 - Session tokens must remain high entropy and short lived.
@@ -156,4 +165,4 @@ Operational caveats:
 
 ## Phase Boundary
 
-This document describes current secure delivery behavior before Phase 7B Key Monetization Platform. It does not add key monetization platform features, Phase 7C runtime license enforcement hardening, new APIs, schema changes, or loader delivery changes.
+This document describes current secure delivery behavior after completed Phase 7C production runtime performance optimization. It does not add database decoupling, Redis/Valkey, analytics aggregation, premium license hardening, new APIs, schema changes, or loader delivery changes.

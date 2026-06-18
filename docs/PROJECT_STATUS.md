@@ -1,16 +1,16 @@
 # LuxyHub Project Status
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 ## Current Status
 
 Phase 7A is complete and production ready for the implemented access-mode foundation, key validation integration, license foundation, license management dashboard, license analytics dashboard, and UI remediation scope.
 
-Current focus: Phase 7B.6 Runtime Key Integration. Backend monetization infrastructure is complete, but Roblox runtime popup validation is not integrated yet.
+Current focus: Production Stabilization after completed Phase 7B backend key monetization infrastructure and completed Phase 7C production runtime performance optimizations.
 
-Next planned major development: runtime popup validation and execution gating for `POST /api/validate`.
+Next planned roadmap phase: Phase 7D Database Scalability & Runtime Optimization. Runtime popup validation and execution gating for `POST /api/validate` remain planned runtime UX work because the current loader does not call `/api/validate` before execution.
 
-Phase 7B has been refined to Key Monetization Platform and is now blocked by runtime integration, not backend work. Premium License System work remains Phase 7C.
+Phase 7B backend key monetization infrastructure is complete. Phase 7C is now the completed Production Runtime Performance phase. Premium license hardening is deferred future license work and is not part of completed Phase 7C.
 
 ## Completed Systems
 
@@ -23,20 +23,22 @@ Phase 7B has been refined to Key Monetization Platform and is now blocked by run
 - License Foundation
 - License Dashboard
 - Phase 7B Backend Monetization Infrastructure
+- Phase 7C Production Runtime Performance Optimizations
 
 ## In Progress
 
 - Production Stabilization Program
-- Phase 7B.6 Runtime Key Integration
 
 ## Deferred / Not Started
 
-- Phase 7B.7 Analytics Foundation
-- Phase 7B.8 Device Analytics Dashboard
-- Phase 7B.9 Device Reset
-- Phase 7B.10 Provider Expansion
-- Phase 7B.11 Monetization Analytics
-- Phase 7C Premium License System: Deferred / Not Started
+- Runtime popup key validation and execution gating
+- Key validation analytics foundation
+- Device analytics dashboard
+- Device reset tooling
+- Provider expansion
+- Monetization analytics
+- Premium license hardening: Deferred / Not Started
+- Phase 7D Database Scalability & Runtime Optimization: Planned / Not Implemented
 - Analytics V2
 - QA & Test Coverage Expansion
 - Operational Hardening
@@ -51,12 +53,16 @@ Phase 7B has been refined to Key Monetization Platform and is now blocked by run
 - Analytics V1: Complete
 - Phase 8 Event Platform: Complete
 - Phase 7A: Complete / Production Ready
+- Phase 7B Backend Key Monetization Infrastructure: Complete
+- Phase 7C Production Runtime Performance: Complete
 
 ## Current Focus
 
 - Production Stabilization: ACTIVE
-- Phase 7B Key Monetization Platform: Runtime Integration Blocked
-- Phase 7C Premium License System: Deferred
+- Phase 7B Backend Key Monetization Platform: Complete
+- Phase 7C Production Runtime Performance: Complete
+- Phase 7D Database Scalability & Runtime Optimization: Planned / Not Implemented
+- Premium license hardening: Deferred
 - Blocker: Runtime popup validation has not been integrated into the Roblox runtime
 
 ## Production Stabilization Program
@@ -84,19 +90,14 @@ Suggested Duration: 2-4 weeks.
 
 ## Future Phase Order
 
-1. Phase 7B.6 Runtime Key Integration
-2. Phase 7B.7 Analytics Foundation
-3. Phase 7B.8 Device Analytics Dashboard
-4. Phase 7B.9 Device Reset
-5. Phase 7B.10 Provider Expansion
-6. Phase 7B.11 Monetization Analytics
-7. Analytics V2
-8. QA & Test Coverage Expansion
-9. Operational Hardening
-10. Security Review
-11. Final Security Audit
-12. Release Candidate
-13. V1 Release
+1. Phase 7D Database Scalability & Runtime Optimization
+2. Analytics V2
+3. QA & Test Coverage Expansion
+4. Operational Hardening
+5. Security Review
+6. Final Security Audit
+7. Release Candidate
+8. V1 Release
 
 ## Phase 7A Breakdown
 
@@ -113,16 +114,16 @@ Suggested Duration: 2-4 weeks.
 
 ## Phase 7B Status
 
-- Name: Key Monetization Platform
-- Status: Runtime Integration Blocked
-- Reason: Roblox runtime popup validation is not integrated
+- Name: Backend Key Monetization Platform
+- Status: Complete for backend monetization infrastructure
+- Runtime UX note: Roblox runtime popup validation is not integrated and remains planned runtime work
 - Implementation: Backend monetization infrastructure is complete. Device Limits, Premium Keys, and Free Keys are enforced through `POST /api/validate`. The runtime loader currently executes delivered payloads directly.
 - Design: Refined
 - Threat Model: Refined
 - Documentation: Refined
 - Backend Infrastructure estimate: 100%
-- Runtime Integration estimate: 0%
-- Current overall completion estimate: 85-90%
+- Runtime popup validation estimate: 0%
+- Backend platform completion estimate: 100%
 
 Phase 7B completed backend foundation:
 
@@ -136,23 +137,35 @@ Phase 7B completed backend foundation:
 - Device Limits V1.
 - Custom Device Limits.
 
-Phase 7B remaining work:
+Planned runtime/key work outside completed Phase 7B backend:
 
-- Phase 7B.6 Runtime Key Integration.
-- Phase 7B.7 Analytics Foundation.
-- Phase 7B.8 Device Analytics Dashboard.
-- Phase 7B.9 Device Reset.
-- Phase 7B.10 Provider Expansion.
-- Phase 7B.11 Monetization Analytics.
+- Runtime Key Integration.
+- Analytics Foundation.
+- Device Analytics Dashboard.
+- Device Reset.
+- Provider Expansion.
+- Monetization Analytics.
 
 ## Phase 7C Status
 
-- Name: Premium License System
-- Status: Deferred
-- Implementation: Phase 7A foundation exists, but Phase 7C license hardening has not started under the new roadmap
-- Scope: premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, license hardening, runtime license enforcement, assignment lifecycle, and assignment capacity enforcement
+- Name: Production Runtime Performance
+- Status: Complete / Production Validated
+- Implementation: delivery session creation avoids unnecessary `payload_ciphertext` reads; ready build metadata projection is implemented; event write projections omit payload; cleanup batching is improved; safe expired delivery session cleanup preserves sessions referenced by `script_executions`; runtime API behavior is preserved
+- Verification: production validation, performance audit, and repository/service/API tests cover the completed optimization scope
 
-## Phase 7B Entry Criteria
+## Phase 7D Status
+
+- Name: Database Scalability & Runtime Optimization
+- Status: Planned / Not Implemented
+- Scope: database decoupling, analytics aggregation, Redis/Valkey rate limiting, internal monitoring dashboard, and post-optimization infrastructure review
+- Non-goals for current state: no database decoupling has been implemented, Redis/Valkey is not completed, and no database migrations have been generated for Phase 7D
+
+## Deferred Future License Work
+
+- Premium license hardening remains deferred future work.
+- Scope includes premium licenses, license assignments, customer identifiers, HWID binding, device transfer workflows, license entitlements, license analytics, license hardening, runtime license enforcement, assignment lifecycle, and assignment capacity enforcement.
+
+## Runtime Key Integration Entry Criteria
 
 - Review `docs/phases/phase7/PHASE_7B_DESIGN.md`.
 - Review `docs/phases/phase7/PHASE_7B_THREAT_MODEL.md`.

@@ -127,4 +127,4 @@ Recommended rollout:
 
 ## 8. Contract Freeze Decision
 
-The runtime metadata schema is frozen for design purposes. Future implementation may refine serialization details, but changes to required fields, ownership, or semantics require a new design review before Phase 7B Key Monetization implementation. Premium-license metadata changes belong to Phase 7C review.
+The runtime metadata schema is frozen for design purposes. Future implementation may refine serialization details, but changes to required fields, ownership, or semantics require a new design review before runtime key validation changes. Premium-license metadata changes require a future license review and are not part of completed Phase 7C runtime performance work.

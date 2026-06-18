@@ -19,11 +19,11 @@ Phase 7A introduced the license foundation:
 - License management dashboard
 - License analytics dashboard
 
-Roadmap update: Phase 7B is now Key Monetization Platform. Runtime license enforcement and premium license hardening have moved to Phase 7C. The current architectural boundary remains delivery session creation.
+Roadmap update: Phase 7B backend key monetization is complete. Phase 7C now refers to completed Production Runtime Performance optimization, and Phase 7D refers to planned Database Scalability & Runtime Optimization. Runtime license enforcement and premium license hardening are deferred future license work. The current architectural boundary remains delivery session creation.
 
 ## Problem
 
-LuxyHub needs a clear authorization model for script delivery that separates discoverability from access requirements and records the current implementation state before Phase 7B Key Monetization Platform and Phase 7C Premium License System work begins.
+LuxyHub needs a clear authorization model for script delivery that separates discoverability from access requirements and records the current implementation state before future runtime key validation UX and premium license hardening work begins.
 
 The system must support free/public scripts, Work.ink key-gated scripts, and premium license-gated scripts without moving authorization into untrusted loader/runtime code.
 
@@ -34,8 +34,8 @@ LuxyHub accepts `scripts.access_mode` as the delivery authorization model.
 Access modes:
 
 - `public`: delivery session may be created when script visibility/build state permits delivery.
-- `key_required`: delivery session requires a valid key through the existing key ecosystem. Productization belongs to Phase 7B.
-- `license_required`: delivery session requires license validation through license foundation services. Runtime hardening belongs to Phase 7C.
+- `key_required`: delivery session requires a valid key through the existing key ecosystem. Backend productization is complete; runtime popup validation remains planned.
+- `license_required`: delivery session requires license validation through license foundation services. Runtime hardening is deferred future license work.
 
 Implemented behavior in current Phase 7A state:
 
@@ -47,7 +47,7 @@ Implemented behavior in current Phase 7A state:
 - Runtime payload fetch remains session-token based and does not accept license credentials.
 - License dashboard/API supports management workflows for creators.
 
-Known limitations before Phase 7B Key Monetization Platform:
+Known limitations before runtime key validation UX and key analytics expansion:
 
 - Dashboard key issuance is not productized.
 - Weekly, monthly, and custom-expiration key issuance paths are not productized.
@@ -56,7 +56,7 @@ Known limitations before Phase 7B Key Monetization Platform:
 - Raw endpoint protection for key-required scripts must be reviewed before Phase 7B release.
 - Key monetization analytics are not complete.
 
-Known limitations before Phase 7C Premium License System:
+Known limitations before future premium license hardening:
 
 - Runtime license enforcement requires additional hardening against assignment capacity bypass.
 - `customer_identifier` normalization and required semantics need to be frozen.
@@ -64,7 +64,7 @@ Known limitations before Phase 7C Premium License System:
 - License counters and runtime audit trail semantics need final implementation review.
 - Request contract naming for documented `license_key` behavior must be reconciled before changing runtime clients.
 
-Planned Phase 7B Key Monetization Platform work:
+Planned runtime/key expansion work:
 
 - Dashboard key issuance.
 - Weekly, monthly, and custom-expiration keys.
@@ -73,7 +73,7 @@ Planned Phase 7B Key Monetization Platform work:
 - Raw endpoint protection.
 - Key analytics.
 
-Planned Phase 7C Premium License System work:
+Deferred future premium license work:
 
 - Harden license-required delivery session authorization.
 - Enforce `max_assignments` consistently for runtime and creator assignment paths.
@@ -102,7 +102,7 @@ Positive consequences:
 - Key-required and license-required scripts share the same session boundary.
 - License ownership is enforced at schema and service layers.
 - Phase 7B has a clear key-monetization target without redesigning delivery fetch.
-- Phase 7C has a clear premium-license hardening target without blocking Phase 7B.
+- Future premium-license hardening has a clear target without blocking completed Phase 7B backend work or completed Phase 7C runtime performance work.
 
 Negative consequences:
 
