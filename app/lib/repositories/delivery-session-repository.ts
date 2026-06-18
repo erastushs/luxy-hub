@@ -82,3 +82,52 @@ export async function deleteExpiredSessions(before: Date = new Date()): Promise<
   if (error) throw error
   return count ?? 0
 }
+
+export async function deleteExpiredSessionsWithoutExecutions(
+  before: Date = new Date(),
+  limit: number = 5000
+): Promise<number> {
+  const cappedLimit = Math.max(1, Math.min(limit, 10000))
+  const { data: expiredSessions, error: expiredError } = await supabaseAdmin
+    .from('delivery_sessions')
+    .select('id')
+    .lt('expires_at', before.toISOString())
+    .limit(cappedLimit)
+
+  if (expiredError) throw expiredError
+
+  const expiredSessionIds = (expiredSessions ?? [])
+    .map((row) => row.id)
+    .filter((sessionId): sessionId is string => typeof sessionId === 'string')
+
+  if (expiredSessionIds.length === 0) {
+    return 0
+  }
+
+  const { data: executionRows, error: executionError } = await supabaseAdmin
+    .from('script_executions')
+    .select('session_id')
+    .in('session_id', expiredSessionIds)
+
+  if (executionError) throw executionError
+
+  const executionSessionIds = new Set(
+    (executionRows ?? [])
+      .map((row) => row.session_id)
+      .filter((sessionId): sessionId is string => typeof sessionId === 'string')
+  )
+
+  const deletableSessionIds = expiredSessionIds.filter((sessionId) => !executionSessionIds.has(sessionId))
+
+  if (deletableSessionIds.length === 0) {
+    return 0
+  }
+
+  const { count, error } = await supabaseAdmin
+    .from('delivery_sessions')
+    .delete({ count: 'exact' })
+    .in('id', deletableSessionIds)
+
+  if (error) throw error
+  return count ?? 0
+}

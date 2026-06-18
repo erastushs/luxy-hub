@@ -5,6 +5,35 @@ import {
   deleteDeliveredEventsBefore,
   deletePendingEventsBefore,
 } from '@/app/lib/repositories/event-repository'
+import { deleteExpiredSessionsWithoutExecutions } from '@/app/lib/repositories/delivery-session-repository'
+
+const CLEANUP_BATCHES = 25
+const RATE_LIMIT_CLEANUP_BATCH_SIZE = 10000
+
+async function deleteOldRateLimits(beforeIso: string): Promise<number> {
+  let totalDeleted = 0
+
+  for (let batch = 0; batch < CLEANUP_BATCHES; batch++) {
+    const { count, error } = await supabaseAdmin
+      .from('rate_limits')
+      .delete({ count: 'exact' })
+      .lt('created_at', beforeIso)
+      .limit(RATE_LIMIT_CLEANUP_BATCH_SIZE)
+
+    if (error) {
+      throw error
+    }
+
+    const deleted = count ?? 0
+    totalDeleted += deleted
+
+    if (deleted < RATE_LIMIT_CLEANUP_BATCH_SIZE) {
+      break
+    }
+  }
+
+  return totalDeleted
+}
 
 export async function POST(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
@@ -52,13 +81,9 @@ export async function POST(req: NextRequest) {
       console.error('Cleanup tokens error')
     }
 
-    const { error: rateLimitError } = await supabaseAdmin
-      .from('rate_limits')
-      .delete()
-      .lt('created_at', threeDaysAgo)
-      .limit(10000)
-
-    if (rateLimitError) {
+    try {
+      await deleteOldRateLimits(threeDaysAgo)
+    } catch {
       console.error('Cleanup rate_limits error')
     }
 
@@ -98,6 +123,12 @@ export async function POST(req: NextRequest) {
       delivered: await deleteDeliveredEventsBefore(new Date(thirtyDaysAgo)),
       deadLetter: await deleteDeadLetterEventsBefore(new Date(ninetyDaysAgo)),
       pending: await deletePendingEventsBefore(sevenDaysAgo),
+    }
+
+    try {
+      await deleteExpiredSessionsWithoutExecutions(new Date())
+    } catch {
+      console.error('Cleanup delivery_sessions error')
     }
 
     return NextResponse.json({
