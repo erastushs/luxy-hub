@@ -3,7 +3,7 @@ import { gzipSync } from 'node:zlib'
 import { getVersionById } from '@/app/lib/repositories/script-repository'
 import {
   createBuild,
-  getReadyBuild,
+  getReadyBuildMetadata,
   markBuildBuilding,
   markBuildFailed,
   markBuildInvalidated,
@@ -203,7 +203,7 @@ export async function buildVersion(versionId: string): Promise<BuildVersionResul
 }
 
 export async function rebuildVersion(versionId: string): Promise<BuildVersionResult> {
-  const previousReadyBuild = await getReadyBuild(versionId, {
+  const previousReadyBuild = await getReadyBuildMetadata(versionId, {
     buildVersion: DELIVERY_BUILD_VERSION,
     payloadFormatVersion: PAYLOAD_FORMAT_VERSION,
   })

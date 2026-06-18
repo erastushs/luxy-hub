@@ -8,7 +8,7 @@ vi.mock('@/app/lib/repositories/script-repository', () => ({
 
 vi.mock('@/app/lib/repositories/delivery-build-repository', () => ({
   createBuild: vi.fn(),
-  getReadyBuild: vi.fn(),
+  getReadyBuildMetadata: vi.fn(),
   markBuildBuilding: vi.fn(),
   markBuildReady: vi.fn(),
   markBuildFailed: vi.fn(),
@@ -27,7 +27,7 @@ import {
 import { getVersionById } from '@/app/lib/repositories/script-repository'
 import {
   createBuild,
-  getReadyBuild,
+  getReadyBuildMetadata,
   markBuildBuilding,
   markBuildReady,
   markBuildFailed,
@@ -36,7 +36,7 @@ import {
 
 const mockedGetVersionById = vi.mocked(getVersionById)
 const mockedCreateBuild = vi.mocked(createBuild)
-const mockedGetReadyBuild = vi.mocked(getReadyBuild)
+const mockedGetReadyBuildMetadata = vi.mocked(getReadyBuildMetadata)
 const mockedMarkBuildBuilding = vi.mocked(markBuildBuilding)
 const mockedMarkBuildReady = vi.mocked(markBuildReady)
 const mockedMarkBuildFailed = vi.mocked(markBuildFailed)
@@ -164,7 +164,7 @@ describe('Phase 5B delivery build service', () => {
       return row
     })
 
-    mockedGetReadyBuild.mockResolvedValue(null)
+    mockedGetReadyBuildMetadata.mockResolvedValue(null)
   })
 
   it('builds a version into an inline encrypted ready payload', async () => {
@@ -225,13 +225,13 @@ describe('Phase 5B delivery build service', () => {
       built_at: '2026-01-01T00:00:00.000Z',
     })
     buildRows.set(previousReadyBuild.id, previousReadyBuild)
-    mockedGetReadyBuild.mockResolvedValue(previousReadyBuild)
+    mockedGetReadyBuildMetadata.mockResolvedValue(previousReadyBuild)
     mockedGetVersionById.mockResolvedValue(mockVersionRow())
 
     const result = await rebuildVersion('version-uuid-1')
 
     expect(result.success).toBe(true)
-    expect(mockedGetReadyBuild).toHaveBeenCalledWith('version-uuid-1', {
+    expect(mockedGetReadyBuildMetadata).toHaveBeenCalledWith('version-uuid-1', {
       buildVersion: DELIVERY_BUILD_VERSION,
       payloadFormatVersion: PAYLOAD_FORMAT_VERSION,
     })

@@ -51,6 +51,11 @@ export type DeliveryBuildDashboardRow = DeliveryBuildSummaryRow & {
   metadata: Record<string, unknown>
 }
 
+export type DeliveryBuildMetadataRow = DeliveryBuildDashboardRow & {
+  source_sha256: string
+  payload_sha256: string | null
+}
+
 export type ListBuildsResult = {
   builds: DeliveryBuildDashboardRow[]
   total: number
@@ -127,6 +132,29 @@ const BUILD_DASHBOARD_SELECT = [
   'payload_storage_kind',
   'payload_content_type',
   'payload_byte_size',
+  'build_version',
+  'payload_format_version',
+  'encryption_scheme',
+  'invalidated_reason',
+  'build_error_code',
+  'build_error_message',
+  'metadata',
+  'built_at',
+  'invalidated_at',
+  'created_at',
+  'updated_at',
+].join(', ')
+
+const BUILD_METADATA_SELECT = [
+  'id',
+  'script_id',
+  'version_id',
+  'build_status',
+  'payload_storage_kind',
+  'payload_content_type',
+  'payload_byte_size',
+  'source_sha256',
+  'payload_sha256',
   'build_version',
   'payload_format_version',
   'encryption_scheme',
@@ -348,6 +376,36 @@ export async function getReadyBuild(
 
   if (error) return null
   return data as unknown as DeliveryBuildRow
+}
+
+export async function getReadyBuildMetadata(
+  versionId: string,
+  params: ReadyBuildParams = {}
+): Promise<DeliveryBuildMetadataRow | null> {
+  let query = supabaseAdmin
+    .from('delivery_builds')
+    .select(BUILD_METADATA_SELECT)
+    .eq('version_id', versionId)
+    .eq('build_status', 'ready')
+    .eq('payload_storage_kind', 'inline_encrypted')
+    .not('payload_ciphertext', 'is', null)
+    .neq('payload_ciphertext', '')
+
+  if (params.buildVersion) {
+    query = query.eq('build_version', params.buildVersion)
+  }
+
+  if (params.payloadFormatVersion) {
+    query = query.eq('payload_format_version', params.payloadFormatVersion)
+  }
+
+  const { data, error } = await query
+    .order('built_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (error) return null
+  return data as unknown as DeliveryBuildMetadataRow
 }
 
 export async function markBuildReady(

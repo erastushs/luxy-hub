@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DeliveryScriptRow } from '@/app/lib/repositories/script-repository'
-import type { DeliveryBuildRow } from '@/app/lib/repositories/delivery-build-repository'
+import type {
+  LicenseAssignmentRow,
+  LicenseRow,
+} from '@/app/lib/repositories/license-repository'
+import type {
+  DeliveryBuildMetadataRow,
+  DeliveryBuildRow,
+} from '@/app/lib/repositories/delivery-build-repository'
 import type { DeliverySessionRow } from '@/app/lib/repositories/delivery-session-repository'
 
 vi.mock('@/app/lib/services/delivery-build-service', () => ({
@@ -13,7 +20,7 @@ vi.mock('@/app/lib/repositories/script-repository', () => ({
 }))
 
 vi.mock('@/app/lib/repositories/delivery-build-repository', () => ({
-  getReadyBuild: vi.fn(),
+  getReadyBuildMetadata: vi.fn(),
   getBuildById: vi.fn(),
 }))
 
@@ -47,7 +54,7 @@ import {
   validateDeliverySession,
 } from '@/app/lib/services/delivery-session-service'
 import { findScriptForDeliveryBySlug } from '@/app/lib/repositories/script-repository'
-import { getBuildById, getReadyBuild } from '@/app/lib/repositories/delivery-build-repository'
+import { getBuildById, getReadyBuildMetadata } from '@/app/lib/repositories/delivery-build-repository'
 import {
   consumeSession,
   createSession,
@@ -59,7 +66,7 @@ import { validateKey } from '@/app/lib/services/key-service'
 import { validateLicense } from '@/app/lib/services/license-service'
 
 const mockedFindScriptForDeliveryBySlug = vi.mocked(findScriptForDeliveryBySlug)
-const mockedGetReadyBuild = vi.mocked(getReadyBuild)
+const mockedGetReadyBuildMetadata = vi.mocked(getReadyBuildMetadata)
 const mockedGetBuildById = vi.mocked(getBuildById)
 const mockedCreateSession = vi.mocked(createSession)
 const mockedGetSessionByTokenHash = vi.mocked(getSessionByTokenHash)
@@ -121,6 +128,17 @@ function mockBuildRow(overrides: Partial<DeliveryBuildRow> = {}): DeliveryBuildR
   }
 }
 
+function mockBuildMetadataRow(
+  overrides: Partial<DeliveryBuildMetadataRow> = {}
+): DeliveryBuildMetadataRow {
+  const { payload_ciphertext: _payloadCiphertext, ...metadata } = mockBuildRow()
+  void _payloadCiphertext
+  return {
+    ...metadata,
+    ...overrides,
+  }
+}
+
 function mockSessionRow(overrides: Partial<DeliverySessionRow> = {}): DeliverySessionRow {
   return {
     id: 'session-uuid-1',
@@ -131,6 +149,40 @@ function mockSessionRow(overrides: Partial<DeliverySessionRow> = {}): DeliverySe
     consumed_at: null,
     event_secret: 'event-secret',
     created_at: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function mockLicenseRow(overrides: Partial<LicenseRow> = {}): LicenseRow {
+  return {
+    id: 'license-uuid-1',
+    script_id: 'script-uuid-1',
+    creator_id: 'owner-uuid-1',
+    key_hash: '0'.repeat(64),
+    max_assignments: 1,
+    status: 'active',
+    activation_count: 0,
+    delivery_count: 0,
+    last_activation_at: null,
+    last_delivery_at: null,
+    expires_at: null,
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function mockLicenseAssignmentRow(
+  overrides: Partial<LicenseAssignmentRow> = {}
+): LicenseAssignmentRow {
+  return {
+    id: 'assignment-uuid-1',
+    license_id: 'license-uuid-1',
+    customer_identifier_hash: '1'.repeat(64),
+    display_name: null,
+    status: 'active',
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z',
     ...overrides,
   }
 }
@@ -154,7 +206,7 @@ describe('Phase 5C delivery session service', () => {
 
   it('creates a short-lived session and stores only a token hash', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow())
-    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
+    mockedGetReadyBuildMetadata.mockResolvedValue(mockBuildMetadataRow())
     mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
       script_id: params.scriptId,
       build_id: params.buildId,
@@ -186,7 +238,7 @@ describe('Phase 5C delivery session service', () => {
 
   it('persists and returns an event secret for runtime signing', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow())
-    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
+    mockedGetReadyBuildMetadata.mockResolvedValue(mockBuildMetadataRow())
     mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
       script_id: params.scriptId,
       build_id: params.buildId,
@@ -217,7 +269,7 @@ describe('Phase 5C delivery session service', () => {
 
   it('rejects session creation when the current ready build is missing', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow())
-    mockedGetReadyBuild.mockResolvedValue(null)
+    mockedGetReadyBuildMetadata.mockResolvedValue(null)
 
     const result = await createDeliverySession('my-script')
 
@@ -231,7 +283,7 @@ describe('Phase 5C delivery session service', () => {
 
   it('keeps public session creation flow unchanged before recording analytics', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'public' }))
-    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
+    mockedGetReadyBuildMetadata.mockResolvedValue(mockBuildMetadataRow())
     mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
       script_id: params.scriptId,
       build_id: params.buildId,
@@ -244,7 +296,7 @@ describe('Phase 5C delivery session service', () => {
 
     expect(result.success).toBe(true)
     expect(mockedFindScriptForDeliveryBySlug).toHaveBeenCalledWith('my-script')
-    expect(mockedGetReadyBuild).toHaveBeenCalledWith('version-uuid-1', {
+    expect(mockedGetReadyBuildMetadata).toHaveBeenCalledWith('version-uuid-1', {
       buildVersion: 'delivery-build-v1',
       payloadFormatVersion: 'inline-json-v1',
     })
@@ -258,7 +310,7 @@ describe('Phase 5C delivery session service', () => {
   it('creates sessions for key-required scripts when a valid key is provided', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'key_required' }))
     mockedValidateKey.mockResolvedValue({ valid: true })
-    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
+    mockedGetReadyBuildMetadata.mockResolvedValue(mockBuildMetadataRow())
     mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
       script_id: params.scriptId,
       build_id: params.buildId,
@@ -271,7 +323,7 @@ describe('Phase 5C delivery session service', () => {
 
     expect(result.success).toBe(true)
     expect(mockedValidateKey).toHaveBeenCalledWith('LUXY-ABCD-1234-EFGH')
-    expect(mockedGetReadyBuild).toHaveBeenCalled()
+    expect(mockedGetReadyBuildMetadata).toHaveBeenCalled()
     expect(mockedCreateSession).toHaveBeenCalledTimes(1)
     expect(mockedRecordExecution).toHaveBeenCalledWith({
       scriptId: 'script-uuid-1',
@@ -290,7 +342,7 @@ describe('Phase 5C delivery session service', () => {
       message: 'Key is required',
     })
     expect(mockedValidateKey).not.toHaveBeenCalled()
-    expect(mockedGetReadyBuild).not.toHaveBeenCalled()
+    expect(mockedGetReadyBuildMetadata).not.toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
     expect(mockedRecordExecution).not.toHaveBeenCalled()
   })
@@ -307,7 +359,7 @@ describe('Phase 5C delivery session service', () => {
       message: 'Invalid key',
     })
     expect(mockedValidateKey).toHaveBeenCalledWith('BAD-KEY-XXXX-YYYY')
-    expect(mockedGetReadyBuild).not.toHaveBeenCalled()
+    expect(mockedGetReadyBuildMetadata).not.toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
     expect(mockedRecordExecution).not.toHaveBeenCalled()
   })
@@ -328,15 +380,19 @@ describe('Phase 5C delivery session service', () => {
       license: undefined,
       customerIdentifier: undefined,
     })
-    expect(mockedGetReadyBuild).not.toHaveBeenCalled()
+    expect(mockedGetReadyBuildMetadata).not.toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
     expect(mockedRecordExecution).not.toHaveBeenCalled()
   })
 
   it('creates sessions for license-required scripts with a valid license', async () => {
     mockedFindScriptForDeliveryBySlug.mockResolvedValue(mockScriptRow({ access_mode: 'license_required' }))
-    mockedValidateLicense.mockResolvedValue({ success: true, license: {}, assignment: {} })
-    mockedGetReadyBuild.mockResolvedValue(mockBuildRow())
+    mockedValidateLicense.mockResolvedValue({
+      success: true,
+      license: mockLicenseRow(),
+      assignment: mockLicenseAssignmentRow(),
+    })
+    mockedGetReadyBuildMetadata.mockResolvedValue(mockBuildMetadataRow())
     mockedCreateSession.mockImplementation(async (params) => mockSessionRow({
       script_id: params.scriptId,
       build_id: params.buildId,
@@ -358,7 +414,7 @@ describe('Phase 5C delivery session service', () => {
       license: 'LUXY-PREM-XXXX-XXXX-XXXX',
       customerIdentifier: 'customer-1',
     })
-    expect(mockedGetReadyBuild).toHaveBeenCalled()
+    expect(mockedGetReadyBuildMetadata).toHaveBeenCalled()
     expect(mockedCreateSession).toHaveBeenCalledTimes(1)
     expect(mockedRecordExecution).toHaveBeenCalledWith({
       scriptId: 'script-uuid-1',

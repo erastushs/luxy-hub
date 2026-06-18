@@ -8,13 +8,20 @@ vi.mock('@/app/lib/supabase', () => ({
 }))
 
 import { supabaseAdmin } from '@/app/lib/supabase'
-import { createBuild, getReadyBuild, markBuildBuilding } from '@/app/lib/repositories/delivery-build-repository'
+import {
+  createBuild,
+  getReadyBuild,
+  getReadyBuildMetadata,
+  markBuildBuilding,
+} from '@/app/lib/repositories/delivery-build-repository'
 
 type QueryChain = {
   insert: Mock
   update: Mock
   select: Mock
   eq: Mock
+  not: Mock
+  neq: Mock
   order: Mock
   limit: Mock
   single: Mock
@@ -54,6 +61,8 @@ function createQueryChain(data: DeliveryBuildRow | null, error: unknown = null):
   chain.update = vi.fn(() => chain)
   chain.select = vi.fn(() => chain)
   chain.eq = vi.fn(() => chain)
+  chain.not = vi.fn(() => chain)
+  chain.neq = vi.fn(() => chain)
   chain.order = vi.fn(() => chain)
   chain.limit = vi.fn(() => chain)
   chain.single = vi.fn(async () => ({ data, error }))
@@ -111,6 +120,34 @@ describe('delivery build repository', () => {
     expect(chain.eq).toHaveBeenCalledWith('version_id', 'version-uuid-1')
     expect(chain.eq).toHaveBeenCalledWith('build_status', 'ready')
     expect(chain.eq).toHaveBeenCalledWith('payload_storage_kind', 'inline_encrypted')
+    expect(chain.eq).toHaveBeenCalledWith('build_version', 'delivery-build-v1')
+    expect(chain.eq).toHaveBeenCalledWith('payload_format_version', 'inline-json-v1')
+    expect(chain.order).toHaveBeenCalledWith('built_at', { ascending: false })
+  })
+
+  it('retrieves ready build metadata without selecting payload ciphertext', async () => {
+    const row = mockBuildRow()
+    const { payload_ciphertext: _payloadCiphertext, ...metadataRow } = row
+    void _payloadCiphertext
+    const chain = createQueryChain(metadataRow as DeliveryBuildRow)
+    mockedFrom.mockReturnValue(chain)
+
+    const result = await getReadyBuildMetadata('version-uuid-1', {
+      buildVersion: 'delivery-build-v1',
+      payloadFormatVersion: 'inline-json-v1',
+    })
+
+    expect(result).toEqual(metadataRow)
+    expect(chain.select).toHaveBeenCalledTimes(1)
+    const projection = chain.select.mock.calls[0][0] as string
+    expect(projection).toContain('payload_sha256')
+    expect(projection).toContain('payload_byte_size')
+    expect(projection).not.toContain('payload_ciphertext')
+    expect(chain.eq).toHaveBeenCalledWith('version_id', 'version-uuid-1')
+    expect(chain.eq).toHaveBeenCalledWith('build_status', 'ready')
+    expect(chain.eq).toHaveBeenCalledWith('payload_storage_kind', 'inline_encrypted')
+    expect(chain.not).toHaveBeenCalledWith('payload_ciphertext', 'is', null)
+    expect(chain.neq).toHaveBeenCalledWith('payload_ciphertext', '')
     expect(chain.eq).toHaveBeenCalledWith('build_version', 'delivery-build-v1')
     expect(chain.eq).toHaveBeenCalledWith('payload_format_version', 'inline-json-v1')
     expect(chain.order).toHaveBeenCalledWith('built_at', { ascending: false })

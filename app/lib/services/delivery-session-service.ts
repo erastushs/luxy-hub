@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { getReadyBuild, getBuildById, type DeliveryBuildRow } from '@/app/lib/repositories/delivery-build-repository'
+import {
+  getReadyBuildMetadata,
+  getBuildById,
+  type DeliveryBuildMetadataRow,
+  type DeliveryBuildRow,
+} from '@/app/lib/repositories/delivery-build-repository'
 import {
   consumeSession,
   createSession,
@@ -65,13 +70,19 @@ function isSha256Hex(value: string | null): value is string {
   return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value)
 }
 
-function isReadyBuildDeliverable(build: DeliveryBuildRow): boolean {
+function isReadyBuildMetadataDeliverable(build: DeliveryBuildMetadataRow): boolean {
   return build.build_status === 'ready'
     && build.payload_storage_kind === 'inline_encrypted'
-    && typeof build.payload_ciphertext === 'string'
-    && build.payload_ciphertext.length > 0
+    && typeof build.payload_byte_size === 'number'
+    && build.payload_byte_size > 0
     && isSha256Hex(build.source_sha256)
     && isSha256Hex(build.payload_sha256)
+}
+
+function isReadyBuildDeliverable(build: DeliveryBuildRow): boolean {
+  return isReadyBuildMetadataDeliverable(build)
+    && typeof build.payload_ciphertext === 'string'
+    && build.payload_ciphertext.length > 0
 }
 
 export async function createDeliverySession(
@@ -95,12 +106,12 @@ export async function createDeliverySession(
       return authorization
     }
 
-    const build = await getReadyBuild(script.current_version_id, {
+    const build = await getReadyBuildMetadata(script.current_version_id, {
       buildVersion: DELIVERY_BUILD_VERSION,
       payloadFormatVersion: PAYLOAD_FORMAT_VERSION,
     })
 
-    if (!build || !isReadyBuildDeliverable(build)) {
+    if (!build || !isReadyBuildMetadataDeliverable(build)) {
       return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
     }
 
