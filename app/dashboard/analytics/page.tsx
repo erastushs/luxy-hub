@@ -11,27 +11,28 @@ import {
   Eye,
   Globe,
 } from 'lucide-react'
+import { redirect } from 'next/navigation'
 
 export default async function AnalyticsPage() {
   const user = await getCurrentUser()
+
+  if (!user) redirect('/login')
 
   let overview: CreatorAnalyticsOverviewType | null = null
   let topScripts: TopScript[] = []
   let error: string | null = null
 
-  if (user) {
-    const [overviewResult, topScriptsResult] =
-      await Promise.all([
-        getOverview(user.id),
-        getTopScripts(user.id, 5),
-      ])
+  const [overviewResult, topScriptsResult] =
+    await Promise.all([
+      getOverview(user.id),
+      getTopScripts(user.id, 5),
+    ])
 
-    if (overviewResult.success) overview = overviewResult.overview
-    topScripts = topScriptsResult
+  if (overviewResult.success) overview = overviewResult.overview
+  topScripts = topScriptsResult
 
-    if (!overviewResult.success) {
-      error = overviewResult.message || 'Failed to load analytics'
-    }
+  if (!overviewResult.success) {
+    error = overviewResult.message || 'Failed to load analytics'
   }
 
   return (

@@ -1,6 +1,9 @@
 import { createSupabaseServerClient } from '@/app/lib/supabase/server'
 import { getProfile, ensureProfile, type ProfileResult } from '@/app/lib/services/profile-service'
 import type { ProfileRole } from '@/app/lib/validators'
+import { readRequestAuthHeaders } from '@/app/lib/auth/request-auth-headers'
+import { headers } from 'next/headers'
+import { cache } from 'react'
 
 export type AuthenticatedUser = {
   id: string
@@ -19,19 +22,62 @@ export class AuthError extends Error {
   }
 }
 
-export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.auth.getUser()
+export const getCurrentUser = cache(async (): Promise<AuthenticatedUser | null> => {
+  const forwardedAuth = readRequestAuthHeaders(await headers())
 
-  if (error || !data.user) {
+  if (forwardedAuth) {
+    return resolveAuthenticatedUser({
+      id: forwardedAuth.id,
+      email: forwardedAuth.email,
+      displayName: forwardedAuth.displayName,
+      avatarUrl: forwardedAuth.avatarUrl,
+    })
+  }
+
+  const supabase = await createSupabaseServerClient()
+
+  let authResult: Awaited<ReturnType<typeof supabase.auth.getUser>>
+
+  try {
+    authResult = await supabase.auth.getUser()
+  } catch (error) {
+    console.error('Unexpected Supabase auth transport failure', error)
     return null
   }
 
-  const existingProfile = await getProfile(data.user.id)
+  const { data, error } = authResult
+
+  if (error || !data.user) {
+    if (error && !isAuthSessionMissingError(error)) {
+      console.error('Supabase auth validation failed', error)
+    }
+    return null
+  }
+
+  return resolveAuthenticatedUser({
+    id: data.user.id,
+    email: data.user.email ?? null,
+    displayName: extractDisplayName(data.user.user_metadata),
+    avatarUrl: extractAvatarUrl(data.user.user_metadata),
+  })
+})
+
+async function resolveAuthenticatedUser({
+  id,
+  email,
+  displayName,
+  avatarUrl,
+}: {
+  id: string
+  email: string | null
+  displayName: string | null
+  avatarUrl: string | null
+}): Promise<AuthenticatedUser | null> {
+  const existingProfile = await getProfile(id)
   if (existingProfile.success) {
     return {
-      id: data.user.id,
-      email: data.user.email ?? null,
+      id,
+      email,
       role: existingProfile.profile.role,
       profile: existingProfile.profile,
     }
@@ -42,10 +88,10 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   }
 
   const provisionedProfile = await ensureProfile({
-    id: data.user.id,
-    email: data.user.email ?? null,
-    displayName: extractDisplayName(data.user.user_metadata),
-    avatarUrl: extractAvatarUrl(data.user.user_metadata),
+    id,
+    email,
+    displayName,
+    avatarUrl,
   })
 
   if (!provisionedProfile.success) {
@@ -53,8 +99,8 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   }
 
   return {
-    id: data.user.id,
-    email: data.user.email ?? null,
+    id,
+    email,
     role: provisionedProfile.profile.role,
     profile: provisionedProfile.profile,
   }
@@ -100,4 +146,8 @@ function extractAvatarUrl(userMetadata: unknown): string | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function isAuthSessionMissingError(error: unknown): boolean {
+  return isRecord(error) && error['name'] === 'AuthSessionMissingError'
 }

@@ -6,6 +6,7 @@ import {
   type ScriptRow,
 } from '@/app/lib/services/script-service'
 import { ScriptsListClient } from './scripts-client'
+import { redirect } from 'next/navigation'
 
 export default async function ScriptsPage({
   searchParams,
@@ -13,6 +14,8 @@ export default async function ScriptsPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const user = await getCurrentUser()
+
+  if (!user) redirect('/login')
 
   const params = await searchParams
   const search = typeof params.search === 'string' ? params.search : ''
@@ -22,7 +25,7 @@ export default async function ScriptsPage({
 
   const offset = Math.max(0, (isNaN(page) ? 0 : page - 1) * limit)
 
-  const result = await listCreatorScripts(user!.id, {
+  const result = await listCreatorScripts(user.id, {
     visibility: visibility === 'all' ? undefined : visibility,
     search: search || undefined,
     limit,
@@ -34,8 +37,8 @@ export default async function ScriptsPage({
   const totalPages = Math.max(1, Math.ceil(total / limit))
   const error = result.success ? null : result.message
   const [versionsResult, buildsByVersionId] = await Promise.all([
-    listCurrentVersionSummariesForScripts(user!.id, scripts),
-    getDashboardBuildInfoForScripts(user!.id, scripts),
+    listCurrentVersionSummariesForScripts(user.id, scripts),
+    getDashboardBuildInfoForScripts(user.id, scripts),
   ])
 
   const versionsById = versionsResult.success ? versionsResult.versionsById : {}

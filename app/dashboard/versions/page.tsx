@@ -6,24 +6,25 @@ import { EmptyState } from '@/app/dashboard/components/EmptyState'
 import { ErrorBanner } from '@/app/dashboard/components/ErrorBanner'
 import { getVisibilityBadge } from '@/app/dashboard/lib/visibility'
 import { formatDate } from '@/app/dashboard/lib/format-date'
+import { redirect } from 'next/navigation'
 
 export default async function VersionsPage() {
   const user = await getCurrentUser()
 
+  if (!user) redirect('/login')
+
   let scripts: ScriptRow[] = []
   let error: string | null = null
 
-  if (user) {
-    const result = await listCreatorScripts(user.id, {
-      limit: 50,
-      offset: 0,
-    })
+  const result = await listCreatorScripts(user.id, {
+    limit: 50,
+    offset: 0,
+  })
 
-    if (result.success) {
-      scripts = result.scripts
-    } else {
-      error = result.message ?? 'Failed to load scripts'
-    }
+  if (result.success) {
+    scripts = result.scripts
+  } else {
+    error = result.message ?? 'Failed to load scripts'
   }
 
   return (

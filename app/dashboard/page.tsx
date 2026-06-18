@@ -13,20 +13,21 @@ import {
   Zap,
 } from 'lucide-react'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
 export default async function DashboardHomePage() {
   const user = await getCurrentUser()
 
+  if (!user) redirect('/login')
+
   let overview: CreatorAnalyticsOverviewType | null = null
   let error: string | null = null
 
-  if (user) {
-    const result = await getOverview(user.id)
-    if (result.success) {
-      overview = result.overview
-    } else {
-      error = result.message ?? 'Failed to load analytics'
-    }
+  const result = await getOverview(user.id)
+  if (result.success) {
+    overview = result.overview
+  } else {
+    error = result.message ?? 'Failed to load analytics'
   }
 
   return (
@@ -34,7 +35,7 @@ export default async function DashboardHomePage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Dashboard</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Welcome back, {user?.profile.display_name ?? 'Creator'}
+          Welcome back, {user.profile.display_name ?? 'Creator'}
         </p>
       </div>
 
