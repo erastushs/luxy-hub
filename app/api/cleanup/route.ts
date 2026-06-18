@@ -10,6 +10,7 @@ import { deleteExpiredSessionsWithoutExecutions } from '@/app/lib/repositories/d
 const CLEANUP_BATCHES = 25
 const RATE_LIMIT_CLEANUP_BATCH_SIZE = 10000
 const GENERAL_CLEANUP_BATCH_SIZE = 1000
+const IN_FILTER_BATCH_SIZE = 500
 
 type CleanupStatus = 'success' | 'partial' | 'failed'
 
@@ -31,6 +32,16 @@ type CleanupTable =
 type CleanupRow = {
   id?: unknown
   [key: string]: unknown
+}
+
+function estimateInFilterRequest(column: string, ids: string[]) {
+  const filter = `in.(${ids.join(',')})`
+
+  return {
+    idsLength: ids.length,
+    estimatedSerializedSize: JSON.stringify(ids).length,
+    estimatedUrlFilterLength: `${encodeURIComponent(column)}=${encodeURIComponent(filter)}`.length,
+  }
 }
 
 function serializeCleanupError(error: unknown, depth = 0): unknown {
@@ -113,12 +124,17 @@ function getTimestampRange(rows: CleanupRow[], timestampColumn: string) {
 function logCleanupQuery(context: {
   table: string
   batchSize: number
+  batchNumber?: number
   selectedIdsCount: number
   oldestTimestamp: string | null
   newestTimestamp: string | null
   operation: string
   queryChain: string
   idsPreview?: string[]
+  idsLength?: number
+  estimatedSerializedSize?: number
+  estimatedUrlFilterLength?: number
+  deletedRows?: number
 }) {
   console.log('Cleanup query context', context)
 }
@@ -126,18 +142,21 @@ function logCleanupQuery(context: {
 async function deleteOldRowsById(params: {
   table: CleanupTable
   timestampColumn: string
+  idColumn?: string
   beforeIso: string
   batchSize: number
   maxBatches: number
 }): Promise<number> {
   let totalDeleted = 0
+  const idColumn = params.idColumn ?? 'id'
 
   for (let batch = 0; batch < params.maxBatches; batch++) {
-    const selectQueryChain = `from(${params.table}).select(id).lt(${params.timestampColumn}, beforeIso).order(${params.timestampColumn}, ascending).order(id, ascending).limit(${params.batchSize})`
+    const selectQueryChain = `from(${params.table}).select(${idColumn}).lt(${params.timestampColumn}, beforeIso).order(${params.timestampColumn}, ascending).order(${idColumn}, ascending).limit(${params.batchSize})`
 
     logCleanupQuery({
       table: params.table,
       batchSize: params.batchSize,
+      batchNumber: batch + 1,
       selectedIdsCount: 0,
       oldestTimestamp: null,
       newestTimestamp: null,
@@ -147,10 +166,10 @@ async function deleteOldRowsById(params: {
 
     const { data: rows, error: selectError } = await supabaseAdmin
       .from(params.table)
-      .select('id')
+      .select(idColumn)
       .lt(params.timestampColumn, params.beforeIso)
       .order(params.timestampColumn, { ascending: true })
-      .order('id', { ascending: true })
+      .order(idColumn, { ascending: true })
       .limit(params.batchSize)
 
     if (selectError) {
@@ -164,11 +183,12 @@ async function deleteOldRowsById(params: {
       params.timestampColumn
     )
     const ids = selectedRows
-      .map((row) => row.id)
+      .map((row) => row[idColumn])
       .filter((id): id is string => typeof id === 'string')
 
     console.log('Cleanup select succeeded', {
       table: params.table,
+      batchNumber: batch + 1,
       rowsReturned: selectedRows.length,
       firstId: ids[0] ?? null,
       lastId: ids[ids.length - 1] ?? null,
@@ -182,38 +202,47 @@ async function deleteOldRowsById(params: {
       break
     }
 
-    const deleteQueryChain = `from(${params.table}).delete(count: exact).in(id, ids)`
+    for (let offset = 0; offset < ids.length; offset += IN_FILTER_BATCH_SIZE) {
+      const idsBatch = ids.slice(offset, offset + IN_FILTER_BATCH_SIZE)
+      const requestEstimate = estimateInFilterRequest(idColumn, idsBatch)
+      const deleteQueryChain = `from(${params.table}).delete(count: exact).in(${idColumn}, idsBatch)`
 
-    logCleanupQuery({
-      table: params.table,
-      batchSize: params.batchSize,
-      selectedIdsCount: ids.length,
-      oldestTimestamp,
-      newestTimestamp,
-      operation: 'delete_by_selected_ids:start',
-      queryChain: deleteQueryChain,
-      idsPreview: ids.slice(0, 5),
-    })
+      logCleanupQuery({
+        table: params.table,
+        batchSize: params.batchSize,
+        batchNumber: batch + 1,
+        selectedIdsCount: ids.length,
+        oldestTimestamp,
+        newestTimestamp,
+        operation: 'delete_by_selected_ids:start',
+        queryChain: deleteQueryChain,
+        idsPreview: idsBatch.slice(0, 5),
+        ...requestEstimate,
+      })
 
-    const { count, error: deleteError } = await supabaseAdmin
-      .from(params.table)
-      .delete({ count: 'exact' })
-      .in('id', ids)
+      const { count, error: deleteError } = await supabaseAdmin
+        .from(params.table)
+        .delete({ count: 'exact' })
+        .in(idColumn, idsBatch)
 
-    if (deleteError) {
-      logCleanupError(`${params.table} delete`, deleteError)
-      throw deleteError
+      if (deleteError) {
+        logCleanupError(`${params.table} delete`, deleteError)
+        throw deleteError
+      }
+
+      console.log('Cleanup delete succeeded', {
+        table: params.table,
+        batchNumber: batch + 1,
+        idsPassedToInCount: idsBatch.length,
+        idsPreview: idsBatch.slice(0, 5),
+        deletedCount: count ?? 0,
+        deletedRows: count ?? 0,
+        queryChain: deleteQueryChain,
+        ...requestEstimate,
+      })
+
+      totalDeleted += count ?? 0
     }
-
-    console.log('Cleanup delete succeeded', {
-      table: params.table,
-      idsPassedToInCount: ids.length,
-      idsPreview: ids.slice(0, 5),
-      deletedCount: count ?? 0,
-      queryChain: deleteQueryChain,
-    })
-
-    totalDeleted += count ?? 0
 
     if (ids.length < params.batchSize) {
       break
@@ -293,6 +322,7 @@ export async function POST(req: NextRequest) {
       deleteOldRowsById({
         table: 'used_workink_tokens',
         timestampColumn: 'used_at',
+        idColumn: 'token',
         beforeIso: threeDaysAgo,
         batchSize: GENERAL_CLEANUP_BATCH_SIZE,
         maxBatches: CLEANUP_BATCHES,

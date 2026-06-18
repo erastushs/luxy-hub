@@ -109,4 +109,31 @@ describe('delivery session repository cleanup', () => {
     expect(secondExpiredBatch.range).toHaveBeenCalledWith(1, 1)
     expect(deleted.in).toHaveBeenCalledWith('id', ['session-2'])
   })
+
+  it('splits large script execution lookups and delivery session deletes into safe in-filter batches', async () => {
+    const expiredIds = Array.from({ length: 501 }, (_, index) => `session-${index}`)
+    const expiredSessions = selectChain(expiredIds.map((id) => ({ id })))
+    const firstExecutions = selectChain([])
+    const secondExecutions = selectChain([])
+    const firstDelete = deleteChain(500)
+    const secondDelete = deleteChain(1)
+
+    mockedFrom
+      .mockReturnValueOnce(expiredSessions)
+      .mockReturnValueOnce(firstExecutions)
+      .mockReturnValueOnce(secondExecutions)
+      .mockReturnValueOnce(firstDelete)
+      .mockReturnValueOnce(secondDelete)
+
+    const count = await deleteExpiredSessionsWithoutExecutions(
+      new Date('2026-01-01T00:00:00.000Z'),
+      1000
+    )
+
+    expect(count).toBe(501)
+    expect(firstExecutions.in).toHaveBeenCalledWith('session_id', expiredIds.slice(0, 500))
+    expect(secondExecutions.in).toHaveBeenCalledWith('session_id', expiredIds.slice(500))
+    expect(firstDelete.in).toHaveBeenCalledWith('id', expiredIds.slice(0, 500))
+    expect(secondDelete.in).toHaveBeenCalledWith('id', expiredIds.slice(500))
+  })
 })

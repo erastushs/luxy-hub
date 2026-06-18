@@ -1,5 +1,7 @@
 import { supabaseAdmin } from '@/app/lib/supabase'
 
+const IN_FILTER_BATCH_SIZE = 500
+
 export type DeliverySessionRow = {
   id: string
   script_id: string
@@ -26,6 +28,16 @@ type CleanupRow = {
   id?: unknown
   expires_at?: unknown
   [key: string]: unknown
+}
+
+function estimateInFilterRequest(column: string, ids: string[]) {
+  const filter = `in.(${ids.join(',')})`
+
+  return {
+    idsLength: ids.length,
+    estimatedSerializedSize: JSON.stringify(ids).length,
+    estimatedUrlFilterLength: `${encodeURIComponent(column)}=${encodeURIComponent(filter)}`.length,
+  }
 }
 
 function serializeCleanupError(error: unknown, depth = 0): unknown {
@@ -97,12 +109,17 @@ function logCleanupError(name: string, error: unknown) {
 function logCleanupQuery(context: {
   table: string
   batchSize: number
+  batchNumber?: number
   selectedIdsCount: number
   oldestTimestamp: string | null
   newestTimestamp: string | null
   operation: string
   queryChain: string
   idsPreview?: string[]
+  idsLength?: number
+  estimatedSerializedSize?: number
+  estimatedUrlFilterLength?: number
+  deletedRows?: number
 }) {
   console.log('Cleanup query context', context)
 }
@@ -183,6 +200,7 @@ export async function deleteExpiredSessionsWithoutExecutions(
     logCleanupQuery({
       table: 'delivery_sessions',
       batchSize: cappedLimit,
+      batchNumber: batch + 1,
       selectedIdsCount: 0,
       oldestTimestamp: null,
       newestTimestamp: null,
@@ -213,6 +231,7 @@ export async function deleteExpiredSessionsWithoutExecutions(
 
     console.log('Cleanup select succeeded', {
       table: 'delivery_sessions',
+      batchNumber: batch + 1,
       rowsReturned: expiredRows.length,
       firstId: expiredSessionIds[0] ?? null,
       lastId: expiredSessionIds[expiredSessionIds.length - 1] ?? null,
@@ -226,39 +245,51 @@ export async function deleteExpiredSessionsWithoutExecutions(
       return 0
     }
 
-    const executionsQueryChain = 'from(script_executions).select(session_id).in(session_id, expiredSessionIds)'
+    const executionRows: { session_id: unknown }[] = []
 
-    logCleanupQuery({
-      table: 'script_executions',
-      batchSize: cappedLimit,
-      selectedIdsCount: expiredSessionIds.length,
-      oldestTimestamp: expiredTimestamps[0] ?? null,
-      newestTimestamp: expiredTimestamps[expiredTimestamps.length - 1] ?? null,
-      operation: 'select_execution_refs:start',
-      queryChain: executionsQueryChain,
-      idsPreview: expiredSessionIds.slice(0, 5),
-    })
+    for (let offset = 0; offset < expiredSessionIds.length; offset += IN_FILTER_BATCH_SIZE) {
+      const idsBatch = expiredSessionIds.slice(offset, offset + IN_FILTER_BATCH_SIZE)
+      const requestEstimate = estimateInFilterRequest('session_id', idsBatch)
+      const executionsQueryChain = 'from(script_executions).select(session_id).in(session_id, idsBatch)'
 
-    const { data: executionRows, error: executionError } = await supabaseAdmin
-      .from('script_executions')
-      .select('session_id')
-      .in('session_id', expiredSessionIds)
+      logCleanupQuery({
+        table: 'script_executions',
+        batchSize: cappedLimit,
+        batchNumber: batch + 1,
+        selectedIdsCount: expiredSessionIds.length,
+        oldestTimestamp: expiredTimestamps[0] ?? null,
+        newestTimestamp: expiredTimestamps[expiredTimestamps.length - 1] ?? null,
+        operation: 'select_execution_refs:start',
+        queryChain: executionsQueryChain,
+        idsPreview: idsBatch.slice(0, 5),
+        ...requestEstimate,
+      })
 
-    if (executionError) {
-      logCleanupError('delivery_sessions script_executions select', executionError)
-      throw executionError
+      const { data, error: executionError } = await supabaseAdmin
+        .from('script_executions')
+        .select('session_id')
+        .in('session_id', idsBatch)
+
+      if (executionError) {
+        logCleanupError('delivery_sessions script_executions select', executionError)
+        throw executionError
+      }
+
+      console.log('Cleanup select succeeded', {
+        table: 'script_executions',
+        batchNumber: batch + 1,
+        rowsReturned: data?.length ?? 0,
+        selectedIdsCount: expiredSessionIds.length,
+        idsPassedToInCount: idsBatch.length,
+        idsPreview: idsBatch.slice(0, 5),
+        oldestTimestamp: expiredTimestamps[0] ?? null,
+        newestTimestamp: expiredTimestamps[expiredTimestamps.length - 1] ?? null,
+        queryChain: executionsQueryChain,
+        ...requestEstimate,
+      })
+
+      executionRows.push(...((data ?? []) as { session_id: unknown }[]))
     }
-
-    console.log('Cleanup select succeeded', {
-      table: 'script_executions',
-      rowsReturned: executionRows?.length ?? 0,
-      selectedIdsCount: expiredSessionIds.length,
-      idsPassedToInCount: expiredSessionIds.length,
-      idsPreview: expiredSessionIds.slice(0, 5),
-      oldestTimestamp: expiredTimestamps[0] ?? null,
-      newestTimestamp: expiredTimestamps[expiredTimestamps.length - 1] ?? null,
-      queryChain: executionsQueryChain,
-    })
 
     const executionSessionIds = new Set(
       (executionRows ?? [])
@@ -271,38 +302,51 @@ export async function deleteExpiredSessionsWithoutExecutions(
     )
 
     if (deletableSessionIds.length > 0) {
-      const deleteQueryChain = 'from(delivery_sessions).delete(count: exact).in(id, deletableSessionIds)'
+      let deletedCount = 0
 
-      logCleanupQuery({
-        table: 'delivery_sessions',
-        batchSize: cappedLimit,
-        selectedIdsCount: deletableSessionIds.length,
-        oldestTimestamp: expiredTimestamps[0] ?? null,
-        newestTimestamp: expiredTimestamps[expiredTimestamps.length - 1] ?? null,
-        operation: 'delete_expired_sessions_without_executions:start',
-        queryChain: deleteQueryChain,
-        idsPreview: deletableSessionIds.slice(0, 5),
-      })
+      for (let offset = 0; offset < deletableSessionIds.length; offset += IN_FILTER_BATCH_SIZE) {
+        const idsBatch = deletableSessionIds.slice(offset, offset + IN_FILTER_BATCH_SIZE)
+        const requestEstimate = estimateInFilterRequest('id', idsBatch)
+        const deleteQueryChain = 'from(delivery_sessions).delete(count: exact).in(id, idsBatch)'
 
-      const { count, error } = await supabaseAdmin
-        .from('delivery_sessions')
-        .delete({ count: 'exact' })
-        .in('id', deletableSessionIds)
+        logCleanupQuery({
+          table: 'delivery_sessions',
+          batchSize: cappedLimit,
+          batchNumber: batch + 1,
+          selectedIdsCount: deletableSessionIds.length,
+          oldestTimestamp: expiredTimestamps[0] ?? null,
+          newestTimestamp: expiredTimestamps[expiredTimestamps.length - 1] ?? null,
+          operation: 'delete_expired_sessions_without_executions:start',
+          queryChain: deleteQueryChain,
+          idsPreview: idsBatch.slice(0, 5),
+          ...requestEstimate,
+        })
 
-      if (error) {
-        logCleanupError('delivery_sessions delete', error)
-        throw error
+        const { count, error } = await supabaseAdmin
+          .from('delivery_sessions')
+          .delete({ count: 'exact' })
+          .in('id', idsBatch)
+
+        if (error) {
+          logCleanupError('delivery_sessions delete', error)
+          throw error
+        }
+
+        deletedCount += count ?? 0
+
+        console.log('Cleanup delete succeeded', {
+          table: 'delivery_sessions',
+          batchNumber: batch + 1,
+          idsPassedToInCount: idsBatch.length,
+          idsPreview: idsBatch.slice(0, 5),
+          deletedCount: count ?? 0,
+          deletedRows: count ?? 0,
+          queryChain: deleteQueryChain,
+          ...requestEstimate,
+        })
       }
 
-      console.log('Cleanup delete succeeded', {
-        table: 'delivery_sessions',
-        idsPassedToInCount: deletableSessionIds.length,
-        idsPreview: deletableSessionIds.slice(0, 5),
-        deletedCount: count ?? 0,
-        queryChain: deleteQueryChain,
-      })
-
-      return count ?? 0
+      return deletedCount
     }
 
     if (expiredSessionIds.length < cappedLimit) {

@@ -56,7 +56,11 @@ function createUpdateChain(count = 0, error: unknown = null): QueryChain {
   return chain
 }
 
-function createSelectIdsChain(ids: string[], error: unknown = null): QueryChain {
+function createSelectIdsChain(
+  ids: string[],
+  error: unknown = null,
+  idColumn = 'id'
+): QueryChain {
   const chain = {} as QueryChain
   chain.update = vi.fn(() => chain)
   chain.select = vi.fn(() => chain)
@@ -64,7 +68,7 @@ function createSelectIdsChain(ids: string[], error: unknown = null): QueryChain 
   chain.lt = vi.fn(() => chain)
   chain.eq = vi.fn(() => chain)
   chain.order = vi.fn(() => chain)
-  chain.limit = vi.fn(async () => ({ data: ids.map((id) => ({ id })), error }))
+  chain.limit = vi.fn(async () => ({ data: ids.map((id) => ({ [idColumn]: id })), error }))
   chain.in = vi.fn(() => chain)
   return chain
 }
@@ -179,7 +183,7 @@ describe('cleanup route retention cleanup', () => {
   it('uses id batches for token, verification, and download cleanup', async () => {
     const chainsByTable = new Map<string, QueryChain[]>()
     const tableChains = {
-      used_workink_tokens: [createSelectIdsChain(['token-1']), createDeleteIdsChain(1)],
+      used_workink_tokens: [createSelectIdsChain(['token-1'], null, 'token'), createDeleteIdsChain(1)],
       verification_logs: [createSelectIdsChain(['log-1']), createDeleteIdsChain(1)],
       script_downloads: [createSelectIdsChain(['download-1']), createDeleteIdsChain(1)],
     }
@@ -208,12 +212,46 @@ describe('cleanup route retention cleanup', () => {
     expect(body.used_workink_tokens_deleted).toMatchObject({ deleted: 1, status: 'success' })
     expect(body.verification_logs_deleted).toMatchObject({ deleted: 1, status: 'success' })
     expect(body.script_downloads_deleted).toMatchObject({ deleted: 1, status: 'success' })
-    expect(tableChains.used_workink_tokens[1].in).toHaveBeenCalledWith('id', ['token-1'])
+    expect(tableChains.used_workink_tokens[0].select).toHaveBeenCalledWith('token')
+    expect(tableChains.used_workink_tokens[1].in).toHaveBeenCalledWith('token', ['token-1'])
     expect(tableChains.verification_logs[1].in).toHaveBeenCalledWith('id', ['log-1'])
     expect(tableChains.script_downloads[1].in).toHaveBeenCalledWith('id', ['download-1'])
     expect(tableChains.used_workink_tokens[1].limit).not.toHaveBeenCalled()
     expect(tableChains.verification_logs[1].limit).not.toHaveBeenCalled()
     expect(tableChains.script_downloads[1].limit).not.toHaveBeenCalled()
+  })
+
+  it('splits large rate limit deletes into safe in-filter batches', async () => {
+    const ids = Array.from({ length: 501 }, (_, index) => `rl-${index}`)
+    const chainsByTable = new Map<string, QueryChain[]>()
+    const rateLimitSelect = createSelectIdsChain(ids)
+    const rateLimitDeleteOne = createDeleteIdsChain(500)
+    const rateLimitDeleteTwo = createDeleteIdsChain(1)
+
+    ;(supabaseAdmin.from as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+      const chains = chainsByTable.get(table) ?? []
+      let chain: QueryChain
+
+      if (table === 'keys') {
+        chain = createUpdateChain(0)
+      } else if (table === 'rate_limits') {
+        chain = [rateLimitSelect, rateLimitDeleteOne, rateLimitDeleteTwo][chains.length]
+      } else {
+        chain = createSelectIdsChain([])
+      }
+
+      chainsByTable.set(table, [...chains, chain])
+      return chain
+    })
+
+    const { POST } = await import('@/app/api/cleanup/route')
+    const response = await POST(request())
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.rate_limits_deleted).toMatchObject({ deleted: 501, status: 'success' })
+    expect(rateLimitDeleteOne.in).toHaveBeenCalledWith('id', ids.slice(0, 500))
+    expect(rateLimitDeleteTwo.in).toHaveBeenCalledWith('id', ids.slice(500))
   })
 
   it('returns partial status without exposing database error details', async () => {
