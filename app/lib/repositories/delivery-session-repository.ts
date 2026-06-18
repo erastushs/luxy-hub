@@ -221,7 +221,7 @@ export async function deleteExpiredSessionsWithoutExecutions(
       throw expiredError
     }
 
-    const expiredRows = (expiredSessions ?? []) as CleanupRow[]
+    const expiredRows = (expiredSessions ?? []) as unknown as CleanupRow[]
     const expiredTimestamps = expiredRows
       .map((row) => row.expires_at)
       .filter((timestamp): timestamp is string => typeof timestamp === 'string')

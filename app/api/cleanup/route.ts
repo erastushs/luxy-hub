@@ -177,7 +177,7 @@ async function deleteOldRowsById(params: {
       throw selectError
     }
 
-    const selectedRows = (rows ?? []) as CleanupRow[]
+    const selectedRows = (rows ?? []) as unknown as CleanupRow[]
     const { oldestTimestamp, newestTimestamp } = getTimestampRange(
       selectedRows,
       params.timestampColumn
