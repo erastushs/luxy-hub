@@ -174,7 +174,7 @@ describe('cleanup route retention cleanup', () => {
     expect(rateLimitSelectOne.lt).toHaveBeenCalledWith('created_at', expect.any(String))
     expect(rateLimitSelectOne.order).toHaveBeenCalledWith('created_at', { ascending: true })
     expect(rateLimitSelectOne.order).toHaveBeenCalledWith('id', { ascending: true })
-    expect(rateLimitSelectOne.limit).toHaveBeenCalledWith(10000)
+    expect(rateLimitSelectOne.limit).toHaveBeenCalledWith(5000)
     expect(rateLimitDeleteOne.delete).toHaveBeenCalledWith({ count: 'exact' })
     expect(rateLimitDeleteOne.in).toHaveBeenCalledWith('id', ['rl-1', 'rl-2'])
     expect(rateLimitDeleteOne.limit).not.toHaveBeenCalled()

@@ -8,7 +8,7 @@ import {
 import { deleteExpiredSessionsWithoutExecutions } from '@/app/lib/repositories/delivery-session-repository'
 
 const CLEANUP_BATCHES = 25
-const RATE_LIMIT_CLEANUP_BATCH_SIZE = 10000
+const RATE_LIMIT_CLEANUP_BATCH_SIZE = 5000
 const GENERAL_CLEANUP_BATCH_SIZE = 1000
 const IN_FILTER_BATCH_SIZE = 500
 
@@ -317,6 +317,9 @@ export async function POST(req: NextRequest) {
     const threeDaysAgo = new Date(
       Date.now() - 3 * 24 * 60 * 60 * 1000
     ).toISOString()
+    const twentySixHoursAgo = new Date(
+      Date.now() - 26 * 60 * 60 * 1000
+    ).toISOString()
 
     const usedWorkinkTokensResult = await runCleanupTarget('used_workink_tokens', () =>
       deleteOldRowsById({
@@ -330,7 +333,7 @@ export async function POST(req: NextRequest) {
     )
 
     const rateLimitsResult = await runCleanupTarget('rate_limits', () =>
-      deleteOldRateLimits(threeDaysAgo)
+      deleteOldRateLimits(twentySixHoursAgo)
     )
 
     const thirtyDaysAgo = new Date(
