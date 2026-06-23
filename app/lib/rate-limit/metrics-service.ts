@@ -39,6 +39,8 @@ export type RateLimitRolloutMetricsSnapshot = {
   postgresRequests: number
   valkeyRequests: number
   fallbackCount: number
+  postgresAuthoritativeWrites: number
+  valkeyAuthoritativeWrites: number
 }
 
 export type RateLimitShadowHealthStatus = 'disabled' | 'healthy' | 'degraded' | 'unhealthy'
@@ -373,6 +375,8 @@ export class RateLimitShadowMetricsService {
       postgresRequests: snapshot.postgresRequests,
       valkeyRequests: snapshot.valkeyRequests,
       fallbackCount: snapshot.fallbackCount,
+      postgresAuthoritativeWrites: snapshot.postgresRequests,
+      valkeyAuthoritativeWrites: snapshot.valkeyRequests,
     }
   }
 

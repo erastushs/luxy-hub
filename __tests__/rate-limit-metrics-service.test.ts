@@ -122,6 +122,8 @@ describe('RateLimitShadowMetricsService', () => {
       postgresRequests: 2,
       valkeyRequests: 1,
       fallbackCount: 1,
+      postgresAuthoritativeWrites: 2,
+      valkeyAuthoritativeWrites: 1,
     })
   })
 

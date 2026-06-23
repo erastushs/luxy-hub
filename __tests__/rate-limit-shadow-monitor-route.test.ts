@@ -105,6 +105,8 @@ function mockHealthyMetrics() {
     postgresRequests: 0,
     valkeyRequests: 0,
     fallbackCount: 0,
+    postgresAuthoritativeWrites: 0,
+    valkeyAuthoritativeWrites: 0,
   })
   vi.mocked(getRateLimitShadowOperationalSnapshot).mockReturnValue({
     runtimeMode: 'shadow',
@@ -205,6 +207,8 @@ describe('GET /api/internal/rate-limit-shadow', () => {
         postgresRequests: 0,
         valkeyRequests: 0,
         fallbackCount: 0,
+        postgresAuthoritativeWrites: 0,
+        valkeyAuthoritativeWrites: 0,
       },
       health: {
         status: 'healthy',
@@ -276,6 +280,8 @@ describe('GET /api/internal/rate-limit-shadow', () => {
       postgresRequests: 0,
       valkeyRequests: 0,
       fallbackCount: 0,
+      postgresAuthoritativeWrites: 0,
+      valkeyAuthoritativeWrites: 0,
     })
     expect(body.valkey).toMatchObject({
       connected: true,
@@ -352,6 +358,8 @@ describe('GET /api/internal/rate-limit-shadow', () => {
       postgresRequests: 0,
       valkeyRequests: 0,
       fallbackCount: 0,
+      postgresAuthoritativeWrites: 0,
+      valkeyAuthoritativeWrites: 0,
     })
     vi.mocked(getRateLimitShadowOperationalSnapshot).mockReturnValue({
       runtimeMode: 'postgres',
@@ -385,6 +393,8 @@ describe('GET /api/internal/rate-limit-shadow', () => {
         postgresRequests: 0,
         valkeyRequests: 0,
         fallbackCount: 0,
+        postgresAuthoritativeWrites: 0,
+        valkeyAuthoritativeWrites: 0,
       },
       lastUpdatedAt: null,
     })

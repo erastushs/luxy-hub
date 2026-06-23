@@ -107,6 +107,8 @@ function mockRateLimit(overrides: {
     postgresRequests,
     valkeyRequests,
     fallbackCount,
+    postgresAuthoritativeWrites: postgresRequests,
+    valkeyAuthoritativeWrites: valkeyRequests,
   })
 }
 
@@ -126,6 +128,25 @@ describe('GET /api/health', () => {
     expect(body.status).toBe('healthy')
     expect(body.timestamp).toEqual(expect.any(String))
     expect(body.postgres).toEqual({ status: 'healthy', connected: true })
+    expect(body.runtime).toMatchObject({
+      phase: '7',
+      milestone: '7E.1',
+      release: 'RC1',
+      startedAt: expect.any(String),
+      uptimeSeconds: expect.any(Number),
+    })
+  })
+
+  it('reports a service summary for PostgreSQL, Valkey, RateLimit, and Application', async () => {
+    const response = await GET()
+    const body = await response.json()
+
+    expect(body.summary).toEqual({
+      healthyServices: 4,
+      degradedServices: 0,
+      unhealthyServices: 0,
+      overall: 'healthy',
+    })
   })
 
   it('reports Valkey disabled without degrading overall health', async () => {
@@ -144,6 +165,7 @@ describe('GET /api/health', () => {
     const body = await response.json()
 
     expect(body.status).toBe('healthy')
+    expect(body.summary).toMatchObject({ healthyServices: 4, overall: 'healthy' })
     expect(body.valkey).toMatchObject({
       enabled: false,
       connected: false,
@@ -186,6 +208,7 @@ describe('GET /api/health', () => {
       comparisonFailures: 0,
       mismatchRate: 0,
       parity: 1,
+      averageLatencyDeltaMs: 0.18,
     })
   })
 
@@ -217,7 +240,105 @@ describe('GET /api/health', () => {
       postgresRequests: 950,
       valkeyRequests: 50,
       fallbackCount: 2,
+      postgresAuthoritativeWrites: 950,
+      valkeyAuthoritativeWrites: 50,
     })
+  })
+
+  it('reports human-readable performance when latency averages are available', async () => {
+    const response = await GET()
+    const body = await response.json()
+
+    expect(body.rateLimit.averageLatencyDeltaMs).toBe(0.18)
+    expect(body.performance).toEqual({
+      latencyDifferenceMs: 0.17999999999999972,
+      direction: 'postgres_faster',
+      speedup: 7.12 / 7.3,
+    })
+  })
+
+  it('reports valkey_faster speedup when Valkey latency is lower', async () => {
+    vi.mocked(getRateLimitShadowMetrics).mockReturnValue({
+      totalComparisons: 100,
+      identical: 100,
+      mismatches: 0,
+      mismatchRate: 0,
+      backendFailures: 0,
+      authoritativeBackendFailures: 0,
+      comparisonFailures: 0,
+      avgPostgresLatencyMs: 70,
+      avgValkeyLatencyMs: 1.1,
+      avgLatencyDeltaMs: -68.9,
+      decisionParity: {
+        allow: { total: 100, identical: 100, rate: 1 },
+        deny: { total: 0, identical: 0, rate: 0 },
+      },
+      retryAfterParity: { total: 0, identical: 0, rate: 0 },
+      lastUpdatedAt: '2026-06-23T00:00:00.000Z',
+      runtimeMode: 'shadow',
+      canaryRequests: 0,
+      postgresRequests: 1_000,
+      valkeyRequests: 0,
+      fallbackCount: 0,
+      canaryPercentage: 0,
+    })
+
+    const response = await GET()
+    const body = await response.json()
+
+    expect(body.rateLimit.averageLatencyDeltaMs).toBe(-68.9)
+    expect(body.performance).toEqual({
+      latencyDifferenceMs: 68.9,
+      direction: 'valkey_faster',
+      speedup: 70 / 1.1,
+    })
+  })
+
+  it('returns null performance values when latency is unavailable or zero', async () => {
+    vi.mocked(getRateLimitShadowMetrics).mockReturnValue({
+      totalComparisons: 0,
+      identical: 0,
+      mismatches: 0,
+      mismatchRate: 0,
+      backendFailures: 0,
+      authoritativeBackendFailures: 0,
+      comparisonFailures: 0,
+      avgPostgresLatencyMs: 7,
+      avgValkeyLatencyMs: 0,
+      avgLatencyDeltaMs: 0,
+      decisionParity: {
+        allow: { total: 0, identical: 0, rate: 0 },
+        deny: { total: 0, identical: 0, rate: 0 },
+      },
+      retryAfterParity: { total: 0, identical: 0, rate: 0 },
+      lastUpdatedAt: null,
+      runtimeMode: 'shadow',
+      canaryRequests: 0,
+      postgresRequests: 0,
+      valkeyRequests: 0,
+      fallbackCount: 0,
+      canaryPercentage: 0,
+    })
+
+    const response = await GET()
+    const body = await response.json()
+
+    expect(body.performance).toEqual({
+      latencyDifferenceMs: null,
+      direction: null,
+      speedup: null,
+    })
+  })
+
+  it('serializes operational notes', async () => {
+    const response = await GET()
+    const body = await response.json()
+
+    expect(body.notes).toEqual([
+      'PostgreSQL remains authoritative by default.',
+      'Valkey operates in shadow mode unless an explicit canary configuration is enabled.',
+      'No production traffic is routed exclusively to Valkey by default.',
+    ])
   })
 
   it('reports overall degraded when an enabled optional service is unhealthy', async () => {
@@ -227,6 +348,12 @@ describe('GET /api/health', () => {
     const body = await response.json()
 
     expect(body.status).toBe('degraded')
+    expect(body.summary).toEqual({
+      healthyServices: 3,
+      degradedServices: 0,
+      unhealthyServices: 1,
+      overall: 'degraded',
+    })
     expect(body.valkey.status).toBe('unhealthy')
   })
 
@@ -237,6 +364,12 @@ describe('GET /api/health', () => {
     const body = await response.json()
 
     expect(body.status).toBe('degraded')
+    expect(body.summary).toEqual({
+      healthyServices: 3,
+      degradedServices: 1,
+      unhealthyServices: 0,
+      overall: 'degraded',
+    })
     expect(body.rateLimit.health).toBe('degraded')
   })
 
@@ -248,6 +381,12 @@ describe('GET /api/health', () => {
     const body = await response.json()
 
     expect(body.status).toBe('unhealthy')
+    expect(body.summary).toEqual({
+      healthyServices: 3,
+      degradedServices: 0,
+      unhealthyServices: 1,
+      overall: 'unhealthy',
+    })
     expect(body.postgres).toEqual({ status: 'unhealthy', connected: false })
   })
 
@@ -263,9 +402,11 @@ describe('GET /api/health', () => {
     expect(body.status).toBe('unhealthy')
     expect(body.error).toBe('health_check_unavailable')
     expect(body.runtime).toMatchObject({
-      phase: '7E',
+      phase: '7',
+      milestone: '7E.1',
       release: 'RC1',
       uptimeSeconds: expect.any(Number),
     })
+    expect(body.notes).toEqual(expect.any(Array))
   })
 })

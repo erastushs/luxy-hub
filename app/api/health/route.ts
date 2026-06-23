@@ -7,8 +7,14 @@ import {
 import { checkValkeyHealth } from '@/app/lib/valkey/health'
 
 type OverallStatus = 'healthy' | 'degraded' | 'unhealthy'
+type ServiceStatus = OverallStatus | 'disabled'
 
 const RUNTIME_STARTED_AT_MS = Date.now() - Math.floor(process.uptime() * 1000)
+const OPERATIONAL_NOTES = [
+  'PostgreSQL remains authoritative by default.',
+  'Valkey operates in shadow mode unless an explicit canary configuration is enabled.',
+  'No production traffic is routed exclusively to Valkey by default.',
+] as const
 
 function uptimeSecondsSince(timestamp: string | null): number | null {
   if (!timestamp) {
@@ -21,7 +27,8 @@ function uptimeSecondsSince(timestamp: string | null): number | null {
 
 function runtimeMetadata() {
   return {
-    phase: '7E',
+    phase: '7',
+    milestone: '7E.1',
     release: 'RC1',
     startedAt: new Date(RUNTIME_STARTED_AT_MS).toISOString(),
     uptimeSeconds: Math.max(0, Math.floor(process.uptime())),
@@ -81,6 +88,43 @@ function resolveOverallStatus(params: {
   return 'healthy'
 }
 
+function createServiceSummary(statuses: ServiceStatus[], overall: OverallStatus) {
+  return {
+    healthyServices: statuses.filter((status) => status === 'healthy' || status === 'disabled').length,
+    degradedServices: statuses.filter((status) => status === 'degraded').length,
+    unhealthyServices: statuses.filter((status) => status === 'unhealthy').length,
+    overall,
+  }
+}
+
+function createPerformanceReport(params: {
+  postgresAverageMs: number | null
+  valkeyAverageMs: number | null
+}) {
+  const { postgresAverageMs, valkeyAverageMs } = params
+
+  if (postgresAverageMs == null || valkeyAverageMs == null || valkeyAverageMs === 0) {
+    return {
+      latencyDifferenceMs: null,
+      direction: null,
+      speedup: null,
+    }
+  }
+
+  const latencyDifferenceMs = Math.abs(postgresAverageMs - valkeyAverageMs)
+  const direction = postgresAverageMs === valkeyAverageMs
+    ? 'equal'
+    : postgresAverageMs > valkeyAverageMs
+      ? 'valkey_faster'
+      : 'postgres_faster'
+
+  return {
+    latencyDifferenceMs,
+    direction,
+    speedup: postgresAverageMs / valkeyAverageMs,
+  }
+}
+
 export async function GET() {
   const timestamp = new Date().toISOString()
 
@@ -90,6 +134,11 @@ export async function GET() {
     const rateLimitHealthSnapshot = getRateLimitShadowHealth()
     const rateLimitMetrics = getRateLimitShadowMetrics()
     const rollout = getRateLimitRolloutMetrics()
+    const rolloutWithWriteCounters = {
+      ...rollout,
+      postgresAuthoritativeWrites: rollout.postgresAuthoritativeWrites,
+      valkeyAuthoritativeWrites: rollout.valkeyAuthoritativeWrites,
+    }
     const parity = rateLimitMetrics.totalComparisons === 0
       ? null
       : rateLimitMetrics.identical / rateLimitMetrics.totalComparisons
@@ -116,6 +165,7 @@ export async function GET() {
       comparisonFailures: rateLimitMetrics.comparisonFailures,
       mismatchRate: rateLimitMetrics.mismatchRate,
       parity,
+      averageLatencyDeltaMs: rateLimitMetrics.avgLatencyDeltaMs,
     }
     const status = resolveOverallStatus({
       postgresStatus: postgres.status,
@@ -123,22 +173,44 @@ export async function GET() {
       valkeyStatus: valkey.status,
       rateLimitHealth: rateLimit.health,
     })
+    const summary = createServiceSummary([
+      postgres.status as ServiceStatus,
+      valkey.status as ServiceStatus,
+      rateLimit.health as ServiceStatus,
+      'healthy',
+    ], status)
+    const performance = createPerformanceReport({
+      postgresAverageMs: rateLimitMetrics.avgPostgresLatencyMs,
+      valkeyAverageMs: rateLimitMetrics.avgValkeyLatencyMs,
+    })
 
     return NextResponse.json({
       status,
       timestamp,
+      summary,
       postgres,
       valkey,
       rateLimit,
-      rollout,
+      rollout: rolloutWithWriteCounters,
+      performance,
+      notes: OPERATIONAL_NOTES,
       runtime: runtimeMetadata(),
     })
   } catch {
+    const status = 'unhealthy'
+
     return NextResponse.json({
-      status: 'unhealthy',
+      status,
       timestamp,
+      summary: createServiceSummary([
+        getPostgresHealth().status as ServiceStatus,
+        'unhealthy',
+        'unhealthy',
+        'healthy',
+      ], status),
       postgres: getPostgresHealth(),
       error: 'health_check_unavailable',
+      notes: OPERATIONAL_NOTES,
       runtime: runtimeMetadata(),
     })
   }
