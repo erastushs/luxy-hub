@@ -1,10 +1,43 @@
 # Phase 7D — Valkey Integration Architecture RFC
 
-Status: Planned / Not Implemented
+Status: Historical RFC; Phase 7D engineering complete, Phase 7E.1 complete
 Date: 2026-06-20
-Scope: Documentation and architecture planning only
+Scope: Original architecture planning, retained for design history
 
-This Architecture RFC defines the planned Phase 7D migration from PostgreSQL-backed temporary data to Valkey-backed temporary data. It is intentionally implementation-ready but does not authorize or perform implementation, migrations, package installation, production changes, schema changes, or roadmap changes outside Phase 7D.
+This Architecture RFC defined the planned Phase 7D migration from PostgreSQL-backed temporary data to Valkey-backed temporary data. It is retained for architecture history. Current production state is narrower than the long-term target: PostgreSQL remains authoritative, Valkey runs in rate-limit shadow mode, canary is disabled, `/api/health` is the primary operational health endpoint, and `/api/internal/rate-limit-shadow` remains the admin-only shadow monitoring endpoint. Phase 7E.2 is the next planned milestone for a separately approved 1% production canary.
+
+## Current Implementation Status
+
+| Area | Current State |
+|---|---|
+| PostgreSQL | Source of truth and authoritative rate-limit backend. |
+| Valkey | Implemented as temporary layer for rate-limit shadow comparison. |
+| Runtime mode | `RATE_LIMIT_MODE=shadow`. |
+| Canary | Disabled; deterministic canary infrastructure exists for future Phase 7E.2. |
+| Rollback | Immediate configuration rollback to `RATE_LIMIT_MODE=postgres`. |
+| Schema/migrations | No Phase 7D/7E.1 schema changes or migrations. |
+| Cleanup | Existing cleanup behavior retained. |
+
+Current production flow:
+
+```text
+Client
+  ↓
+Next.js API
+  ↓
+PostgreSQL
+(source of truth)
+  ↓
+Shadow comparison
+  ↓
+Valkey
+(temporary shadow layer)
+```
+
+Operational endpoints:
+
+- `/api/health`: primary production health endpoint with `summary`, `postgres`, `valkey`, `rateLimit`, `rollout`, `performance`, `runtime`, and `notes`.
+- `/api/internal/rate-limit-shadow`: admin-only shadow monitoring endpoint with parity, comparison metrics, rollout metrics, Valkey health summary, and runtime metadata.
 
 ## 1. Objective
 
@@ -20,10 +53,10 @@ Target outcomes:
 - Keep users, scripts, builds, keys, licenses, analytics records, purchases, audit records, and durable operational history in PostgreSQL.
 - Preserve Supabase Auth and current ownership/session boundaries.
 
-Non-goals:
+Original planning non-goals:
 
-- No production changes in this planning phase.
-- No code changes in this planning phase.
+- No production changes were authorized by this original planning document alone.
+- No code changes were authorized by this original planning document alone.
 - No PostgreSQL migrations in this planning phase.
 - No package installation in this planning phase.
 - No replacement of Supabase Auth.
@@ -1170,7 +1203,9 @@ Expected impact:
 
 ## 13. Success Criteria And Operational Metrics
 
-Phase 7D is successful only when measurable outcomes show PostgreSQL is no longer carrying high-churn temporary workloads.
+This section describes the long-term RFC success criteria for full temporary-data migration. It is not the current production state. Current Phase 7D/7E.1 success is the production baseline: PostgreSQL authoritative, Valkey shadow parity at 100%, backend failures at 0, comparison failures at 0, operational health reporting available, rollback documented, and canary disabled.
+
+Long-term Phase 7 temporary-data migration is successful only when measurable outcomes show PostgreSQL is no longer carrying selected high-churn temporary workloads after separately approved cutovers.
 
 Required success criteria:
 
@@ -1240,27 +1275,33 @@ Measurement requirements:
 
 ## 14. Architecture Decision Record Recommendation
 
-Before implementation begins, create a dedicated ADR to capture the permanent architecture decision for Valkey temporary data.
+Future ADRs should capture the permanent architecture decisions that emerged from Phase 7D and Phase 7E.1. This consolidation pass recommends ADRs but does not create them.
 
-Recommended filename:
+Recommended ADRs:
 
 ```text
-docs/architecture/adr/ADR-001-Valkey-Temporary-Data.md
+ADR-001 Valkey Temporary Data Strategy
+ADR-002 Shadow Comparison Architecture
+ADR-003 Progressive Canary Rollout
 ```
 
-The ADR should capture:
+ADR-001 should capture:
 
 - Why Valkey was chosen for temporary operational state.
 - Why PostgreSQL should no longer store high-churn temporary data.
 - Why Valkey is limited to temporary data only.
 - Why Supabase Auth remains the identity provider.
 - Why PostgreSQL remains the permanent application database.
-- Migration philosophy: baseline first, infrastructure second, workload-by-workload migration, rollback before removal.
+- Migration philosophy: baseline first, shadow mode second, canary infrastructure third, workload-by-workload migration, rollback before removal.
 - Operational model: monitoring, memory budget, TTL governance, health checks, ownership, restart/upgrade procedures, and disaster recovery.
 - Long-term maintenance strategy: key-family registry, TTL review, memory review, cache invalidation review, and rollback-path retirement criteria.
 - Explicit non-goals: replacing Supabase Auth, replacing PostgreSQL for permanent data, introducing marketplace functionality, or changing production infrastructure outside reviewed phases.
 
-The ADR is recommended before implementation but is not created by this refinement pass.
+ADR-002 should document PostgreSQL-authoritative shadow comparison, parity metrics, mismatch taxonomy, and the admin-only monitoring endpoint.
+
+ADR-003 should document deterministic canary routing, canary percentage controls, fallback behavior, rollback gates, and Phase 7E.2 progression rules.
+
+These ADRs are recommended but are not created by this consolidation pass.
 
 ## 15. Future Architecture
 
@@ -1308,7 +1349,7 @@ In this future state, PostgreSQL growth should reflect permanent product usage r
 
 ## 16. Implementation Readiness Checklist
 
-Before any code or production work begins, the following decisions should be reviewed and accepted:
+Before any further authority change or production canary begins, the following decisions should be reviewed and accepted:
 
 - Confirm Phase 7D.0 baseline report exists and covers database, application, cleanup, and infrastructure metrics.
 - Confirm Valkey deployment model: VPS-local, private service, or managed provider.
@@ -1346,4 +1387,4 @@ Any future consideration must receive its own design document, risk review, and 
 
 ## 18. Phase Boundary
 
-This document completes Phase 7D planning scope only. It does not implement Valkey, install dependencies, alter schemas, change runtime behavior, modify production infrastructure, or remove any PostgreSQL tables.
+This document originally completed Phase 7D planning scope only. Current implementation has completed the Phase 7D engineering baseline and Phase 7E.1 observability/canary infrastructure without schema changes, cleanup changes, migrations, PostgreSQL removal, or production Valkey authority. Future authority changes remain outside this RFC and require Phase 7E.2 rollout approval.

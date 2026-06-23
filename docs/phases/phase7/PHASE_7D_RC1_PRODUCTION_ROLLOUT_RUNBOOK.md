@@ -5,9 +5,28 @@ Date: 2026-06-23
 Scope: Documentation-only operator procedure for deploying Phase 7D Valkey shadow mode  
 Audience: Production operators deploying LuxyHub
 
+Current consolidation note: Phase 7D engineering is complete, Phase 7E.1 operational health and canary infrastructure is complete, and the production baseline is `RATE_LIMIT_MODE=shadow` with PostgreSQL authoritative and Valkey shadow-only. This RC1 runbook is preserved as the rollout and rollback procedure. Pre-activation steps that set `RATE_LIMIT_MODE=postgres` describe rollout sequencing and rollback, not the current runtime state.
+
 This runbook assumes Phase 7D engineering is complete through Phase 7D.2.6. It does not authorize application code changes, runtime changes, API changes, middleware changes, database schema changes, canary rollout, Valkey authority, or PostgreSQL removal.
 
 Production rule: PostgreSQL remains authoritative. Valkey is shadow-only. User-visible responses must not change.
+
+Current operational endpoints:
+
+- `/api/health`: primary operational health endpoint with `summary`, `postgres`, `valkey`, `rateLimit`, `rollout`, `performance`, `runtime`, and `notes`.
+- `/api/internal/rate-limit-shadow`: admin-only shadow monitoring endpoint with parity, comparison metrics, rollout metrics, Valkey health, runtime metadata, and operator summary.
+
+Current migration state:
+
+| Area | State |
+|---|---|
+| PostgreSQL | Authoritative |
+| Valkey | Shadow |
+| Shadow parity | 100% target/state before canary |
+| Backend failures | 0 target/state before canary |
+| Comparison failures | 0 target/state before canary |
+| Canary | Disabled |
+| Next milestone | Phase 7E.2 planned 1% canary |
 
 ## Operating Model
 
@@ -164,6 +183,13 @@ Expected output:
 ```text
 HTTP/2 200
 ```
+
+Current response expectations:
+
+- `status` is `healthy` or otherwise explainable during an incident.
+- `summary`, `postgres`, `valkey`, `rateLimit`, `rollout`, `performance`, `runtime`, and `notes` are present.
+- `runtime.phase` is `7` and `runtime.milestone` is `7E.1` on the current baseline.
+- `rollout.canaryPercentage` is `0` unless a separately approved Phase 7E.2 canary is active.
 
 Expected result:
 
@@ -345,6 +371,14 @@ Expected output:
 ```text
 HTTP/2 200
 ```
+
+Current response expectations:
+
+- `status` is `healthy` for normal operation.
+- `rateLimit.runtimeMode` is `shadow`.
+- `rollout.canaryPercentage` is `0`.
+- `rollout.postgresAuthoritativeWrites` and `rollout.valkeyAuthoritativeWrites` are present for Phase 7E migration KPIs.
+- `performance` reports latency direction and speedup when PostgreSQL and Valkey latency averages are available.
 
 PM2 status:
 

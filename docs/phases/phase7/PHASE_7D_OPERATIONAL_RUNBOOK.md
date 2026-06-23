@@ -1,16 +1,60 @@
 # Phase 7D — Valkey Operational Runbook
 
-Status: Planned / Not Implemented
+Status: Active for Phase 7D production baseline and Phase 7E.1 observability
 Date: 2026-06-23
-Scope: Production operations runbook for the future completed Phase 7D implementation
+Scope: Production operations runbook for current shadow-mode baseline and future canary stages
 Related documents:
 
 - `PHASE_7D_VALKEY_INTEGRATION_PLAN.md`
 - `PHASE_7D_IMPLEMENTATION_SPEC.md`
 
-This runbook describes how Phase 7D should be operated in production after Valkey has been implemented. It is not an implementation guide. It does not authorize code changes, package installation, migrations, schema changes, infrastructure changes, runtime behavior changes, or Valkey implementation.
+This runbook describes how Phase 7D/7E.1 should be operated in production. It is not an implementation guide and does not authorize code changes, package installation, migrations, schema changes, infrastructure changes, runtime behavior changes, Valkey authority, or production canary enablement.
 
 Phase 7D operational posture is based on one rule: PostgreSQL remains authoritative for permanent application data, and Valkey operates temporary runtime state, locks, caches, nonces, and aggregation buffers with explicit TTLs and rollback controls.
+
+## Current Production State
+
+| Area | Current State |
+|---|---|
+| Runtime mode | `RATE_LIMIT_MODE=shadow` |
+| PostgreSQL | Authoritative source of truth and rate-limit backend. |
+| Valkey | Shadow comparison backend for rate limits. |
+| Canary | Disabled; Phase 7E.2 planned for separately approved 1% production canary. |
+| Rollback | Set `RATE_LIMIT_MODE=postgres` and restart the application process. |
+| Schema/migrations | No Phase 7D/7E.1 schema changes. |
+| Cleanup | Existing cleanup behavior unchanged. |
+
+Current operational architecture:
+
+```text
+Client
+  ↓
+Next.js API
+  ↓
+PostgreSQL
+(source of truth)
+  ↓
+Shadow comparison
+  ↓
+Valkey
+(temporary shadow layer)
+```
+
+Primary operational endpoints:
+
+- `/api/health`: overall production health endpoint with `summary`, `postgres`, `valkey`, `rateLimit`, `rollout`, `performance`, `runtime`, and `notes`.
+- `/api/internal/rate-limit-shadow`: admin-only shadow monitoring endpoint with parity, comparison metrics, rollout metrics, Valkey health, and runtime metadata.
+
+Current migration KPIs:
+
+- Mismatch rate.
+- Backend failures.
+- Comparison failures.
+- Fallback count.
+- PostgreSQL authoritative writes.
+- Valkey authoritative writes.
+- PostgreSQL versus Valkey latency comparison.
+- Valkey memory, reconnects, and evictions.
 
 ## 1. Operational Responsibilities
 
@@ -275,7 +319,18 @@ Maintenance mode expectations:
 
 ## 5. Health Checks
 
-Health checks must distinguish healthy, degraded, and unsafe states. Exact numeric thresholds must be defined from Phase 7D baseline and post-implementation production behavior; this runbook defines expected direction and response.
+Health checks must distinguish healthy, degraded, and unsafe states. `/api/health` is the primary operational health endpoint. Exact numeric thresholds must be defined from Phase 7D baseline and post-implementation production behavior; this runbook defines expected direction and response.
+
+Current `/api/health` sections:
+
+- `summary`: counts PostgreSQL, Valkey, RateLimit, and Application service states.
+- `postgres`: reports configured/connected state without unnecessary database queries.
+- `valkey`: reuses the existing Valkey health service.
+- `rateLimit`: reports runtime mode, health, parity, mismatch rate, backend failures, comparison failures, and latency delta.
+- `rollout`: reports mode, canary percentage, request counters, fallback count, and authoritative write counters.
+- `performance`: reports latency difference, direction, and speedup when averages are available.
+- `runtime`: reports phase `7`, milestone `7E.1`, release, start time, and uptime.
+- `notes`: serializes informational current-state guidance.
 
 | Health Check | Healthy State | Degraded State | Unsafe State |
 |---|---|---|---|
@@ -311,8 +366,11 @@ Critical metrics:
 - Runtime payload fetch latency.
 - Feature flag state and authority mode.
 - Fallback count.
+- PostgreSQL authoritative writes.
+- Valkey authoritative writes.
 - Fail-closed count.
 - Shadow mismatch count.
+- Latency direction and speedup from `/api/health.performance`.
 
 ### Valkey Dashboard
 

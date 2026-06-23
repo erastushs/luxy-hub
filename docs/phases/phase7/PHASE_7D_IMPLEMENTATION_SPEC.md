@@ -1,11 +1,37 @@
 # Phase 7D — Valkey Implementation Specification
 
-Status: Planned / Not Implemented
+Status: Historical specification; Phase 7D engineering complete, Phase 7E.1 complete
 Date: 2026-06-23
-Scope: Implementation specification only
+Scope: Original implementation specification, retained for design and rollout history
 Source RFC: `PHASE_7D_VALKEY_INTEGRATION_PLAN.md`
 
-This document defines how Phase 7D should be implemented later. It does not implement Valkey, install packages, create migrations, change schemas, modify runtime behavior, alter infrastructure, or change production behavior.
+This document defined how Phase 7D should be implemented. It is now retained as the historical implementation specification. Current production state is PostgreSQL authoritative, Valkey shadow mode, deterministic canary infrastructure present but disabled, `/api/health` operating as the primary operational health endpoint, and `/api/internal/rate-limit-shadow` providing admin-only shadow monitoring.
+
+## Current Implementation Status
+
+| Area | Current State |
+|---|---|
+| PostgreSQL | Authoritative for rate limits and permanent data. |
+| Valkey | Implemented for shadow comparison and operational health visibility. |
+| Runtime mode | `RATE_LIMIT_MODE=shadow`. |
+| Canary controls | `RATE_LIMIT_MODE=valkey_canary` and `RATE_LIMIT_CANARY_PERCENT` infrastructure exists; production canary is not enabled. |
+| Operational health | `/api/health` reports `summary`, `postgres`, `valkey`, `rateLimit`, `rollout`, `performance`, `runtime`, and `notes`. |
+| Shadow monitoring | `/api/internal/rate-limit-shadow` reports parity, comparison metrics, rollout metrics, and Valkey health for admins. |
+| Rollback | Set `RATE_LIMIT_MODE=postgres`. |
+
+Current rate-limit architecture:
+
+```text
+Client
+  ↓
+Next.js API
+  ↓
+PostgreSQL authoritative decision
+  ↓
+Valkey shadow comparison
+  ↓
+Metrics and health reporting
+```
 
 Phase 7D must be implemented as an incremental, feature-flagged migration from PostgreSQL-backed temporary state to Valkey-backed temporary state. PostgreSQL remains authoritative for permanent application data throughout the migration and after Phase 7D is complete.
 
@@ -32,9 +58,11 @@ Implementation must be small-step and reversible. PostgreSQL table removal, sche
 
 ## 2. Repository Layout
 
+Current implementation note: Valkey support now exists under `app/lib/valkey/`; rate-limit runtime, shadow, canary infrastructure, and metrics live under `app/lib/rate-limit/`. The original proposed layout below remains useful as a long-term module map but is no longer a statement that no Valkey files exist.
+
 The current repository uses `app/lib/` rather than `src/lib/`. The future Valkey integration should therefore use `app/lib/valkey/` to match existing conventions.
 
-Proposed future layout:
+Original proposed future layout:
 
 ```text
 app/lib/valkey/
@@ -86,13 +114,13 @@ Expected integration touchpoints later:
 - Existing event, analytics, cleanup, and worker services for locks, counters, and cleanup reduction.
 - Server Components, Server Actions, and service functions for approved cache reads and mutation-driven invalidation.
 
-No files under `app/lib/valkey/` are created by this specification.
+This specification itself did not create files, but later Phase 7D/7E.1 implementation work added the current Valkey and rate-limit modules.
 
 ## 3. Feature Flags
 
 All flags default to disabled unless explicitly stated otherwise. Disabling a flag must restore the prior PostgreSQL-backed or no-cache behavior without a deployment rollback whenever the legacy path still exists.
 
-Recommended flag model:
+Original recommended flag model. Current implemented rate-limit runtime uses `RATE_LIMIT_MODE` with `postgres`, `shadow`, `dual_write`, `valkey_canary`, and `valkey` recognized as modes, plus `RATE_LIMIT_CANARY_PERCENT` for deterministic future canary selection. Production remains `RATE_LIMIT_MODE=shadow` and canary disabled.
 
 | Flag | Default | Purpose | Rollback Behavior |
 |---|---|---|---|
@@ -1079,7 +1107,9 @@ Each stage must satisfy functional, performance, operational, security, and roll
 
 ## 12. Definition Of Done
 
-Phase 7D is complete only when all of the following are true:
+Original full-migration definition of done is broader than the current Phase 7D production baseline. Current Phase 7D/7E.1 completion means Valkey infrastructure, shadow comparison, monitoring, health reporting, rollback, and canary infrastructure are complete while PostgreSQL remains authoritative. The checklist below remains a long-term target for future workload cutovers and PostgreSQL temporary-table removal.
+
+Full temporary-data migration is complete only when all of the following are true:
 
 - Phase 7D.0 baseline report exists and was used for every post-stage comparison.
 - Valkey connection layer, health checks, metrics, namespacing, TTL governance, and key-family registry are implemented and validated in a later approved implementation phase.
@@ -1111,4 +1141,4 @@ Phase 7D is complete only when all of the following are true:
 
 ## Phase Boundary
 
-This specification is documentation only. It authorizes planning detail for later implementation, but it does not authorize production code, package installation, migrations, schema changes, infrastructure changes, runtime behavior changes, or Valkey implementation.
+This specification was documentation only at creation time. Current Phase 7D/7E.1 implementation completed the production baseline and observability/canary infrastructure without schema changes, migrations, cleanup changes, PostgreSQL authority removal, or production canary enablement. Further authority changes require Phase 7E.2 rollout approval.

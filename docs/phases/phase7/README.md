@@ -1,6 +1,22 @@
 # Phase 7 — Access Modes, Keys, and License Authorization
 
-Phase 7 documentation source of truth:
+This README is the primary navigation and current-status page for Phase 7 documentation. Older planning documents are preserved for history, but this page reflects the current production architecture and rollout state.
+
+## Current Phase Status
+
+| Phase | Status | Notes |
+|---|---|---|
+| Phase 7A | Complete | License/access foundation is production ready. |
+| Phase 7B | Complete for backend infrastructure | Runtime popup validation remains separate planned runtime work. |
+| Phase 7C | Complete | Production runtime performance optimization is production validated. |
+| Phase 7D | Engineering Complete / Production Baseline | PostgreSQL remains authoritative; Valkey runs in shadow mode with monitoring and rollback. |
+| Phase 7E.1 | Complete | Canary infrastructure, rollout metrics, and `/api/health` operational polish are implemented. |
+
+Current milestone: **Phase 7E.2 — Production Canary (Planned)**.
+
+## Document Navigation
+
+Architecture source of truth:
 
 ../../architecture/PHASE7_LICENSE_ARCHITECTURE.md
 
@@ -19,8 +35,188 @@ Phase 7D planning documents:
 - `PHASE_7D_OPERATIONAL_RUNBOOK.md`
 - `PHASE_7D_RC1_PRODUCTION_ROLLOUT_RUNBOOK.md`
 
+Historical documents:
+
+- `historical/PHASE7_SCRIPT_SIZE_LIMIT.md`
+- `historical/PHASE7_PASSWORD_MANAGEMENT.md`
+
+## Current Production Architecture
+
+```text
+Client
+  ↓
+Next.js API
+  ↓
+PostgreSQL
+(source of truth and authoritative rate-limit backend)
+  ↓
+Shadow comparison
+  ↓
+Valkey
+(temporary layer; shadow-only for rate limits)
+```
+
+PostgreSQL remains authoritative for durable product state, ownership, auth-derived user context, scripts, builds, keys, licenses, analytics history, audit history, and current rate-limit decisions. Valkey is implemented as a temporary operational layer and currently participates in rate-limit shadow comparison only.
+
+## Current Runtime State
+
+| Area | Current State |
+|---|---|
+| Runtime mode | `RATE_LIMIT_MODE=shadow` |
+| Authoritative backend | PostgreSQL |
+| Shadow backend | Valkey |
+| Canary | Disabled |
+| Rollback | Immediate configuration rollback to `RATE_LIMIT_MODE=postgres` |
+| Production canary | Not enabled; Phase 7E.2 planned for 1% canary |
+
+## Operational Endpoints
+
+### `/api/health`
+
+Purpose: primary operational production health endpoint.
+
+Major sections:
+
+- `status`: overall operational status: `healthy`, `degraded`, or `unhealthy`.
+- `summary`: counts PostgreSQL, Valkey, RateLimit, and Application service states.
+- `postgres`: PostgreSQL configured/connected status.
+- `valkey`: Valkey enabled, connected, status, connection state, latency, memory, version, and uptime summary from the existing Valkey health service.
+- `rateLimit`: runtime mode, health, backend failures, comparison failures, mismatch rate, parity, and latency delta.
+- `rollout`: rollout mode, canary percentage, PostgreSQL/Valkey request counters, fallback count, and authoritative write counters.
+- `performance`: human-readable latency comparison, direction, and speedup when latency averages are available.
+- `runtime`: phase `7`, milestone `7E.1`, release, start time, and uptime.
+- `notes`: informational current-state notes for operators.
+
+### `/api/internal/rate-limit-shadow`
+
+Purpose: admin-only shadow monitoring endpoint.
+
+Major sections:
+
+- Shadow parity and mismatch metrics.
+- PostgreSQL and Valkey latency metrics.
+- Backend and comparison failure counts.
+- Rollout metrics, including canary percentage, request counters, fallback count, and authoritative write counters.
+- Valkey health summary.
+- Runtime metadata and operator summary.
+
+## Rollout Progress
+
+Current track: **Shadow**.
+
+Completed:
+
+- Shadow execution.
+- Shadow monitoring.
+- Primary health endpoint.
+- Operational metrics.
+- Rollback documentation.
+- Canary infrastructure with deterministic routing support.
+
+Next:
+
+- Phase 7E.2: 1% production canary, subject to explicit rollout approval.
+
+## Migration Progress
+
+| Area | State |
+|---|---|
+| PostgreSQL | Authoritative |
+| Valkey | Shadow |
+| Shadow parity | 100% production observation target/state |
+| Backend failures | 0 target/state before canary |
+| Comparison failures | 0 target/state before canary |
+| Canary | Not enabled |
+| PostgreSQL removal | Not planned in Phase 7E.1 |
+
+## Operational KPIs
+
+Track these KPIs before any Phase 7E.2 canary progression:
+
+- Mismatch rate.
+- Backend failures.
+- Comparison failures.
+- Fallback count.
+- PostgreSQL authoritative writes.
+- Valkey authoritative writes.
+- PostgreSQL average latency.
+- Valkey average latency.
+- Latency direction and speedup.
+- Valkey connection state, memory usage, reconnects, and evictions.
+
+## Health Response Summary
+
+Current `/api/health` shape is additive and should remain backward-compatible at the endpoint level:
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "...",
+  "summary": { "healthyServices": 4, "degradedServices": 0, "unhealthyServices": 0, "overall": "healthy" },
+  "postgres": { "status": "healthy", "connected": true },
+  "valkey": { "enabled": true, "connected": true, "status": "healthy", "connectionState": "ready" },
+  "rateLimit": { "runtimeMode": "shadow", "health": "healthy", "parity": 1 },
+  "rollout": { "mode": "shadow", "canaryPercentage": 0, "postgresAuthoritativeWrites": 1000, "valkeyAuthoritativeWrites": 0 },
+  "performance": { "latencyDifferenceMs": 69.8, "direction": "valkey_faster", "speedup": 63.0 },
+  "runtime": { "phase": "7", "milestone": "7E.1", "release": "RC1", "startedAt": "...", "uptimeSeconds": 3600 },
+  "notes": ["PostgreSQL remains authoritative by default."]
+}
+```
+
+## Long-Term Backlog
+
+### Observability V2
+
+- Build metadata in `/api/health`.
+- Git commit.
+- Branch.
+- Build timestamp.
+- Release version.
+
+### Operational Dashboard
+
+- Unified `/api/internal/system` endpoint.
+- Worker status.
+- Cleanup status.
+- Queue status.
+- Storage status.
+- PM2 status.
+
+### Monitoring
+
+- Grafana dashboard.
+- Prometheus exporter.
+- Alertmanager integration.
+- Discord alerts.
+- Historical latency metrics.
+- Historical parity metrics.
+
+### Valkey
+
+- Persistent metrics.
+- Automatic rollback.
+- Adaptive canary rollout.
+- Circuit breaker.
+- Multi-node readiness.
+- Sentinel/Cluster planning.
+
+### Deployment
+
+- Blue/Green deployment.
+- Release manifest.
+- Deployment history.
+- Version compatibility matrix.
+
+## ADR Recommendations
+
+Future ADRs are recommended but not created by this consolidation pass:
+
+- ADR-001: Valkey Temporary Data Strategy.
+- ADR-002: Shadow Comparison Architecture.
+- ADR-003: Progressive Canary Rollout.
+
 Current Status:
-Phase 7A is complete / production ready. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Production Stabilization is active. Runtime popup validation remains planned because the Roblox runtime does not yet call `POST /api/validate` before main script execution. Premium license runtime enforcement and license hardening are deferred future license work, not completed Phase 7C work.
+Phase 7A is complete / production ready. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Phase 7D engineering is complete and forms the production baseline. Phase 7E.1 observability and canary infrastructure is complete. Runtime popup validation remains planned because the Roblox runtime does not yet call `POST /api/validate` before main script execution. Premium license runtime enforcement and license hardening are deferred future license work, not completed Phase 7C work.
 
 Phase 7B Status:
 
@@ -44,9 +240,9 @@ Phase 7C Status:
 Phase 7D Status:
 
 - Name: Database Scalability & Runtime Optimization
-- Status: Engineering Complete (RC1)
-- Scope: Valkey infrastructure, rate-limit shadow mode, internal monitoring, production burn-in workflow, and post-optimization observability review
-- RC1 constraints: PostgreSQL remains authoritative, Valkey remains shadow-only, no schema changes, no migrations, no cleanup changes, no middleware changes, no public endpoint changes, and no production behavior changes
+- Status: Engineering Complete / Production Baseline (RC1)
+- Scope: Valkey infrastructure, rate-limit shadow mode, internal monitoring, primary health endpoint reporting, production burn-in workflow, and post-optimization observability review
+- RC1 constraints: PostgreSQL remains authoritative, Valkey remains shadow-only, canary remains disabled, no schema changes, no migrations, no cleanup changes, no middleware changes, and no production authority change by default
 
 Approved access modes:
 
@@ -205,16 +401,18 @@ RC1 scope:
 - Phase 7D.0 Production Baseline: production metrics and rollback criteria are documented for RC1 burn-in.
 - Phase 7D.1 Infrastructure: Valkey connection, metrics, and health helpers are available without making Valkey authoritative.
 - Phase 7D.2 Rate-limit shadow mode: PostgreSQL remains authoritative; Valkey executes only as the shadow comparison backend.
-- Internal monitoring endpoint: `/api/internal/rate-limit-shadow` is admin-protected and reports shadow health, parity, latency, runtime metadata, Valkey health summary, and a concise operator summary.
+- Primary operational health endpoint: `/api/health` reports `summary`, `postgres`, `valkey`, `rateLimit`, `rollout`, `performance`, `runtime`, and `notes`.
+- Internal monitoring endpoint: `/api/internal/rate-limit-shadow` is admin-protected and reports shadow health, parity, latency, rollout metrics, runtime metadata, Valkey health summary, and a concise operator summary.
 - Health model: healthy requires zero backend failures, zero comparison failures, and mismatch rate at or below threshold; degraded means backend failures, comparison failures, or mismatch rate above threshold; unhealthy means authoritative PostgreSQL unavailable or internal monitoring failure.
 - Latency model: latency is diagnostic only. The endpoint reports `metrics.latency.postgresAverageMs`, `metrics.latency.valkeyAverageMs`, and `metrics.latency.deltaAverageMs`, where delta is Valkey average minus PostgreSQL average. The legacy `metrics.averageLatencyDeltaMs` remains for compatibility.
-- Runtime metadata: `runtime.phase`, `runtime.release`, `runtime.runtimeMode`, `runtime.startedAt`, and `runtime.uptimeSeconds` are exposed without persistence.
+- Runtime metadata: `/api/health` exposes `runtime.phase=7`, `runtime.milestone=7E.1`, `runtime.release`, `runtime.startedAt`, and `runtime.uptimeSeconds`; the internal shadow endpoint retains its Phase 7D RC1 runtime metadata.
 - Valkey health summary: monitoring reuses the existing Valkey health service and serializes enabled/connected state, connection state, latency, memory usage, version, uptime, and check timestamp.
+- Rollout metrics: canary percentage, request counters, fallback count, PostgreSQL authoritative writes, and Valkey authoritative writes are exposed for Phase 7E migration KPIs.
 - Production burn-in observations: RC1 burn-in focuses on parity, backend failures, comparison failures, latency diagnostics, Valkey connection state, application health, and unchanged public behavior.
 
 Post-Optimization Infrastructure Review is an evaluation milestone, not an implementation task.
 
-Phase 7E has not been started.
+Phase 7E.1 is complete. Phase 7E.2 production canary is planned and must not be enabled without a separate rollout approval.
 
 ## Deferred Future License Work
 

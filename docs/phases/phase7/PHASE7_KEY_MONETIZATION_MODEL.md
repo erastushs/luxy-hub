@@ -242,7 +242,7 @@ Data minimization rules:
 
 ## 10. Deferred Future License Scope
 
-Current roadmap note (2026-06-18): Phase 7C now refers to completed Production Runtime Performance optimization. Premium License System work is deferred future license work:
+Current roadmap note (updated 2026-06-23): Phase 7C refers to completed Production Runtime Performance optimization. Phase 7D engineering is complete and Phase 7E.1 operational health/canary infrastructure is complete; PostgreSQL remains authoritative and Valkey is shadow-only. Premium License System work is deferred future license work:
 
 - Premium licenses.
 - License assignments.
@@ -257,7 +257,7 @@ Current roadmap note (2026-06-18): Phase 7C now refers to completed Production R
 - Assignment capacity enforcement.
 - License counters and runtime audit trail.
 
-Phase 7C may require migrations or database functions. Those risks must not be introduced into Phase 7B documentation as implemented behavior.
+Future premium license hardening may require migrations or database functions. Those risks must not be introduced into Phase 7B documentation as implemented behavior or confused with completed Phase 7C performance work.
 
 ## 11. Runtime Integration Model
 
@@ -345,11 +345,11 @@ Lifetime Keys are not part of Phase 7B and are deferred until monetization requi
 
 ## 13. Main Branch Readiness
 
-Current Phase 7B completion estimate: 85-90%.
+Current Phase 7B backend platform status: complete.
 
 Backend Infrastructure estimate: 100%.
 
-Runtime Integration estimate: 0%.
+Runtime popup integration estimate: 0%; this remains a separate planned runtime track.
 
 Already available in MAIN/backend infrastructure:
 
