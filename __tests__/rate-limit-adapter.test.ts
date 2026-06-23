@@ -18,6 +18,7 @@ import {
   retryAfterSeconds,
 } from '@/app/lib/rate-limit/config'
 import { resolveRateLimitAdapter } from '@/app/lib/rate-limit/runtime'
+import { CanaryRateLimitAdapter, selectCanaryBackend, stableCanaryBucket } from '@/app/lib/rate-limit/canary-adapter'
 import { ShadowRateLimitAdapter } from '@/app/lib/rate-limit/shadow-adapter'
 import {
   checkEventRateLimit,
@@ -29,6 +30,10 @@ import {
   setRateLimitAdapterForTests,
   type RateLimitAdapter,
 } from '@/app/lib/rate-limit'
+import {
+  getRateLimitRolloutMetrics,
+  resetRateLimitShadowMetricsForTests,
+} from '@/app/lib/rate-limit/metrics-service'
 
 type QueryChain = Record<string, Mock>
 
@@ -182,6 +187,7 @@ describe('RateLimitAdapter PostgreSQL implementation', () => {
 describe('rate-limit configuration and runtime selection', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    resetRateLimitShadowMetricsForTests()
     vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
@@ -208,7 +214,17 @@ describe('rate-limit configuration and runtime selection', () => {
       requestedMode: null,
       mode: 'postgres',
       invalidMode: null,
+      canaryPercentage: 0,
     })
+  })
+
+  it('parses and clamps canary percentage configuration', () => {
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_CANARY_PERCENT: '1' }).canaryPercentage).toBe(1)
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_CANARY_PERCENT: '5.9' }).canaryPercentage).toBe(5)
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_CANARY_PERCENT: '100' }).canaryPercentage).toBe(100)
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_CANARY_PERCENT: '101' }).canaryPercentage).toBe(100)
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_CANARY_PERCENT: '-1' }).canaryPercentage).toBe(0)
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_CANARY_PERCENT: 'invalid' }).canaryPercentage).toBe(0)
   })
 
   it('parses future placeholder runtime modes without enabling them', () => {
@@ -223,12 +239,14 @@ describe('rate-limit configuration and runtime selection', () => {
       requestedMode: 'unknown',
       mode: 'postgres',
       invalidMode: 'unknown',
+      canaryPercentage: 0,
     })
   })
 
-  it('uses shadow runtime only for RATE_LIMIT_MODE=shadow', () => {
+  it('uses shadow runtime only for RATE_LIMIT_MODE=shadow and canary only when explicitly configured', () => {
     expect(resolveRateLimitAdapter({})).toBeInstanceOf(PostgresRateLimitAdapter)
     expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'shadow' })).toBeInstanceOf(ShadowRateLimitAdapter)
+    expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'valkey_canary' })).toBeInstanceOf(CanaryRateLimitAdapter)
     expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'valkey' })).toBeInstanceOf(PostgresRateLimitAdapter)
   })
 
@@ -236,6 +254,70 @@ describe('rate-limit configuration and runtime selection', () => {
     expect(() => resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'invalid-mode' })).not.toThrow()
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('invalid_runtime_mode'))
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('postgres'))
+  })
+
+  it.each([0, 1, 5, 10, 50, 100])(
+    'selects deterministic canary routing for %i percent',
+    (percentage) => {
+      const identifiers = Array.from({ length: 500 }, (_, index) => `identifier-${index}`)
+      const firstPass = identifiers.map((identifier) => selectCanaryBackend(identifier, percentage))
+      const secondPass = identifiers.map((identifier) => selectCanaryBackend(identifier, percentage))
+
+      expect(secondPass).toEqual(firstPass)
+      expect(firstPass).toEqual(
+        identifiers.map((identifier) => (
+          stableCanaryBucket(identifier) < percentage ? 'valkey' : 'postgres'
+        ))
+      )
+
+      if (percentage === 0) {
+        expect(firstPass.every((backend) => backend === 'postgres')).toBe(true)
+      }
+
+      if (percentage === 100) {
+        expect(firstPass.every((backend) => backend === 'valkey')).toBe(true)
+      }
+    }
+  )
+
+  it('falls back to PostgreSQL when selected Valkey canary execution is unavailable', async () => {
+    const postgres = adapterStub()
+    const valkey = adapterStub()
+    vi.mocked(postgres.checkGeneralLimit).mockResolvedValue({ allowed: true })
+    vi.mocked(valkey.checkGeneralLimit).mockRejectedValue(new Error('valkey unavailable'))
+    const adapter = new CanaryRateLimitAdapter(postgres, valkey, 100)
+
+    const result = await adapter.checkGeneralLimit('203.0.113.10', 'VALIDATE')
+
+    expect(result).toEqual({ allowed: true })
+    expect(valkey.checkGeneralLimit).toHaveBeenCalledWith('203.0.113.10', 'VALIDATE')
+    expect(postgres.checkGeneralLimit).toHaveBeenCalledWith('203.0.113.10', 'VALIDATE')
+    expect(getRateLimitRolloutMetrics({ RATE_LIMIT_MODE: 'valkey_canary', RATE_LIMIT_CANARY_PERCENT: '100' })).toMatchObject({
+      mode: 'valkey_canary',
+      canaryPercentage: 100,
+      canaryRequests: 1,
+      postgresRequests: 1,
+      valkeyRequests: 1,
+      fallbackCount: 1,
+    })
+  })
+
+  it('records PostgreSQL rollout metrics when canary percentage is zero', async () => {
+    const postgres = adapterStub()
+    const valkey = adapterStub()
+    const adapter = new CanaryRateLimitAdapter(postgres, valkey, 0)
+
+    await adapter.checkGeneralLimit('203.0.113.10', 'VALIDATE')
+
+    expect(postgres.checkGeneralLimit).toHaveBeenCalledWith('203.0.113.10', 'VALIDATE')
+    expect(valkey.checkGeneralLimit).toHaveBeenCalledWith('203.0.113.10', 'VALIDATE')
+    expect(getRateLimitRolloutMetrics({ RATE_LIMIT_MODE: 'valkey_canary', RATE_LIMIT_CANARY_PERCENT: '0' })).toMatchObject({
+      canaryPercentage: 0,
+      canaryRequests: 0,
+      postgresRequests: 1,
+      valkeyRequests: 0,
+      fallbackCount: 0,
+    })
   })
 })
 

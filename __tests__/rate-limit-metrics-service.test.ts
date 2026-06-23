@@ -51,6 +51,11 @@ function snapshot(overrides: Partial<RateLimitShadowMetricsSnapshot> = {}): Rate
     retryAfterParity: { total: 0, identical: 0, rate: 0 },
     lastUpdatedAt: null,
     runtimeMode: 'postgres',
+    canaryRequests: 0,
+    postgresRequests: 0,
+    valkeyRequests: 0,
+    fallbackCount: 0,
+    canaryPercentage: 0,
     ...overrides,
   }
 }
@@ -81,6 +86,42 @@ describe('RateLimitShadowMetricsService', () => {
       retryAfterParity: { total: 0, identical: 0, rate: 0 },
       lastUpdatedAt: null,
       runtimeMode: 'shadow',
+      canaryRequests: 0,
+      postgresRequests: 0,
+      valkeyRequests: 0,
+      fallbackCount: 0,
+      canaryPercentage: 0,
+    })
+  })
+
+  it('reports rollout metrics and configured canary percentage', () => {
+    const service = new RateLimitShadowMetricsService()
+
+    service.recordRolloutRequest('postgres')
+    service.recordRolloutRequest('valkey')
+    service.recordRolloutRequest('postgres', true)
+
+    expect(service.snapshot({
+      RATE_LIMIT_MODE: 'valkey_canary',
+      RATE_LIMIT_CANARY_PERCENT: '5',
+    })).toMatchObject({
+      runtimeMode: 'valkey_canary',
+      canaryPercentage: 5,
+      canaryRequests: 1,
+      postgresRequests: 2,
+      valkeyRequests: 1,
+      fallbackCount: 1,
+    })
+    expect(service.rolloutSnapshot({
+      RATE_LIMIT_MODE: 'valkey_canary',
+      RATE_LIMIT_CANARY_PERCENT: '5',
+    })).toEqual({
+      mode: 'valkey_canary',
+      canaryPercentage: 5,
+      canaryRequests: 1,
+      postgresRequests: 2,
+      valkeyRequests: 1,
+      fallbackCount: 1,
     })
   })
 

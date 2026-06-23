@@ -25,6 +25,20 @@ export type RateLimitShadowMetricsSnapshot = {
   retryAfterParity: RateLimitParityMetric
   lastUpdatedAt: string | null
   runtimeMode: RateLimitRuntimeMode
+  canaryRequests: number
+  postgresRequests: number
+  valkeyRequests: number
+  fallbackCount: number
+  canaryPercentage: number
+}
+
+export type RateLimitRolloutMetricsSnapshot = {
+  mode: RateLimitRuntimeMode
+  canaryPercentage: number
+  canaryRequests: number
+  postgresRequests: number
+  valkeyRequests: number
+  fallbackCount: number
 }
 
 export type RateLimitShadowHealthStatus = 'disabled' | 'healthy' | 'degraded' | 'unhealthy'
@@ -77,6 +91,10 @@ type MutableRateLimitShadowMetrics = {
   }
   retryAfterParity: MutableParityMetric
   lastUpdatedAt: string | null
+  canaryRequests: number
+  postgresRequests: number
+  valkeyRequests: number
+  fallbackCount: number
 }
 
 export const DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS: RateLimitShadowAlertThresholds = {
@@ -105,6 +123,10 @@ function createEmptyMetrics(): MutableRateLimitShadowMetrics {
     },
     retryAfterParity: { total: 0, identical: 0 },
     lastUpdatedAt: null,
+    canaryRequests: 0,
+    postgresRequests: 0,
+    valkeyRequests: 0,
+    fallbackCount: 0,
   }
 }
 
@@ -120,8 +142,8 @@ function latencyDeltaMs(comparison: RateLimitComparisonResult): number {
   return comparison.shadowLatencyMs - comparison.authoritativeLatencyMs
 }
 
-function getRuntimeMode(env: Record<string, string | undefined>): RateLimitRuntimeMode {
-  return parseRateLimitRuntimeConfig(env).mode
+function getRuntimeConfig(env: Record<string, string | undefined>) {
+  return parseRateLimitRuntimeConfig(env)
 }
 
 function formatNumber(value: number): string {
@@ -239,8 +261,28 @@ export class RateLimitShadowMetricsService {
     this.metrics = createEmptyMetrics()
   }
 
+  recordRolloutRequest(backend: 'postgres' | 'valkey', fallback = false): void {
+    try {
+      if (fallback) {
+        this.metrics.fallbackCount += 1
+        this.metrics.postgresRequests += 1
+        return
+      }
+
+      if (backend === 'postgres') {
+        this.metrics.postgresRequests += 1
+      } else {
+        this.metrics.valkeyRequests += 1
+        this.metrics.canaryRequests += 1
+      }
+    } catch {
+      // Rollout metrics must never affect request handling.
+    }
+  }
+
   snapshot(env: Record<string, string | undefined> = process.env): RateLimitShadowMetricsSnapshot {
     const totalComparisons = this.metrics.totalComparisons
+    const runtimeConfig = getRuntimeConfig(env)
 
     return {
       totalComparisons,
@@ -265,7 +307,12 @@ export class RateLimitShadowMetricsService {
       },
       retryAfterParity: metricRate(this.metrics.retryAfterParity),
       lastUpdatedAt: this.metrics.lastUpdatedAt,
-      runtimeMode: getRuntimeMode(env),
+      runtimeMode: runtimeConfig.mode,
+      canaryRequests: this.metrics.canaryRequests,
+      postgresRequests: this.metrics.postgresRequests,
+      valkeyRequests: this.metrics.valkeyRequests,
+      fallbackCount: this.metrics.fallbackCount,
+      canaryPercentage: runtimeConfig.canaryPercentage,
     }
   }
 
@@ -313,6 +360,19 @@ export class RateLimitShadowMetricsService {
       averageLatencyDeltaMs: snapshot.avgLatencyDeltaMs,
       status: health.status,
       summary,
+    }
+  }
+
+  rolloutSnapshot(env: Record<string, string | undefined> = process.env): RateLimitRolloutMetricsSnapshot {
+    const snapshot = this.snapshot(env)
+
+    return {
+      mode: snapshot.runtimeMode,
+      canaryPercentage: snapshot.canaryPercentage,
+      canaryRequests: snapshot.canaryRequests,
+      postgresRequests: snapshot.postgresRequests,
+      valkeyRequests: snapshot.valkeyRequests,
+      fallbackCount: snapshot.fallbackCount,
     }
   }
 
@@ -381,6 +441,19 @@ export function getRateLimitShadowOperationalSnapshot(
   env: Record<string, string | undefined> = process.env
 ): RateLimitShadowOperationalSnapshot {
   return rateLimitShadowMetricsService.operationalSnapshot(env)
+}
+
+export function getRateLimitRolloutMetrics(
+  env: Record<string, string | undefined> = process.env
+): RateLimitRolloutMetricsSnapshot {
+  return rateLimitShadowMetricsService.rolloutSnapshot(env)
+}
+
+export function recordRateLimitRolloutRequest(
+  backend: 'postgres' | 'valkey',
+  fallback = false
+): void {
+  rateLimitShadowMetricsService.recordRolloutRequest(backend, fallback)
 }
 
 export function resetRateLimitShadowMetricsForTests(): void {

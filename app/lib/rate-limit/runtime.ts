@@ -1,6 +1,7 @@
 import { PostgresRateLimitAdapter } from './postgres-adapter'
 import { ShadowRateLimitAdapter } from './shadow-adapter'
 import { ValkeyRateLimitAdapter } from './valkey-adapter'
+import { CanaryRateLimitAdapter } from './canary-adapter'
 import { parseRateLimitRuntimeConfig } from './config'
 import type { RateLimitAdapter } from './types'
 
@@ -35,6 +36,14 @@ export function resolveRateLimitAdapter(
 
   if (config.mode === 'shadow') {
     return shadowRateLimitAdapter
+  }
+
+  if (config.mode === 'valkey_canary') {
+    return new CanaryRateLimitAdapter(
+      postgresRateLimitAdapter,
+      valkeyRateLimitAdapter,
+      config.canaryPercentage
+    )
   }
 
   return postgresRateLimitAdapter

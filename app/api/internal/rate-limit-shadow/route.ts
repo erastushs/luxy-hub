@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { AuthError, requireRole } from '@/app/lib/auth/session-auth'
 import {
+  getRateLimitRolloutMetrics,
   getRateLimitShadowHealth,
   getRateLimitShadowMetrics,
   getRateLimitShadowOperationalSnapshot,
@@ -47,6 +48,7 @@ export async function GET() {
     const metrics = getRateLimitShadowMetrics()
     const parityReport = getRateLimitShadowParityReport()
     const operationalSnapshot = getRateLimitShadowOperationalSnapshot()
+    const rollout = getRateLimitRolloutMetrics()
     const valkeyHealth = await checkValkeyHealth()
     const runtime = runtimeMetadata(health.runtimeMode)
     const parity = operationalSnapshot.parityRate
@@ -81,6 +83,7 @@ export async function GET() {
       enabled: health.enabled,
       runtimeMode: health.runtimeMode,
       runtime,
+      rollout,
       health: {
         status: health.status,
         backendFailures: health.backendFailures,

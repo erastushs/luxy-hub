@@ -64,9 +64,11 @@ export function checkEventRateLimit(sessionId: string) {
 export type { LimitKey, RateLimitAdapter, RateLimitResult } from './types'
 export { parseRateLimitRuntimeConfig } from './config'
 export { resolveRateLimitAdapter } from './runtime'
+export { selectCanaryBackend, stableCanaryBucket } from './canary-adapter'
 export {
   getRateLimitShadowHealth,
   getRateLimitShadowMetrics,
   getRateLimitShadowOperationalSnapshot,
   getRateLimitShadowParityReport,
+  getRateLimitRolloutMetrics,
 } from './metrics-service'

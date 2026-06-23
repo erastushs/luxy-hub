@@ -113,6 +113,7 @@ export type RateLimitRuntimeConfig = {
   requestedMode: string | null
   mode: RateLimitRuntimeMode
   invalidMode: string | null
+  canaryPercentage: number
 }
 
 export function retryAfterSeconds(windowMs: number): number {
@@ -123,9 +124,10 @@ export function parseRateLimitRuntimeConfig(
   env: Record<string, string | undefined> = process.env
 ): RateLimitRuntimeConfig {
   const requestedMode = env.RATE_LIMIT_MODE?.trim() || null
+  const canaryPercentage = parseCanaryPercentage(env.RATE_LIMIT_CANARY_PERCENT)
 
   if (!requestedMode) {
-    return { requestedMode: null, mode: 'postgres', invalidMode: null }
+    return { requestedMode: null, mode: 'postgres', invalidMode: null, canaryPercentage }
   }
 
   const normalizedMode = requestedMode.toLowerCase()
@@ -135,8 +137,23 @@ export function parseRateLimitRuntimeConfig(
       requestedMode,
       mode: normalizedMode as RateLimitRuntimeMode,
       invalidMode: null,
+      canaryPercentage,
     }
   }
 
-  return { requestedMode, mode: 'postgres', invalidMode: requestedMode }
+  return { requestedMode, mode: 'postgres', invalidMode: requestedMode, canaryPercentage }
+}
+
+function parseCanaryPercentage(rawValue: string | undefined): number {
+  if (!rawValue?.trim()) {
+    return 0
+  }
+
+  const parsed = Number(rawValue)
+
+  if (!Number.isFinite(parsed)) {
+    return 0
+  }
+
+  return Math.min(100, Math.max(0, Math.floor(parsed)))
 }
