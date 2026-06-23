@@ -1,10 +1,13 @@
-import { PostgresRateLimitAdapter } from './postgres-adapter'
 import type { LimitKey, RateLimitAdapter } from './types'
+import { getPostgresRateLimitAdapter, resolveRateLimitAdapter } from './runtime'
 
-const postgresRateLimitAdapter = new PostgresRateLimitAdapter()
-let activeRateLimitAdapter: RateLimitAdapter = postgresRateLimitAdapter
+let activeRateLimitAdapter: RateLimitAdapter | null = null
 
 export function getRateLimitAdapter(): RateLimitAdapter {
+  if (!activeRateLimitAdapter) {
+    activeRateLimitAdapter = resolveRateLimitAdapter()
+  }
+
   return activeRateLimitAdapter
 }
 
@@ -13,7 +16,7 @@ export function setRateLimitAdapterForTests(adapter: RateLimitAdapter): void {
 }
 
 export function resetRateLimitAdapterForTests(): void {
-  activeRateLimitAdapter = postgresRateLimitAdapter
+  activeRateLimitAdapter = getPostgresRateLimitAdapter()
 }
 
 export function getClientIP(request: Request): string {
@@ -39,23 +42,25 @@ export function getClientIPFromHeaders(headers: Headers): string {
 }
 
 export function checkRateLimit(ip: string, limitKey: LimitKey) {
-  return activeRateLimitAdapter.checkGeneralLimit(ip, limitKey)
+  return getRateLimitAdapter().checkGeneralLimit(ip, limitKey)
 }
 
 export function checkLoginFailureLimit(ip: string, email: unknown) {
-  return activeRateLimitAdapter.checkLoginFailure(ip, email)
+  return getRateLimitAdapter().checkLoginFailure(ip, email)
 }
 
 export function recordLoginFailure(ip: string, email: unknown): Promise<void> {
-  return activeRateLimitAdapter.recordLoginFailure(ip, email)
+  return getRateLimitAdapter().recordLoginFailure(ip, email)
 }
 
 export function clearLoginFailures(ip: string, email: unknown): Promise<void> {
-  return activeRateLimitAdapter.clearLoginFailures(ip, email)
+  return getRateLimitAdapter().clearLoginFailures(ip, email)
 }
 
 export function checkEventRateLimit(sessionId: string) {
-  return activeRateLimitAdapter.checkEventLimit(sessionId)
+  return getRateLimitAdapter().checkEventLimit(sessionId)
 }
 
 export type { LimitKey, RateLimitAdapter, RateLimitResult } from './types'
+export { parseRateLimitRuntimeConfig } from './config'
+export { resolveRateLimitAdapter } from './runtime'

@@ -1,67 +1,8 @@
-export const WINDOW_MS = {
-  VERIFY_WORKINK: 60_000,
-  VALIDATE: 60_000,
-  GENERATE: 86_400_000,
-  SCRIPT_UPLOAD: 3_600_000,
-  SCRIPT_UPDATE: 3_600_000,
-  SCRIPT_DELETE: 3_600_000,
-  SCRIPT_LIST: 60_000,
-  SCRIPT_GET: 60_000,
-  SCRIPT_RAW: 60_000,
-  SCRIPT_STATS: 60_000,
-  DASHBOARD_SCRIPTS_LIST: 60_000,
-  DASHBOARD_SCRIPTS_CREATE: 3_600_000,
-  DASHBOARD_SCRIPTS_UPDATE: 3_600_000,
-  DASHBOARD_SCRIPTS_DELETE: 3_600_000,
-  DASHBOARD_SCRIPTS_GET: 60_000,
-  DASHBOARD_ANALYTICS_OVERVIEW: 60_000,
-  DASHBOARD_ANALYTICS_STATS: 60_000,
-  DASHBOARD_ANALYTICS_DOWNLOADS: 60_000,
-  DASHBOARD_VERSIONS_LIST: 60_000,
-  DASHBOARD_VERSIONS_GET: 60_000,
-  DELIVERY_SESSION: 60_000,
-  DELIVERY_FETCH: 60_000,
-  LOADER_BOOTSTRAP: 60_000,
-} as const
+import type { LimitKey } from './config'
 
-export const MAX_REQUESTS: Record<LimitKey, number> = {
-  VERIFY_WORKINK: 10,
-  VALIDATE: 30,
-  GENERATE: 5,
-  SCRIPT_UPLOAD: 30,
-  SCRIPT_UPDATE: 60,
-  SCRIPT_DELETE: 30,
-  SCRIPT_LIST: 30,
-  SCRIPT_GET: 60,
-  SCRIPT_RAW: 100,
-  SCRIPT_STATS: 30,
-  DASHBOARD_SCRIPTS_LIST: 60,
-  DASHBOARD_SCRIPTS_CREATE: 30,
-  DASHBOARD_SCRIPTS_UPDATE: 60,
-  DASHBOARD_SCRIPTS_DELETE: 30,
-  DASHBOARD_SCRIPTS_GET: 60,
-  DASHBOARD_ANALYTICS_OVERVIEW: 30,
-  DASHBOARD_ANALYTICS_STATS: 30,
-  DASHBOARD_ANALYTICS_DOWNLOADS: 30,
-  DASHBOARD_VERSIONS_LIST: 60,
-  DASHBOARD_VERSIONS_GET: 60,
-  DELIVERY_SESSION: 20,
-  DELIVERY_FETCH: 40,
-  LOADER_BOOTSTRAP: 60,
-}
-
-export const LOGIN_FAILED_IP = 'LOGIN_FAILED_IP'
-export const LOGIN_FAILED_EMAIL = 'LOGIN_FAILED_EMAIL'
-export const LOGIN_FAILED_IP_WINDOW_MS = 5 * 60 * 1000
-export const LOGIN_FAILED_EMAIL_WINDOW_MS = 15 * 60 * 1000
-export const LOGIN_FAILED_IP_MAX = 5
-export const LOGIN_FAILED_EMAIL_MAX = 10
-
-export const EVENT_RATE_LIMIT_WINDOW_MS = 60_000
-export const EVENT_RATE_LIMIT_MAX_REQUESTS = 10
-
-export type LimitKey = keyof typeof WINDOW_MS
-export type LoginFailureEndpoint = typeof LOGIN_FAILED_IP | typeof LOGIN_FAILED_EMAIL
+export type { LimitKey, RateLimitRuntimeMode } from './config'
+export type RateLimitBackend = 'postgres' | 'valkey'
+export type LoginFailureEndpoint = 'LOGIN_FAILED_IP' | 'LOGIN_FAILED_EMAIL'
 
 export type RateLimitResult =
   | { allowed: true }
@@ -73,4 +14,54 @@ export type RateLimitAdapter = {
   recordLoginFailure(ip: string, email: unknown): Promise<void>
   clearLoginFailures(ip: string, email: unknown): Promise<void>
   checkEventLimit(sessionId: string): Promise<RateLimitResult>
+}
+
+export type RateLimitMismatchReason =
+  | 'decision_mismatch'
+  | 'retry_after_mismatch'
+  | 'window_mismatch'
+  | 'bucket_mismatch'
+  | 'error_state_mismatch'
+  | 'comparison_failed'
+
+export type RateLimitExecutionError = {
+  name: string
+  message: string
+}
+
+export type RateLimitExecutionResult = {
+  backend: RateLimitBackend
+  result: RateLimitResult | null
+  latencyMs: number
+  error: RateLimitExecutionError | null
+}
+
+export type RateLimitComparisonResult = {
+  bucket: string
+  limitKey: string | null
+  windowMs: number | null
+  authoritativeBackend: RateLimitBackend
+  shadowBackend: RateLimitBackend
+  authoritativeAllowed: boolean | null
+  shadowAllowed: boolean | null
+  authoritativeRetryAfter: number | null
+  shadowRetryAfter: number | null
+  authoritativeLatencyMs: number
+  shadowLatencyMs: number
+  authoritativeError: RateLimitExecutionError | null
+  shadowError: RateLimitExecutionError | null
+  parity: boolean
+  mismatchReason: RateLimitMismatchReason | null
+  executedAt: string
+}
+
+export type RateLimitComparison = RateLimitComparisonResult
+
+export type RateLimitShadowMetrics = {
+  totalComparisons: number
+  parityCount: number
+  mismatchCount: number
+  averageLatencyDeltaMs: number
+  authoritativeExecutionMs: number
+  shadowExecutionMs: number
 }

@@ -1,16 +1,13 @@
 import { createHash } from 'node:crypto'
 import { supabaseAdmin } from '@/app/lib/supabase'
 import {
-  EVENT_RATE_LIMIT_MAX_REQUESTS,
-  EVENT_RATE_LIMIT_WINDOW_MS,
-  LOGIN_FAILED_EMAIL,
-  LOGIN_FAILED_EMAIL_MAX,
-  LOGIN_FAILED_EMAIL_WINDOW_MS,
-  LOGIN_FAILED_IP,
-  LOGIN_FAILED_IP_MAX,
-  LOGIN_FAILED_IP_WINDOW_MS,
+  EVENT_RATE_LIMITS,
+  LOGIN_FAILURE_WINDOWS,
   MAX_REQUESTS,
   WINDOW_MS,
+  retryAfterSeconds,
+} from './config'
+import {
   type LimitKey,
   type LoginFailureEndpoint,
   type RateLimitAdapter,
@@ -34,7 +31,7 @@ export class PostgresRateLimitAdapter implements RateLimitAdapter {
 
     if (insertError) {
       console.error(`[rate-limiter] DB insert error — denying request (fail-closed): ${ip}`)
-      return { allowed: false, retryAfter: Math.ceil(windowMs / 1000) }
+      return { allowed: false, retryAfter: retryAfterSeconds(windowMs) }
     }
 
     const { count, error } = await supabaseAdmin
@@ -47,11 +44,11 @@ export class PostgresRateLimitAdapter implements RateLimitAdapter {
 
     if (error || count === null) {
       console.error(`[rate-limiter] DB count error — denying request (fail-closed): ${ip}`)
-      return { allowed: false, retryAfter: Math.ceil(windowMs / 1000) }
+      return { allowed: false, retryAfter: retryAfterSeconds(windowMs) }
     }
 
     if (count > maxRequests) {
-      return { allowed: false, retryAfter: Math.ceil(windowMs / 1000) }
+      return { allowed: false, retryAfter: retryAfterSeconds(windowMs) }
     }
 
     return { allowed: true }
@@ -61,9 +58,9 @@ export class PostgresRateLimitAdapter implements RateLimitAdapter {
     const now = new Date()
     const ipLimit = await this.checkLoginFailureBucket({
       identifier: ip,
-      endpoint: LOGIN_FAILED_IP,
-      windowMs: LOGIN_FAILED_IP_WINDOW_MS,
-      maxFailures: LOGIN_FAILED_IP_MAX,
+      endpoint: LOGIN_FAILURE_WINDOWS.ip.endpoint,
+      windowMs: LOGIN_FAILURE_WINDOWS.ip.windowMs,
+      maxFailures: LOGIN_FAILURE_WINDOWS.ip.maxFailures,
       now,
     })
 
@@ -78,19 +75,19 @@ export class PostgresRateLimitAdapter implements RateLimitAdapter {
 
     return this.checkLoginFailureBucket({
       identifier: emailIdentifier,
-      endpoint: LOGIN_FAILED_EMAIL,
-      windowMs: LOGIN_FAILED_EMAIL_WINDOW_MS,
-      maxFailures: LOGIN_FAILED_EMAIL_MAX,
+      endpoint: LOGIN_FAILURE_WINDOWS.email.endpoint,
+      windowMs: LOGIN_FAILURE_WINDOWS.email.windowMs,
+      maxFailures: LOGIN_FAILURE_WINDOWS.email.maxFailures,
       now,
     })
   }
 
   async recordLoginFailure(ip: string, email: unknown): Promise<void> {
     const now = new Date().toISOString()
-    const rows = [
+    const rows: Array<{ ip: string; endpoint: LoginFailureEndpoint; created_at: string }> = [
       {
         ip,
-        endpoint: LOGIN_FAILED_IP,
+        endpoint: LOGIN_FAILURE_WINDOWS.ip.endpoint,
         created_at: now,
       },
     ]
@@ -99,7 +96,7 @@ export class PostgresRateLimitAdapter implements RateLimitAdapter {
     if (emailIdentifier) {
       rows.push({
         ip: emailIdentifier,
-        endpoint: LOGIN_FAILED_EMAIL,
+        endpoint: LOGIN_FAILURE_WINDOWS.email.endpoint,
         created_at: now,
       })
     }
@@ -123,7 +120,7 @@ export class PostgresRateLimitAdapter implements RateLimitAdapter {
       .from('rate_limits')
       .delete()
       .eq('ip', emailIdentifier)
-      .eq('endpoint', LOGIN_FAILED_EMAIL)
+      .eq('endpoint', LOGIN_FAILURE_WINDOWS.email.endpoint)
 
     if (emailError) {
       console.error(`[rate-limiter] login email failure cleanup error: ${ip}`)
@@ -133,14 +130,14 @@ export class PostgresRateLimitAdapter implements RateLimitAdapter {
   async checkEventLimit(sessionId: string): Promise<RateLimitResult> {
     const endpoint = `EVENT_REPORT:${sessionId}`
     const now = new Date()
-    const windowStart = new Date(now.getTime() - EVENT_RATE_LIMIT_WINDOW_MS)
+    const windowStart = new Date(now.getTime() - EVENT_RATE_LIMITS.windowMs)
 
     const { error: insertError } = await supabaseAdmin
       .from('rate_limits')
       .insert({ ip: sessionId, endpoint, created_at: now.toISOString() })
 
     if (insertError) {
-      return { allowed: false, retryAfter: Math.ceil(EVENT_RATE_LIMIT_WINDOW_MS / 1000) }
+      return { allowed: false, retryAfter: retryAfterSeconds(EVENT_RATE_LIMITS.windowMs) }
     }
 
     const { count, error } = await supabaseAdmin
@@ -152,11 +149,11 @@ export class PostgresRateLimitAdapter implements RateLimitAdapter {
       .lte('created_at', now.toISOString())
 
     if (error || count === null) {
-      return { allowed: false, retryAfter: Math.ceil(EVENT_RATE_LIMIT_WINDOW_MS / 1000) }
+      return { allowed: false, retryAfter: retryAfterSeconds(EVENT_RATE_LIMITS.windowMs) }
     }
 
-    if (count > EVENT_RATE_LIMIT_MAX_REQUESTS) {
-      return { allowed: false, retryAfter: Math.ceil(EVENT_RATE_LIMIT_WINDOW_MS / 1000) }
+    if (count > EVENT_RATE_LIMITS.maxRequests) {
+      return { allowed: false, retryAfter: retryAfterSeconds(EVENT_RATE_LIMITS.windowMs) }
     }
 
     return { allowed: true }
@@ -180,11 +177,11 @@ export class PostgresRateLimitAdapter implements RateLimitAdapter {
 
     if (error || count === null) {
       console.error('[rate-limiter] login failure count error')
-      return { allowed: false, retryAfter: Math.ceil(params.windowMs / 1000) }
+      return { allowed: false, retryAfter: retryAfterSeconds(params.windowMs) }
     }
 
     if (count >= params.maxFailures) {
-      return { allowed: false, retryAfter: Math.ceil(params.windowMs / 1000) }
+      return { allowed: false, retryAfter: retryAfterSeconds(params.windowMs) }
     }
 
     return { allowed: true }

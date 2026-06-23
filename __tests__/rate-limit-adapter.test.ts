@@ -9,6 +9,16 @@ vi.mock('@/app/lib/supabase', () => ({
 import { supabaseAdmin } from '@/app/lib/supabase'
 import { PostgresRateLimitAdapter } from '@/app/lib/rate-limit/postgres-adapter'
 import {
+  EVENT_RATE_LIMITS,
+  LIMIT_KEYS,
+  LOGIN_FAILURE_WINDOWS,
+  MAX_REQUESTS,
+  WINDOW_MS,
+  parseRateLimitRuntimeConfig,
+  retryAfterSeconds,
+} from '@/app/lib/rate-limit/config'
+import { resolveRateLimitAdapter } from '@/app/lib/rate-limit/runtime'
+import {
   checkEventRateLimit,
   checkLoginFailureLimit,
   checkRateLimit,
@@ -165,6 +175,66 @@ describe('RateLimitAdapter PostgreSQL implementation', () => {
     const result = await new PostgresRateLimitAdapter().checkEventLimit('session-uuid-1')
 
     expect(result).toEqual({ allowed: false, retryAfter: 60 })
+  })
+})
+
+describe('rate-limit configuration and runtime selection', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  it('centralizes shared rate-limit configuration', () => {
+    expect(LIMIT_KEYS).toContain('VALIDATE')
+    expect(WINDOW_MS.VALIDATE).toBe(60_000)
+    expect(MAX_REQUESTS.VALIDATE).toBe(30)
+    expect(LOGIN_FAILURE_WINDOWS.ip).toMatchObject({
+      endpoint: 'LOGIN_FAILED_IP',
+      windowMs: 300_000,
+      maxFailures: 5,
+    })
+    expect(LOGIN_FAILURE_WINDOWS.email).toMatchObject({
+      endpoint: 'LOGIN_FAILED_EMAIL',
+      windowMs: 900_000,
+      maxFailures: 10,
+    })
+    expect(EVENT_RATE_LIMITS).toEqual({ windowMs: 60_000, maxRequests: 10 })
+    expect(retryAfterSeconds(86_400_000)).toBe(86400)
+  })
+
+  it('defaults runtime mode to postgres', () => {
+    expect(parseRateLimitRuntimeConfig({})).toEqual({
+      requestedMode: null,
+      mode: 'postgres',
+      invalidMode: null,
+    })
+  })
+
+  it('parses future placeholder runtime modes without enabling them', () => {
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_MODE: 'shadow' }).mode).toBe('shadow')
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_MODE: 'dual_write' }).mode).toBe('dual_write')
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_MODE: 'valkey_canary' }).mode).toBe('valkey_canary')
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_MODE: 'valkey' }).mode).toBe('valkey')
+  })
+
+  it('falls back safely to postgres for unknown runtime modes', () => {
+    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_MODE: 'unknown' })).toEqual({
+      requestedMode: 'unknown',
+      mode: 'postgres',
+      invalidMode: 'unknown',
+    })
+  })
+
+  it('always resolves PostgreSQL adapter in this phase', () => {
+    expect(resolveRateLimitAdapter({})).toBeInstanceOf(PostgresRateLimitAdapter)
+    expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'shadow' })).toBeInstanceOf(PostgresRateLimitAdapter)
+    expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'valkey' })).toBeInstanceOf(PostgresRateLimitAdapter)
+  })
+
+  it('logs invalid runtime modes internally without throwing', () => {
+    expect(() => resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'invalid-mode' })).not.toThrow()
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('invalid_runtime_mode'))
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('postgres'))
   })
 })
 
