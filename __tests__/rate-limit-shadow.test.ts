@@ -286,7 +286,10 @@ describe('rate-limit shadow executor', () => {
       mismatches: 2,
       mismatchRate: 2 / 3,
       backendFailures: 1,
+      authoritativeBackendFailures: 0,
       comparisonFailures: 0,
+      avgPostgresLatencyMs: expect.any(Number),
+      avgValkeyLatencyMs: null,
       avgLatencyDeltaMs: expect.any(Number),
       decisionParity: {
         allow: { total: 2, identical: 1, rate: 1 / 2 },

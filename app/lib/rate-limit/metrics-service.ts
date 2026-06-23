@@ -13,7 +13,10 @@ export type RateLimitShadowMetricsSnapshot = {
   mismatches: number
   mismatchRate: number
   backendFailures: number
+  authoritativeBackendFailures: number
   comparisonFailures: number
+  avgPostgresLatencyMs: number | null
+  avgValkeyLatencyMs: number | null
   avgLatencyDeltaMs: number
   decisionParity: {
     allow: RateLimitParityMetric
@@ -41,6 +44,7 @@ export type RateLimitShadowOperationalSnapshot = {
   comparisons: number
   parityRate: number
   backendFailures: number
+  comparisonFailures: number
   averageLatencyDeltaMs: number
   status: RateLimitShadowHealthStatus
   summary: string
@@ -60,7 +64,12 @@ type MutableRateLimitShadowMetrics = {
   identical: number
   mismatches: number
   backendFailures: number
+  authoritativeBackendFailures: number
   comparisonFailures: number
+  totalPostgresLatencyMs: number
+  postgresLatencyCount: number
+  totalValkeyLatencyMs: number
+  valkeyLatencyCount: number
   totalLatencyDeltaMs: number
   decisionParity: {
     allow: MutableParityMetric
@@ -83,7 +92,12 @@ function createEmptyMetrics(): MutableRateLimitShadowMetrics {
     identical: 0,
     mismatches: 0,
     backendFailures: 0,
+    authoritativeBackendFailures: 0,
     comparisonFailures: 0,
+    totalPostgresLatencyMs: 0,
+    postgresLatencyCount: 0,
+    totalValkeyLatencyMs: 0,
+    valkeyLatencyCount: 0,
     totalLatencyDeltaMs: 0,
     decisionParity: {
       allow: { total: 0, identical: 0 },
@@ -122,6 +136,10 @@ function formatLatency(value: number): string {
   return `${value.toFixed(2)} ms`
 }
 
+function formatNullableLatency(value: number | null): string {
+  return value == null ? 'unavailable' : formatLatency(value)
+}
+
 function statusLabel(status: RateLimitShadowHealthStatus): string {
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
@@ -133,6 +151,8 @@ export class RateLimitShadowMetricsService {
     try {
       this.metrics.totalComparisons += 1
       this.metrics.totalLatencyDeltaMs += latencyDeltaMs(comparison)
+      this.recordBackendLatency(comparison.authoritativeBackend, comparison.authoritativeLatencyMs)
+      this.recordBackendLatency(comparison.shadowBackend, comparison.shadowLatencyMs)
       this.metrics.lastUpdatedAt = new Date().toISOString()
 
       if (comparison.parity) {
@@ -143,6 +163,10 @@ export class RateLimitShadowMetricsService {
 
       if (comparison.authoritativeError || comparison.shadowError) {
         this.metrics.backendFailures += 1
+      }
+
+      if (comparison.authoritativeError) {
+        this.metrics.authoritativeBackendFailures += 1
       }
 
       if (comparison.mismatchReason === 'comparison_failed') {
@@ -180,8 +204,17 @@ export class RateLimitShadowMetricsService {
       this.metrics.identical += snapshot.identical
       this.metrics.mismatches += snapshot.mismatches
       this.metrics.backendFailures += snapshot.backendFailures
+      this.metrics.authoritativeBackendFailures += snapshot.authoritativeBackendFailures ?? 0
       this.metrics.comparisonFailures += snapshot.comparisonFailures
       this.metrics.totalLatencyDeltaMs += snapshot.avgLatencyDeltaMs * snapshot.totalComparisons
+      if (snapshot.avgPostgresLatencyMs != null) {
+        this.metrics.totalPostgresLatencyMs += snapshot.avgPostgresLatencyMs * snapshot.totalComparisons
+        this.metrics.postgresLatencyCount += snapshot.totalComparisons
+      }
+      if (snapshot.avgValkeyLatencyMs != null) {
+        this.metrics.totalValkeyLatencyMs += snapshot.avgValkeyLatencyMs * snapshot.totalComparisons
+        this.metrics.valkeyLatencyCount += snapshot.totalComparisons
+      }
       this.metrics.decisionParity.allow.total += snapshot.decisionParity.allow.total
       this.metrics.decisionParity.allow.identical += snapshot.decisionParity.allow.identical
       this.metrics.decisionParity.deny.total += snapshot.decisionParity.deny.total
@@ -215,7 +248,14 @@ export class RateLimitShadowMetricsService {
       mismatches: this.metrics.mismatches,
       mismatchRate: totalComparisons === 0 ? 0 : this.metrics.mismatches / totalComparisons,
       backendFailures: this.metrics.backendFailures,
+      authoritativeBackendFailures: this.metrics.authoritativeBackendFailures,
       comparisonFailures: this.metrics.comparisonFailures,
+      avgPostgresLatencyMs: this.metrics.postgresLatencyCount === 0
+        ? null
+        : this.metrics.totalPostgresLatencyMs / this.metrics.postgresLatencyCount,
+      avgValkeyLatencyMs: this.metrics.valkeyLatencyCount === 0
+        ? null
+        : this.metrics.totalValkeyLatencyMs / this.metrics.valkeyLatencyCount,
       avgLatencyDeltaMs: totalComparisons === 0
         ? 0
         : this.metrics.totalLatencyDeltaMs / totalComparisons,
@@ -259,7 +299,8 @@ export class RateLimitShadowMetricsService {
       `Comparisons: ${formatNumber(snapshot.totalComparisons)}`,
       `Parity: ${formatPercent(parityRate)}`,
       `Backend Failures: ${formatNumber(snapshot.backendFailures)}`,
-      `Average Latency Delta: ${formatLatency(snapshot.avgLatencyDeltaMs)}`,
+      `Comparison Failures: ${formatNumber(snapshot.comparisonFailures)}`,
+      `Latency: Postgres ${formatNullableLatency(snapshot.avgPostgresLatencyMs)}, Valkey ${formatNullableLatency(snapshot.avgValkeyLatencyMs)}, Delta ${formatLatency(snapshot.avgLatencyDeltaMs)}`,
       `Status: ${statusLabel(health.status)}`,
     ].join('\n')
 
@@ -268,9 +309,23 @@ export class RateLimitShadowMetricsService {
       comparisons: snapshot.totalComparisons,
       parityRate,
       backendFailures: snapshot.backendFailures,
+      comparisonFailures: snapshot.comparisonFailures,
       averageLatencyDeltaMs: snapshot.avgLatencyDeltaMs,
       status: health.status,
       summary,
+    }
+  }
+
+  private recordBackendLatency(backend: RateLimitComparisonResult['authoritativeBackend'], latencyMs: number): void {
+    if (backend === 'postgres') {
+      this.metrics.totalPostgresLatencyMs += latencyMs
+      this.metrics.postgresLatencyCount += 1
+      return
+    }
+
+    if (backend === 'valkey') {
+      this.metrics.totalValkeyLatencyMs += latencyMs
+      this.metrics.valkeyLatencyCount += 1
     }
   }
 
@@ -282,16 +337,14 @@ export class RateLimitShadowMetricsService {
       return 'disabled'
     }
 
-    if (
-      snapshot.comparisonFailures >= DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.comparisonFailures ||
-      snapshot.backendFailures >= DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.backendFailures
-    ) {
+    if (snapshot.authoritativeBackendFailures > 0) {
       return 'unhealthy'
     }
 
     if (
-      snapshot.mismatchRate >= DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.mismatchRate ||
-      Math.abs(snapshot.avgLatencyDeltaMs) >= DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.latencyDeltaMs
+      snapshot.backendFailures >= DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.backendFailures ||
+      snapshot.comparisonFailures >= DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.comparisonFailures ||
+      snapshot.mismatchRate > DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.mismatchRate
     ) {
       return 'degraded'
     }

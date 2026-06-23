@@ -39,7 +39,10 @@ function snapshot(overrides: Partial<RateLimitShadowMetricsSnapshot> = {}): Rate
     mismatches: 0,
     mismatchRate: 0,
     backendFailures: 0,
+    authoritativeBackendFailures: 0,
     comparisonFailures: 0,
+    avgPostgresLatencyMs: null,
+    avgValkeyLatencyMs: null,
     avgLatencyDeltaMs: 0,
     decisionParity: {
       allow: { total: 0, identical: 0, rate: 0 },
@@ -66,7 +69,10 @@ describe('RateLimitShadowMetricsService', () => {
       mismatches: 0,
       mismatchRate: 0,
       backendFailures: 0,
+      authoritativeBackendFailures: 0,
       comparisonFailures: 0,
+      avgPostgresLatencyMs: null,
+      avgValkeyLatencyMs: null,
       avgLatencyDeltaMs: 0,
       decisionParity: {
         allow: { total: 0, identical: 0, rate: 0 },
@@ -111,7 +117,10 @@ describe('RateLimitShadowMetricsService', () => {
       mismatches: 3,
       mismatchRate: 0.75,
       backendFailures: 1,
+      authoritativeBackendFailures: 0,
       comparisonFailures: 1,
+      avgPostgresLatencyMs: 3.25,
+      avgValkeyLatencyMs: 5,
       avgLatencyDeltaMs: 1.75,
       decisionParity: {
         allow: { total: 2, identical: 1, rate: 0.5 },
@@ -145,8 +154,11 @@ describe('RateLimitShadowMetricsService', () => {
       identical: 2,
       mismatches: 1,
       backendFailures: 1,
+      authoritativeBackendFailures: 0,
       comparisonFailures: 1,
       avgLatencyDeltaMs: 4,
+      avgPostgresLatencyMs: 2,
+      avgValkeyLatencyMs: 6,
       decisionParity: {
         allow: { total: 2, identical: 2, rate: 1 },
         deny: { total: 1, identical: 0, rate: 0 },
@@ -161,7 +173,10 @@ describe('RateLimitShadowMetricsService', () => {
       mismatches: 1,
       mismatchRate: 0.25,
       backendFailures: 1,
+      authoritativeBackendFailures: 0,
       comparisonFailures: 1,
+      avgPostgresLatencyMs: 2,
+      avgValkeyLatencyMs: 5.25,
       avgLatencyDeltaMs: 3.25,
       decisionParity: {
         allow: { total: 3, identical: 3, rate: 1 },
@@ -181,6 +196,8 @@ describe('RateLimitShadowMetricsService', () => {
       mismatchRate: 1 / 154_203,
       backendFailures: 0,
       comparisonFailures: 0,
+      avgPostgresLatencyMs: 1,
+      avgValkeyLatencyMs: 1.18,
       avgLatencyDeltaMs: 0.18,
       decisionParity: {
         allow: { total: 100_000, identical: 99_999, rate: 0.99999 },
@@ -194,6 +211,8 @@ describe('RateLimitShadowMetricsService', () => {
       totalComparisons: 154_203,
       identical: 154_202,
       mismatches: 1,
+      avgPostgresLatencyMs: 1,
+      avgValkeyLatencyMs: 1.18,
       avgLatencyDeltaMs: 0.18,
     })
   })
@@ -218,7 +237,26 @@ describe('RateLimitShadowMetricsService', () => {
     })
   })
 
-  it('marks shadow health degraded or unhealthy based on prepared thresholds', () => {
+  it('keeps latency-only differences healthy when parity and failures are clean', () => {
+    const service = new RateLimitShadowMetricsService()
+
+    service.increment(comparison({
+      authoritativeLatencyMs: 90,
+      shadowLatencyMs: 10,
+    }))
+
+    expect(service.snapshot({ RATE_LIMIT_MODE: 'shadow' })).toMatchObject({
+      avgPostgresLatencyMs: 90,
+      avgValkeyLatencyMs: 10,
+      avgLatencyDeltaMs: -80,
+      mismatchRate: 0,
+      backendFailures: 0,
+      comparisonFailures: 0,
+    })
+    expect(service.health({ RATE_LIMIT_MODE: 'shadow' }).status).toBe('healthy')
+  })
+
+  it('marks shadow health degraded for parity or shadow failures', () => {
     const degraded = new RateLimitShadowMetricsService()
     degraded.increment(comparison({
       shadowAllowed: false,
@@ -226,8 +264,8 @@ describe('RateLimitShadowMetricsService', () => {
       mismatchReason: 'decision_mismatch',
     }))
 
-    const unhealthy = new RateLimitShadowMetricsService()
-    unhealthy.increment(comparison({
+    const shadowFailure = new RateLimitShadowMetricsService()
+    shadowFailure.increment(comparison({
       shadowError: { name: 'Error', message: 'valkey unavailable' },
       shadowAllowed: null,
       parity: false,
@@ -241,7 +279,24 @@ describe('RateLimitShadowMetricsService', () => {
       comparisonFailures: 1,
     })
     expect(degraded.health({ RATE_LIMIT_MODE: 'shadow' }).status).toBe('degraded')
-    expect(unhealthy.health({ RATE_LIMIT_MODE: 'shadow' }).status).toBe('unhealthy')
+    expect(shadowFailure.health({ RATE_LIMIT_MODE: 'shadow' }).status).toBe('degraded')
+  })
+
+  it('marks shadow health unhealthy when the authoritative backend fails', () => {
+    const service = new RateLimitShadowMetricsService()
+
+    service.increment(comparison({
+      authoritativeError: { name: 'Error', message: 'postgres unavailable' },
+      authoritativeAllowed: null,
+      parity: false,
+      mismatchReason: 'error_state_mismatch',
+    }))
+
+    expect(service.snapshot({ RATE_LIMIT_MODE: 'shadow' })).toMatchObject({
+      backendFailures: 1,
+      authoritativeBackendFailures: 1,
+    })
+    expect(service.health({ RATE_LIMIT_MODE: 'shadow' }).status).toBe('unhealthy')
   })
 
   it('formats an operational summary for future dashboards', () => {
@@ -251,6 +306,9 @@ describe('RateLimitShadowMetricsService', () => {
       identical: 154_202,
       mismatches: 1,
       backendFailures: 0,
+      comparisonFailures: 0,
+      avgPostgresLatencyMs: 1,
+      avgValkeyLatencyMs: 1.18,
       avgLatencyDeltaMs: 0.18,
     }))
 
@@ -259,7 +317,8 @@ describe('RateLimitShadowMetricsService', () => {
       'Comparisons: 154,203',
       'Parity: 99.9994%',
       'Backend Failures: 0',
-      'Average Latency Delta: 0.18 ms',
+      'Comparison Failures: 0',
+      'Latency: Postgres 1.00 ms, Valkey 1.18 ms, Delta 0.18 ms',
       'Status: Healthy',
     ].join('\n'))
   })

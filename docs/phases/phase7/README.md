@@ -44,9 +44,9 @@ Phase 7C Status:
 Phase 7D Status:
 
 - Name: Database Scalability & Runtime Optimization
-- Status: Planned / Not Implemented
-- Scope: Valkey integration planning, production baseline metrics, database decoupling, analytics aggregation, rate limit migration, delivery session migration, worker locks, cache layer, temporary counters, internal monitoring, and post-optimization infrastructure review
-- Non-goals for current state: database decoupling, Redis/Valkey integration, and database migrations are not implemented
+- Status: Engineering Complete (RC1)
+- Scope: Valkey infrastructure, rate-limit shadow mode, internal monitoring, production burn-in workflow, and post-optimization observability review
+- RC1 constraints: PostgreSQL remains authoritative, Valkey remains shadow-only, no schema changes, no migrations, no cleanup changes, no middleware changes, no public endpoint changes, and no production behavior changes
 
 Approved access modes:
 
@@ -192,7 +192,7 @@ Current caveats:
 
 ## Phase 7D — Database Scalability & Runtime Optimization
 
-Status: Planned / not implemented.
+Status: Engineering Complete (RC1).
 
 Primary planning document:
 
@@ -200,18 +200,21 @@ Primary planning document:
 - `PHASE_7D_IMPLEMENTATION_SPEC.md`
 - `PHASE_7D_OPERATIONAL_RUNBOOK.md`
 
-Planned scope:
+RC1 scope:
 
-- Phase 7D.0 Production Baseline: collect database, application, cleanup, and infrastructure metrics before implementation begins.
-- Phase 7D.1 Infrastructure: deploy Valkey, establish the connection layer, health checks, network/security posture, and operational metrics without moving workloads.
-- Phase 7D.2 Rate Limit Migration: move rate limiting from PostgreSQL `rate_limits` rows to Valkey counters/windows.
-- Phase 7D.3 Delivery Session Migration: decouple analytics from `delivery_sessions`, move short-lived delivery sessions to Valkey, and preserve runtime/event behavior.
-- Phase 7D.4 Worker Locks: use Valkey for distributed locks around scheduled and worker operations.
-- Phase 7D.5 Cache Layer: add short-lived dashboard, script metadata, ready build metadata, and configuration caches.
-- Phase 7D.6 Analytics Counters: buffer temporary counters in Valkey and periodically flush durable aggregates into PostgreSQL.
-- Post-Optimization Infrastructure Review: measure production impact, compare Supabase usage before and after optimization, and determine whether further database infrastructure changes are justified.
+- Phase 7D.0 Production Baseline: production metrics and rollback criteria are documented for RC1 burn-in.
+- Phase 7D.1 Infrastructure: Valkey connection, metrics, and health helpers are available without making Valkey authoritative.
+- Phase 7D.2 Rate-limit shadow mode: PostgreSQL remains authoritative; Valkey executes only as the shadow comparison backend.
+- Internal monitoring endpoint: `/api/internal/rate-limit-shadow` is admin-protected and reports shadow health, parity, latency, runtime metadata, Valkey health summary, and a concise operator summary.
+- Health model: healthy requires zero backend failures, zero comparison failures, and mismatch rate at or below threshold; degraded means backend failures, comparison failures, or mismatch rate above threshold; unhealthy means authoritative PostgreSQL unavailable or internal monitoring failure.
+- Latency model: latency is diagnostic only. The endpoint reports `metrics.latency.postgresAverageMs`, `metrics.latency.valkeyAverageMs`, and `metrics.latency.deltaAverageMs`, where delta is Valkey average minus PostgreSQL average. The legacy `metrics.averageLatencyDeltaMs` remains for compatibility.
+- Runtime metadata: `runtime.phase`, `runtime.release`, `runtime.runtimeMode`, `runtime.startedAt`, and `runtime.uptimeSeconds` are exposed without persistence.
+- Valkey health summary: monitoring reuses the existing Valkey health service and serializes enabled/connected state, connection state, latency, memory usage, version, uptime, and check timestamp.
+- Production burn-in observations: RC1 burn-in focuses on parity, backend failures, comparison failures, latency diagnostics, Valkey connection state, application health, and unchanged public behavior.
 
 Post-Optimization Infrastructure Review is an evaluation milestone, not an implementation task.
+
+Phase 7E has not been started.
 
 ## Deferred Future License Work
 

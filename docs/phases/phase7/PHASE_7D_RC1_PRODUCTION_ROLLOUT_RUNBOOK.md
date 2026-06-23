@@ -1,6 +1,6 @@
 # Phase 7D RC1 — Valkey Shadow Mode Production Rollout Runbook
 
-Status: RC1 production rollout runbook  
+Status: Engineering Complete (RC1)  
 Date: 2026-06-23  
 Scope: Documentation-only operator procedure for deploying Phase 7D Valkey shadow mode  
 Audience: Production operators deploying LuxyHub
@@ -454,7 +454,15 @@ PONG
 
 ### 3.4 Verify Internal Metrics
 
-Use the internal operational interface available to the application process or future internal tooling:
+Use the admin-protected internal monitoring endpoint:
+
+```bash
+curl -sS -H "Cookie: <admin-session-cookie>" "$PUBLIC_ORIGIN/api/internal/rate-limit-shadow"
+```
+
+The endpoint is not public. It requires an authenticated admin session and does not expose individual comparisons, raw identifiers, tokens, sessions, buckets, or raw keys.
+
+The same underlying helpers remain available to the application process and tests:
 
 ```ts
 getRateLimitShadowHealth()
@@ -469,9 +477,17 @@ Expected initial health:
 {
   "enabled": true,
   "runtimeMode": "shadow",
+  "runtime": {
+    "phase": "7D",
+    "release": "RC1",
+    "runtimeMode": "shadow",
+    "startedAt": "2026-06-23T00:00:00.000Z",
+    "uptimeSeconds": 120
+  },
   "totalComparisons": 0,
   "mismatchRate": 0,
   "backendFailures": 0,
+  "comparisonFailures": 0,
   "status": "healthy"
 }
 ```
@@ -481,14 +497,46 @@ Expected after traffic:
 ```json
 {
   "runtimeMode": "shadow",
-  "totalComparisons": 1,
-  "mismatchRate": 0,
-  "backendFailures": 0,
-  "comparisonFailures": 0
+  "health": {
+    "status": "healthy",
+    "backendFailures": 0,
+    "comparisonFailures": 0
+  },
+  "metrics": {
+    "totalComparisons": 154203,
+    "identical": 154202,
+    "mismatches": 1,
+    "mismatchRate": 0.000006,
+    "latency": {
+      "postgresAverageMs": 7.12,
+      "valkeyAverageMs": 7.3,
+      "deltaAverageMs": 0.18
+    },
+    "averageLatencyDeltaMs": 0.18
+  },
+  "valkey": {
+    "enabled": true,
+    "connected": true,
+    "status": "healthy",
+    "connectionState": "ready",
+    "latencyMs": 4,
+    "memoryUsedBytes": 12345678,
+    "version": "7.2.5",
+    "uptimeSeconds": 3600,
+    "checkedAt": "2026-06-23T00:00:00.000Z"
+  },
+  "operationalSummary": "Runtime Mode: shadow | Parity: 99.9994% | Backend Failures: 0 | Comparison Failures: 0 | Latency: Postgres 7.12 ms, Valkey 7.30 ms, Delta 0.18 ms | Valkey: ready | Uptime: 120s | Status: healthy"
 }
 ```
 
-If there is no internal shell or dashboard yet, use PM2 logs and Valkey metrics for the first RC1 operational check. Do not add a public endpoint during rollout.
+Latency calculation: `metrics.latency.deltaAverageMs` and the compatibility field `metrics.averageLatencyDeltaMs` are Valkey average latency minus PostgreSQL average latency across shadow comparisons. Negative values mean Valkey was faster on average. If PostgreSQL timing is unavailable, `postgresAverageMs` is `null` while the compatibility delta remains present.
+
+Health model:
+
+- Healthy: `backendFailures == 0`, `comparisonFailures == 0`, and `mismatchRate` is at or below the configured threshold.
+- Degraded: backend failures, comparison failures, or mismatch rate above the configured threshold.
+- Unhealthy: authoritative PostgreSQL unavailable, shadow metrics unavailable, or internal monitoring failure.
+- Latency difference alone is diagnostic and must not make the shadow health status degraded.
 
 ### 3.5 Verify Parity And Backend Failures
 
@@ -518,15 +566,23 @@ Rate-limit shadow metrics:
 - Mismatch rate.
 - Backend failures.
 - Comparison failures.
-- Average latency delta.
+- PostgreSQL average latency.
+- Valkey average latency.
+- Average latency delta, calculated as Valkey average minus PostgreSQL average.
 - Allow parity.
 - Deny parity.
 - Retry-after parity.
 - Last update timestamp.
+- Runtime phase, release, runtime mode, started-at time, and uptime seconds.
+- Concise operational summary.
 
 Valkey metrics:
 
+- Connected flag and connection state.
 - Memory used.
+- Health check latency.
+- Version.
+- Uptime.
 - Memory fragmentation if available.
 - Evicted keys.
 - Expired keys.
@@ -565,6 +621,10 @@ Use these RC1 thresholds unless a stricter production SLO exists.
 | Application 5xx | Within baseline | Above baseline for 5 minutes | Sustained increase or user reports |
 
 Mismatch threshold explanation: Valkey is not authoritative in shadow mode, but mismatches block canary readiness because they indicate semantic drift.
+
+Latency threshold explanation: latency deltas are operator diagnostics and burn-in quality signals. A large latency delta can justify investigation or pause decisions, but latency difference alone does not make `/api/internal/rate-limit-shadow` health degraded.
+
+Production burn-in observation for RC1: production can show `backendFailures = 0`, `comparisonFailures = 0`, `mismatches = 0`, and parity at `100%` while Valkey is substantially faster than PostgreSQL. That state is healthy; the negative latency delta means Valkey average latency is lower than PostgreSQL average latency.
 
 ### 4.3 Daily Burn-In Notes
 
