@@ -2,7 +2,9 @@ export {
   checkLoginFailureLimit,
   checkRateLimit,
   clearLoginFailures,
+  checkEventRateLimit,
   getClientIP,
   getClientIPFromHeaders,
   recordLoginFailure,
-} from './repositories/rate-limit-repository'
+} from './rate-limit'
+export type { LimitKey, RateLimitResult } from './rate-limit'

@@ -1,0 +1,76 @@
+export const WINDOW_MS = {
+  VERIFY_WORKINK: 60_000,
+  VALIDATE: 60_000,
+  GENERATE: 86_400_000,
+  SCRIPT_UPLOAD: 3_600_000,
+  SCRIPT_UPDATE: 3_600_000,
+  SCRIPT_DELETE: 3_600_000,
+  SCRIPT_LIST: 60_000,
+  SCRIPT_GET: 60_000,
+  SCRIPT_RAW: 60_000,
+  SCRIPT_STATS: 60_000,
+  DASHBOARD_SCRIPTS_LIST: 60_000,
+  DASHBOARD_SCRIPTS_CREATE: 3_600_000,
+  DASHBOARD_SCRIPTS_UPDATE: 3_600_000,
+  DASHBOARD_SCRIPTS_DELETE: 3_600_000,
+  DASHBOARD_SCRIPTS_GET: 60_000,
+  DASHBOARD_ANALYTICS_OVERVIEW: 60_000,
+  DASHBOARD_ANALYTICS_STATS: 60_000,
+  DASHBOARD_ANALYTICS_DOWNLOADS: 60_000,
+  DASHBOARD_VERSIONS_LIST: 60_000,
+  DASHBOARD_VERSIONS_GET: 60_000,
+  DELIVERY_SESSION: 60_000,
+  DELIVERY_FETCH: 60_000,
+  LOADER_BOOTSTRAP: 60_000,
+} as const
+
+export const MAX_REQUESTS: Record<LimitKey, number> = {
+  VERIFY_WORKINK: 10,
+  VALIDATE: 30,
+  GENERATE: 5,
+  SCRIPT_UPLOAD: 30,
+  SCRIPT_UPDATE: 60,
+  SCRIPT_DELETE: 30,
+  SCRIPT_LIST: 30,
+  SCRIPT_GET: 60,
+  SCRIPT_RAW: 100,
+  SCRIPT_STATS: 30,
+  DASHBOARD_SCRIPTS_LIST: 60,
+  DASHBOARD_SCRIPTS_CREATE: 30,
+  DASHBOARD_SCRIPTS_UPDATE: 60,
+  DASHBOARD_SCRIPTS_DELETE: 30,
+  DASHBOARD_SCRIPTS_GET: 60,
+  DASHBOARD_ANALYTICS_OVERVIEW: 30,
+  DASHBOARD_ANALYTICS_STATS: 30,
+  DASHBOARD_ANALYTICS_DOWNLOADS: 30,
+  DASHBOARD_VERSIONS_LIST: 60,
+  DASHBOARD_VERSIONS_GET: 60,
+  DELIVERY_SESSION: 20,
+  DELIVERY_FETCH: 40,
+  LOADER_BOOTSTRAP: 60,
+}
+
+export const LOGIN_FAILED_IP = 'LOGIN_FAILED_IP'
+export const LOGIN_FAILED_EMAIL = 'LOGIN_FAILED_EMAIL'
+export const LOGIN_FAILED_IP_WINDOW_MS = 5 * 60 * 1000
+export const LOGIN_FAILED_EMAIL_WINDOW_MS = 15 * 60 * 1000
+export const LOGIN_FAILED_IP_MAX = 5
+export const LOGIN_FAILED_EMAIL_MAX = 10
+
+export const EVENT_RATE_LIMIT_WINDOW_MS = 60_000
+export const EVENT_RATE_LIMIT_MAX_REQUESTS = 10
+
+export type LimitKey = keyof typeof WINDOW_MS
+export type LoginFailureEndpoint = typeof LOGIN_FAILED_IP | typeof LOGIN_FAILED_EMAIL
+
+export type RateLimitResult =
+  | { allowed: true }
+  | { allowed: false; retryAfter: number }
+
+export type RateLimitAdapter = {
+  checkGeneralLimit(ip: string, limitKey: LimitKey): Promise<RateLimitResult>
+  checkLoginFailure(ip: string, email: unknown): Promise<RateLimitResult>
+  recordLoginFailure(ip: string, email: unknown): Promise<void>
+  clearLoginFailures(ip: string, email: unknown): Promise<void>
+  checkEventLimit(sessionId: string): Promise<RateLimitResult>
+}

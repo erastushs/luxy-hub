@@ -1,9 +1,9 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { supabaseAdmin } from '@/app/lib/supabase'
 import { hashDeliverySessionToken } from '@/app/lib/services/delivery-session-service'
 import { getSessionByTokenHash } from '@/app/lib/repositories/delivery-session-repository'
 import { createEventLog, findEventByNonce, isValidEventType, type EventType } from '@/app/lib/repositories/event-repository'
 import { recordSecurityCounter } from '@/app/lib/services/event-monitoring-service'
+import { checkEventRateLimit } from '@/app/lib/rate-limiter'
 
 const EVENT_REJECTED_MESSAGE = 'Event rejected'
 const INVALID_SESSION_MESSAGE = 'Invalid event session'
@@ -15,9 +15,6 @@ const PAYLOAD_TOO_LARGE_MESSAGE = 'Payload too large'
 
 const MAX_PAYLOAD_BYTES = 4096
 const MAX_TIMESTAMP_SKEW_SECONDS = 300
-const MAX_EVENTS_PER_SESSION_PER_MINUTE = 10
-const RATE_LIMIT_WINDOW_MS = 60_000
-
 export type EventReportInput = Readonly<{
   sessionId: string
   event: string
@@ -88,38 +85,6 @@ function signaturesMatch(expectedHex: string, provided: string): boolean {
   const expectedBuf = Buffer.from(expected)
   const providedBuf = Buffer.from(provided)
   return expectedBuf.length === providedBuf.length && timingSafeEqual(expectedBuf, providedBuf)
-}
-
-export async function checkEventRateLimit(sessionId: string): Promise<{ allowed: boolean; retryAfter?: number }> {
-  const endpoint = `EVENT_REPORT:${sessionId}`
-  const now = new Date()
-  const windowStart = new Date(now.getTime() - RATE_LIMIT_WINDOW_MS)
-
-  const { error: insertError } = await supabaseAdmin
-    .from('rate_limits')
-    .insert({ ip: sessionId, endpoint, created_at: now.toISOString() })
-
-  if (insertError) {
-    return { allowed: false, retryAfter: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000) }
-  }
-
-  const { count, error } = await supabaseAdmin
-    .from('rate_limits')
-    .select('id', { count: 'exact', head: true })
-    .eq('ip', sessionId)
-    .eq('endpoint', endpoint)
-    .gte('created_at', windowStart.toISOString())
-    .lte('created_at', now.toISOString())
-
-  if (error || count === null) {
-    return { allowed: false, retryAfter: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000) }
-  }
-
-  if (count > MAX_EVENTS_PER_SESSION_PER_MINUTE) {
-    return { allowed: false, retryAfter: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000) }
-  }
-
-  return { allowed: true }
 }
 
 export async function reportEvent(input: EventReportInput): Promise<EventReportResult> {
