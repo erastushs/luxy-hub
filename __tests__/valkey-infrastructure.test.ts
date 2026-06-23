@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getValkeyConfig } from '@/app/lib/valkey/config'
-import { createValkeyConnectionManager } from '@/app/lib/valkey/connection'
+import {
+  createValkeyConnectionManager,
+  getValkeyConnectionManager,
+  resetValkeyConnectionManagerForTests,
+} from '@/app/lib/valkey/connection'
 import { checkValkeyHealth } from '@/app/lib/valkey/health'
 import {
   getValkeyMetricsSnapshot,
@@ -71,10 +75,23 @@ class FakeValkeyClient implements ValkeyClient {
     return this
   }
 
+  off(event: string, listener: (...args: unknown[]) => void) {
+    const listeners = this.listeners.get(event) ?? []
+    this.listeners.set(
+      event,
+      listeners.filter((entry) => entry !== listener)
+    )
+    return this
+  }
+
   emit(event: string, ...args: unknown[]) {
     for (const listener of this.listeners.get(event) ?? []) {
       listener(...args)
     }
+  }
+
+  listenerCount(event: string) {
+    return this.listeners.get(event)?.length ?? 0
   }
 }
 
@@ -97,6 +114,7 @@ function enabledConfig(overrides: Partial<ValkeyConfig> = {}): ValkeyConfig {
 describe('Phase 7D.1 Valkey infrastructure', () => {
   beforeEach(() => {
     resetValkeyMetricsForTests()
+    resetValkeyConnectionManagerForTests()
     vi.restoreAllMocks()
     vi.spyOn(console, 'info').mockImplementation(() => {})
     vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -163,6 +181,13 @@ describe('Phase 7D.1 Valkey infrastructure', () => {
     expect(manager.getClient()).toBeNull()
   })
 
+  it('reuses the singleton connection manager', () => {
+    const first = getValkeyConnectionManager()
+    const second = getValkeyConnectionManager()
+
+    expect(first).toBe(second)
+  })
+
   it('creates one centralized client and reuses it', async () => {
     const client = new FakeValkeyClient()
     const factory = vi.fn(() => client)
@@ -177,6 +202,83 @@ describe('Phase 7D.1 Valkey infrastructure', () => {
     expect(client.connectCalls).toBe(1)
     expect(manager.getState()).toBe('ready')
     expect(getValkeyMetricsSnapshot().lastConnectionState).toBe('ready')
+  })
+
+  it('deduplicates concurrent initialization and listeners', async () => {
+    const client = new FakeValkeyClient()
+    const factory = vi.fn(() => client)
+    const manager = createValkeyConnectionManager(enabledConfig(), factory)
+
+    const [first, second, third] = await Promise.all([
+      manager.connect(),
+      manager.connect(),
+      manager.connect(),
+    ])
+
+    expect(first).toBe(client)
+    expect(second).toBe(client)
+    expect(third).toBe(client)
+    expect(factory).toHaveBeenCalledTimes(1)
+    expect(client.connectCalls).toBe(1)
+    expect(client.listenerCount('connect')).toBe(1)
+    expect(client.listenerCount('ready')).toBe(1)
+    expect(client.listenerCount('reconnecting')).toBe(1)
+    expect(client.listenerCount('end')).toBe(1)
+    expect(client.listenerCount('error')).toBe(1)
+  })
+
+  it('handles repeated disconnect calls safely', async () => {
+    const client = new FakeValkeyClient()
+    const manager = createValkeyConnectionManager(enabledConfig(), () => client)
+
+    await manager.connect()
+    await manager.disconnect()
+    await manager.disconnect()
+
+    expect(client.quitCalls).toBe(1)
+    expect(manager.getState()).toBe('closed')
+  })
+
+  it('shuts down gracefully without an active connection', () => {
+    const manager = createValkeyConnectionManager(enabledConfig())
+
+    expect(() => manager.shutdown('test_shutdown')).not.toThrow()
+    expect(() => manager.shutdown('duplicate_shutdown')).not.toThrow()
+    expect(manager.getState()).toBe('closed')
+  })
+
+  it('shuts down an active client once and never throws', async () => {
+    const client = new FakeValkeyClient()
+    const manager = createValkeyConnectionManager(enabledConfig(), () => client)
+
+    await manager.connect()
+
+    expect(() => manager.shutdown('test_shutdown')).not.toThrow()
+    expect(() => manager.shutdown('duplicate_shutdown')).not.toThrow()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(client.quitCalls).toBe(1)
+    expect(client.listenerCount('connect')).toBe(0)
+    expect(client.listenerCount('ready')).toBe(0)
+    expect(client.listenerCount('reconnecting')).toBe(0)
+    expect(client.listenerCount('end')).toBe(0)
+    expect(client.listenerCount('error')).toBe(0)
+    expect(getValkeyMetricsSnapshot().lastDisconnectReason).toBe('shutdown')
+  })
+
+  it('does not throw when shutdown disconnect fails', async () => {
+    const client = new FakeValkeyClient()
+    client.quit = vi.fn(async () => {
+      throw new Error('quit failed')
+    })
+    const manager = createValkeyConnectionManager(enabledConfig(), () => client)
+
+    await manager.connect()
+
+    expect(() => manager.shutdown('test_shutdown')).not.toThrow()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(getValkeyMetricsSnapshot().lastDisconnectReason).toBe('test_shutdown')
   })
 
   it('records reconnect and disconnect events without logging secrets', async () => {
@@ -226,6 +328,29 @@ describe('Phase 7D.1 Valkey infrastructure', () => {
     expect(health.memoryUsedBytes).toBe(98765)
     expect(health.latencyMs).toEqual(expect.any(Number))
     expect(getValkeyMetricsSnapshot().lastMemoryUsedBytes).toBe(98765)
+    expect(health.connectedSince).toEqual(expect.any(String))
+    expect(health.lastSuccessfulPingAt).toEqual(expect.any(String))
+    expect(health.lastFailedHealthCheckAt).toBeNull()
+    expect(health.lastReconnectAt).toBeNull()
+    expect(health.totalReconnectCount).toBe(0)
+  })
+
+  it('reports reconnect lifecycle fields in metrics and health', async () => {
+    const client = new FakeValkeyClient()
+    const manager = createValkeyConnectionManager(enabledConfig(), () => client)
+
+    await manager.connect()
+    client.emit('reconnecting')
+    client.emit('ready')
+    const health = await checkValkeyHealth(manager)
+    const metrics = getValkeyMetricsSnapshot()
+
+    expect(health.lastReconnectAt).toEqual(expect.any(String))
+    expect(health.totalReconnectCount).toBe(1)
+    expect(metrics.reconnectCount).toBe(1)
+    expect(metrics.uptimeMs).toEqual(expect.any(Number))
+    expect(metrics.connectionDurationMs).toEqual(expect.any(Number))
+    expect(metrics.startupInitializationMs).toEqual(expect.any(Number))
   })
 
   it('handles connection and health failures safely', async () => {
@@ -241,6 +366,7 @@ describe('Phase 7D.1 Valkey infrastructure', () => {
     expect(manager.getState()).toBe('error')
     expect(getValkeyMetricsSnapshot().healthFailureCount).toBe(1)
     expect(getValkeyMetricsSnapshot().commandFailureCount).toBe(1)
+    expect(health.lastFailedHealthCheckAt).toEqual(expect.any(String))
   })
 
   it('creates environment-scoped namespaces and hashes identifiers', () => {

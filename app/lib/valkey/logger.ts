@@ -6,6 +6,7 @@ type ValkeyLogEvent =
   | 'disconnect'
   | 'health_failure'
   | 'configuration_error'
+  | 'startup'
 
 type ValkeyLogData = Record<string, string | number | boolean | null | undefined>
 

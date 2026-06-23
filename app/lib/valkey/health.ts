@@ -3,6 +3,8 @@ import {
   recordValkeyHealthFailure,
   recordValkeyLatency,
   recordValkeyMemory,
+  recordValkeySuccessfulPing,
+  getValkeyMetricsSnapshot,
 } from './metrics'
 import { getValkeyConnectionManager, type ValkeyConnectionManager } from './connection'
 import type { ValkeyHealthResult } from './types'
@@ -32,6 +34,7 @@ export async function checkValkeyHealth(
 ): Promise<ValkeyHealthResult> {
   const checkedAt = new Date().toISOString()
   const config = manager.getConfig()
+  const metrics = getValkeyMetricsSnapshot()
 
   if (!manager.isEnabled()) {
     return {
@@ -42,6 +45,11 @@ export async function checkValkeyHealth(
       ping: 'skipped',
       version: null,
       memoryUsedBytes: null,
+      connectedSince: manager.getConnectedSince(),
+      lastSuccessfulPingAt: metrics.lastSuccessfulPingAt,
+      lastFailedHealthCheckAt: metrics.lastFailedHealthCheckAt,
+      lastReconnectAt: manager.getLastReconnectAt() ?? metrics.lastReconnectAt,
+      totalReconnectCount: metrics.reconnectCount,
       errors: config.errors,
       checkedAt,
     }
@@ -64,6 +72,8 @@ export async function checkValkeyHealth(
 
     recordValkeyLatency(latencyMs)
     recordValkeyMemory(memoryUsedBytes)
+    recordValkeySuccessfulPing()
+    const updatedMetrics = getValkeyMetricsSnapshot()
 
     return {
       status: pingResponse.toUpperCase() === 'PONG' ? 'healthy' : 'unhealthy',
@@ -73,11 +83,17 @@ export async function checkValkeyHealth(
       ping: pingResponse.toUpperCase() === 'PONG' ? 'ok' : 'failed',
       version: parseVersion(serverInfo),
       memoryUsedBytes,
+      connectedSince: manager.getConnectedSince(),
+      lastSuccessfulPingAt: updatedMetrics.lastSuccessfulPingAt,
+      lastFailedHealthCheckAt: updatedMetrics.lastFailedHealthCheckAt,
+      lastReconnectAt: manager.getLastReconnectAt() ?? updatedMetrics.lastReconnectAt,
+      totalReconnectCount: updatedMetrics.reconnectCount,
       errors: pingResponse.toUpperCase() === 'PONG' ? [] : ['Valkey ping failed'],
       checkedAt,
     }
   } catch (error) {
     recordValkeyHealthFailure()
+    const updatedMetrics = getValkeyMetricsSnapshot()
     logValkeyEvent('warn', 'health_failure', {
       state: manager.getState(),
       errorName: error instanceof Error ? error.name : 'UnknownError',
@@ -91,6 +107,11 @@ export async function checkValkeyHealth(
       ping: 'failed',
       version: null,
       memoryUsedBytes: null,
+      connectedSince: manager.getConnectedSince(),
+      lastSuccessfulPingAt: updatedMetrics.lastSuccessfulPingAt,
+      lastFailedHealthCheckAt: updatedMetrics.lastFailedHealthCheckAt,
+      lastReconnectAt: manager.getLastReconnectAt() ?? updatedMetrics.lastReconnectAt,
+      totalReconnectCount: updatedMetrics.reconnectCount,
       errors: ['Valkey health check failed'],
       checkedAt,
     }

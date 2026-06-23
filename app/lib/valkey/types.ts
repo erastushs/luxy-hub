@@ -28,11 +28,14 @@ export type ValkeyClient = {
   ping: () => Promise<string>
   info: (section?: string) => Promise<string>
   on: (event: string, listener: (...args: unknown[]) => void) => unknown
+  off?: (event: string, listener: (...args: unknown[]) => void) => unknown
 }
 
 export type ValkeyMetricsSnapshot = {
   connectionCount: number
   reconnectCount: number
+  successfulReconnectCount: number
+  failedReconnectCount: number
   disconnectCount: number
   commandFailureCount: number
   healthFailureCount: number
@@ -40,6 +43,14 @@ export type ValkeyMetricsSnapshot = {
   maxLatencyMs: number | null
   lastMemoryUsedBytes: number | null
   lastConnectionState: ValkeyConnectionState
+  connectedSince: string | null
+  lastSuccessfulPingAt: string | null
+  lastFailedHealthCheckAt: string | null
+  lastReconnectAt: string | null
+  lastDisconnectReason: string | null
+  startupInitializationMs: number | null
+  uptimeMs: number | null
+  connectionDurationMs: number | null
 }
 
 export type ValkeyHealthStatus = 'disabled' | 'healthy' | 'unhealthy'
@@ -52,6 +63,11 @@ export type ValkeyHealthResult = {
   ping: 'ok' | 'failed' | 'skipped'
   version: string | null
   memoryUsedBytes: number | null
+  connectedSince: string | null
+  lastSuccessfulPingAt: string | null
+  lastFailedHealthCheckAt: string | null
+  lastReconnectAt: string | null
+  totalReconnectCount: number
   errors: string[]
   checkedAt: string
 }
