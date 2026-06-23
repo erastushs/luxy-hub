@@ -4,10 +4,13 @@ import type {
   RateLimitExecutionError,
   RateLimitExecutionResult,
   RateLimitMismatchReason,
-  RateLimitParityMetric,
   RateLimitResult,
-  RateLimitShadowParityReport,
 } from './types'
+import {
+  getRateLimitShadowMetricsService,
+  getRateLimitShadowParityReport,
+  resetRateLimitShadowMetricsForTests,
+} from './metrics-service'
 
 type ShadowOperation = () => Promise<RateLimitResult>
 
@@ -24,31 +27,7 @@ export type RateLimitShadowExecution = {
   comparison: RateLimitComparisonResult
 }
 
-type MutableShadowMetrics = {
-  totalComparisons: number
-  identical: number
-  mismatches: number
-  backendFailures: number
-  totalLatencyDeltaMs: number
-  decisionParity: {
-    allow: Omit<RateLimitParityMetric, 'rate'>
-    deny: Omit<RateLimitParityMetric, 'rate'>
-  }
-  retryAfterParity: Omit<RateLimitParityMetric, 'rate'>
-}
-
-const shadowMetrics: MutableShadowMetrics = {
-  totalComparisons: 0,
-  identical: 0,
-  mismatches: 0,
-  backendFailures: 0,
-  totalLatencyDeltaMs: 0,
-  decisionParity: {
-    allow: { total: 0, identical: 0 },
-    deny: { total: 0, identical: 0 },
-  },
-  retryAfterParity: { total: 0, identical: 0 },
-}
+export { getRateLimitShadowParityReport, resetRateLimitShadowMetricsForTests }
 
 function serializeError(error: unknown): RateLimitExecutionError {
   if (error instanceof Error) {
@@ -210,86 +189,12 @@ function latencyDeltaMs(comparison: RateLimitComparisonResult): number {
   return comparison.shadowLatencyMs - comparison.authoritativeLatencyMs
 }
 
-function metricRate(metric: Omit<RateLimitParityMetric, 'rate'>): RateLimitParityMetric {
-  return {
-    total: metric.total,
-    identical: metric.identical,
-    rate: metric.total === 0 ? 0 : metric.identical / metric.total,
-  }
-}
-
 function recordComparisonMetrics(comparison: RateLimitComparisonResult): void {
   try {
-    shadowMetrics.totalComparisons += 1
-    shadowMetrics.totalLatencyDeltaMs += latencyDeltaMs(comparison)
-
-    if (comparison.parity) {
-      shadowMetrics.identical += 1
-    } else {
-      shadowMetrics.mismatches += 1
-    }
-
-    if (comparison.authoritativeError || comparison.shadowError) {
-      shadowMetrics.backendFailures += 1
-    }
-
-    if (comparison.authoritativeAllowed === true) {
-      shadowMetrics.decisionParity.allow.total += 1
-      if (comparison.shadowAllowed === true) {
-        shadowMetrics.decisionParity.allow.identical += 1
-      }
-    }
-
-    if (comparison.authoritativeAllowed === false) {
-      shadowMetrics.decisionParity.deny.total += 1
-      if (comparison.shadowAllowed === false) {
-        shadowMetrics.decisionParity.deny.identical += 1
-      }
-    }
-
-    if (comparison.authoritativeRetryAfter !== null) {
-      shadowMetrics.retryAfterParity.total += 1
-      if (comparison.authoritativeRetryAfter === comparison.shadowRetryAfter) {
-        shadowMetrics.retryAfterParity.identical += 1
-      }
-    }
+    getRateLimitShadowMetricsService().increment(comparison)
   } catch {
     // Metrics collection must never affect the authoritative decision.
   }
-}
-
-export function getRateLimitShadowParityReport(): RateLimitShadowParityReport {
-  return {
-    totalComparisons: shadowMetrics.totalComparisons,
-    identical: shadowMetrics.identical,
-    mismatches: shadowMetrics.mismatches,
-    mismatchRate: shadowMetrics.totalComparisons === 0
-      ? 0
-      : shadowMetrics.mismatches / shadowMetrics.totalComparisons,
-    backendFailures: shadowMetrics.backendFailures,
-    avgLatencyDeltaMs: shadowMetrics.totalComparisons === 0
-      ? 0
-      : shadowMetrics.totalLatencyDeltaMs / shadowMetrics.totalComparisons,
-    decisionParity: {
-      allow: metricRate(shadowMetrics.decisionParity.allow),
-      deny: metricRate(shadowMetrics.decisionParity.deny),
-    },
-    retryAfterParity: metricRate(shadowMetrics.retryAfterParity),
-  }
-}
-
-export function resetRateLimitShadowMetricsForTests(): void {
-  shadowMetrics.totalComparisons = 0
-  shadowMetrics.identical = 0
-  shadowMetrics.mismatches = 0
-  shadowMetrics.backendFailures = 0
-  shadowMetrics.totalLatencyDeltaMs = 0
-  shadowMetrics.decisionParity.allow.total = 0
-  shadowMetrics.decisionParity.allow.identical = 0
-  shadowMetrics.decisionParity.deny.total = 0
-  shadowMetrics.decisionParity.deny.identical = 0
-  shadowMetrics.retryAfterParity.total = 0
-  shadowMetrics.retryAfterParity.identical = 0
 }
 
 export async function executeRateLimitShadow(params: {

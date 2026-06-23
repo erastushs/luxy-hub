@@ -64,3 +64,9 @@ export function checkEventRateLimit(sessionId: string) {
 export type { LimitKey, RateLimitAdapter, RateLimitResult } from './types'
 export { parseRateLimitRuntimeConfig } from './config'
 export { resolveRateLimitAdapter } from './runtime'
+export {
+  getRateLimitShadowHealth,
+  getRateLimitShadowMetrics,
+  getRateLimitShadowOperationalSnapshot,
+  getRateLimitShadowParityReport,
+} from './metrics-service'

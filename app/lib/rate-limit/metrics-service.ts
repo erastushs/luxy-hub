@@ -1,0 +1,335 @@
+import { parseRateLimitRuntimeConfig, type RateLimitRuntimeMode } from './config'
+import type { RateLimitComparisonResult } from './types'
+
+export type RateLimitParityMetric = {
+  total: number
+  identical: number
+  rate: number
+}
+
+export type RateLimitShadowMetricsSnapshot = {
+  totalComparisons: number
+  identical: number
+  mismatches: number
+  mismatchRate: number
+  backendFailures: number
+  comparisonFailures: number
+  avgLatencyDeltaMs: number
+  decisionParity: {
+    allow: RateLimitParityMetric
+    deny: RateLimitParityMetric
+  }
+  retryAfterParity: RateLimitParityMetric
+  lastUpdatedAt: string | null
+  runtimeMode: RateLimitRuntimeMode
+}
+
+export type RateLimitShadowHealthStatus = 'disabled' | 'healthy' | 'degraded' | 'unhealthy'
+
+export type RateLimitShadowHealth = {
+  enabled: boolean
+  runtimeMode: RateLimitRuntimeMode
+  totalComparisons: number
+  mismatchRate: number
+  backendFailures: number
+  status: RateLimitShadowHealthStatus
+  checkedAt: string
+}
+
+export type RateLimitShadowOperationalSnapshot = {
+  runtimeMode: RateLimitRuntimeMode
+  comparisons: number
+  parityRate: number
+  backendFailures: number
+  averageLatencyDeltaMs: number
+  status: RateLimitShadowHealthStatus
+  summary: string
+}
+
+export type RateLimitShadowAlertThresholds = {
+  mismatchRate: number
+  backendFailures: number
+  latencyDeltaMs: number
+  comparisonFailures: number
+}
+
+type MutableParityMetric = Omit<RateLimitParityMetric, 'rate'>
+
+type MutableRateLimitShadowMetrics = {
+  totalComparisons: number
+  identical: number
+  mismatches: number
+  backendFailures: number
+  comparisonFailures: number
+  totalLatencyDeltaMs: number
+  decisionParity: {
+    allow: MutableParityMetric
+    deny: MutableParityMetric
+  }
+  retryAfterParity: MutableParityMetric
+  lastUpdatedAt: string | null
+}
+
+export const DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS: RateLimitShadowAlertThresholds = {
+  mismatchRate: 0.001,
+  backendFailures: 1,
+  latencyDeltaMs: 25,
+  comparisonFailures: 1,
+}
+
+function createEmptyMetrics(): MutableRateLimitShadowMetrics {
+  return {
+    totalComparisons: 0,
+    identical: 0,
+    mismatches: 0,
+    backendFailures: 0,
+    comparisonFailures: 0,
+    totalLatencyDeltaMs: 0,
+    decisionParity: {
+      allow: { total: 0, identical: 0 },
+      deny: { total: 0, identical: 0 },
+    },
+    retryAfterParity: { total: 0, identical: 0 },
+    lastUpdatedAt: null,
+  }
+}
+
+function metricRate(metric: MutableParityMetric): RateLimitParityMetric {
+  return {
+    total: metric.total,
+    identical: metric.identical,
+    rate: metric.total === 0 ? 0 : metric.identical / metric.total,
+  }
+}
+
+function latencyDeltaMs(comparison: RateLimitComparisonResult): number {
+  return comparison.shadowLatencyMs - comparison.authoritativeLatencyMs
+}
+
+function getRuntimeMode(env: Record<string, string | undefined>): RateLimitRuntimeMode {
+  return parseRateLimitRuntimeConfig(env).mode
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat('en-US').format(value)
+}
+
+function formatPercent(value: number): string {
+  return `${(value * 100).toFixed(4)}%`
+}
+
+function formatLatency(value: number): string {
+  return `${value.toFixed(2)} ms`
+}
+
+function statusLabel(status: RateLimitShadowHealthStatus): string {
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
+export class RateLimitShadowMetricsService {
+  private metrics = createEmptyMetrics()
+
+  increment(comparison: RateLimitComparisonResult): void {
+    try {
+      this.metrics.totalComparisons += 1
+      this.metrics.totalLatencyDeltaMs += latencyDeltaMs(comparison)
+      this.metrics.lastUpdatedAt = new Date().toISOString()
+
+      if (comparison.parity) {
+        this.metrics.identical += 1
+      } else {
+        this.metrics.mismatches += 1
+      }
+
+      if (comparison.authoritativeError || comparison.shadowError) {
+        this.metrics.backendFailures += 1
+      }
+
+      if (comparison.mismatchReason === 'comparison_failed') {
+        this.metrics.comparisonFailures += 1
+      }
+
+      if (comparison.authoritativeAllowed === true) {
+        this.metrics.decisionParity.allow.total += 1
+        if (comparison.shadowAllowed === true) {
+          this.metrics.decisionParity.allow.identical += 1
+        }
+      }
+
+      if (comparison.authoritativeAllowed === false) {
+        this.metrics.decisionParity.deny.total += 1
+        if (comparison.shadowAllowed === false) {
+          this.metrics.decisionParity.deny.identical += 1
+        }
+      }
+
+      if (comparison.authoritativeRetryAfter !== null) {
+        this.metrics.retryAfterParity.total += 1
+        if (comparison.authoritativeRetryAfter === comparison.shadowRetryAfter) {
+          this.metrics.retryAfterParity.identical += 1
+        }
+      }
+    } catch {
+      // Metrics collection must never affect request success.
+    }
+  }
+
+  merge(snapshot: RateLimitShadowMetricsSnapshot): void {
+    try {
+      this.metrics.totalComparisons += snapshot.totalComparisons
+      this.metrics.identical += snapshot.identical
+      this.metrics.mismatches += snapshot.mismatches
+      this.metrics.backendFailures += snapshot.backendFailures
+      this.metrics.comparisonFailures += snapshot.comparisonFailures
+      this.metrics.totalLatencyDeltaMs += snapshot.avgLatencyDeltaMs * snapshot.totalComparisons
+      this.metrics.decisionParity.allow.total += snapshot.decisionParity.allow.total
+      this.metrics.decisionParity.allow.identical += snapshot.decisionParity.allow.identical
+      this.metrics.decisionParity.deny.total += snapshot.decisionParity.deny.total
+      this.metrics.decisionParity.deny.identical += snapshot.decisionParity.deny.identical
+      this.metrics.retryAfterParity.total += snapshot.retryAfterParity.total
+      this.metrics.retryAfterParity.identical += snapshot.retryAfterParity.identical
+
+      if (snapshot.lastUpdatedAt) {
+        this.metrics.lastUpdatedAt = this.metrics.lastUpdatedAt
+          ? new Date(Math.max(
+            Date.parse(this.metrics.lastUpdatedAt),
+            Date.parse(snapshot.lastUpdatedAt)
+          )).toISOString()
+          : snapshot.lastUpdatedAt
+      }
+    } catch {
+      // Metrics merge must never affect request success.
+    }
+  }
+
+  reset(): void {
+    this.metrics = createEmptyMetrics()
+  }
+
+  snapshot(env: Record<string, string | undefined> = process.env): RateLimitShadowMetricsSnapshot {
+    const totalComparisons = this.metrics.totalComparisons
+
+    return {
+      totalComparisons,
+      identical: this.metrics.identical,
+      mismatches: this.metrics.mismatches,
+      mismatchRate: totalComparisons === 0 ? 0 : this.metrics.mismatches / totalComparisons,
+      backendFailures: this.metrics.backendFailures,
+      comparisonFailures: this.metrics.comparisonFailures,
+      avgLatencyDeltaMs: totalComparisons === 0
+        ? 0
+        : this.metrics.totalLatencyDeltaMs / totalComparisons,
+      decisionParity: {
+        allow: metricRate(this.metrics.decisionParity.allow),
+        deny: metricRate(this.metrics.decisionParity.deny),
+      },
+      retryAfterParity: metricRate(this.metrics.retryAfterParity),
+      lastUpdatedAt: this.metrics.lastUpdatedAt,
+      runtimeMode: getRuntimeMode(env),
+    }
+  }
+
+  health(env: Record<string, string | undefined> = process.env): RateLimitShadowHealth {
+    const checkedAt = new Date().toISOString()
+    const snapshot = this.snapshot(env)
+    const enabled = snapshot.runtimeMode === 'shadow'
+
+    return {
+      enabled,
+      runtimeMode: snapshot.runtimeMode,
+      totalComparisons: snapshot.totalComparisons,
+      mismatchRate: snapshot.mismatchRate,
+      backendFailures: snapshot.backendFailures,
+      status: this.resolveHealthStatus(snapshot, enabled),
+      checkedAt,
+    }
+  }
+
+  operationalSnapshot(
+    env: Record<string, string | undefined> = process.env
+  ): RateLimitShadowOperationalSnapshot {
+    const snapshot = this.snapshot(env)
+    const health = this.health(env)
+    const parityRate = snapshot.totalComparisons === 0
+      ? 0
+      : snapshot.identical / snapshot.totalComparisons
+
+    const summary = [
+      `Runtime Mode: ${snapshot.runtimeMode}`,
+      `Comparisons: ${formatNumber(snapshot.totalComparisons)}`,
+      `Parity: ${formatPercent(parityRate)}`,
+      `Backend Failures: ${formatNumber(snapshot.backendFailures)}`,
+      `Average Latency Delta: ${formatLatency(snapshot.avgLatencyDeltaMs)}`,
+      `Status: ${statusLabel(health.status)}`,
+    ].join('\n')
+
+    return {
+      runtimeMode: snapshot.runtimeMode,
+      comparisons: snapshot.totalComparisons,
+      parityRate,
+      backendFailures: snapshot.backendFailures,
+      averageLatencyDeltaMs: snapshot.avgLatencyDeltaMs,
+      status: health.status,
+      summary,
+    }
+  }
+
+  private resolveHealthStatus(
+    snapshot: RateLimitShadowMetricsSnapshot,
+    enabled: boolean
+  ): RateLimitShadowHealthStatus {
+    if (!enabled) {
+      return 'disabled'
+    }
+
+    if (
+      snapshot.comparisonFailures >= DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.comparisonFailures ||
+      snapshot.backendFailures >= DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.backendFailures
+    ) {
+      return 'unhealthy'
+    }
+
+    if (
+      snapshot.mismatchRate >= DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.mismatchRate ||
+      Math.abs(snapshot.avgLatencyDeltaMs) >= DEFAULT_RATE_LIMIT_SHADOW_ALERT_THRESHOLDS.latencyDeltaMs
+    ) {
+      return 'degraded'
+    }
+
+    return 'healthy'
+  }
+}
+
+const rateLimitShadowMetricsService = new RateLimitShadowMetricsService()
+
+export function getRateLimitShadowMetricsService(): RateLimitShadowMetricsService {
+  return rateLimitShadowMetricsService
+}
+
+export function getRateLimitShadowMetrics(
+  env: Record<string, string | undefined> = process.env
+): RateLimitShadowMetricsSnapshot {
+  return rateLimitShadowMetricsService.snapshot(env)
+}
+
+export function getRateLimitShadowParityReport(
+  env: Record<string, string | undefined> = process.env
+): RateLimitShadowMetricsSnapshot {
+  return rateLimitShadowMetricsService.snapshot(env)
+}
+
+export function getRateLimitShadowHealth(
+  env: Record<string, string | undefined> = process.env
+): RateLimitShadowHealth {
+  return rateLimitShadowMetricsService.health(env)
+}
+
+export function getRateLimitShadowOperationalSnapshot(
+  env: Record<string, string | undefined> = process.env
+): RateLimitShadowOperationalSnapshot {
+  return rateLimitShadowMetricsService.operationalSnapshot(env)
+}
+
+export function resetRateLimitShadowMetricsForTests(): void {
+  rateLimitShadowMetricsService.reset()
+}

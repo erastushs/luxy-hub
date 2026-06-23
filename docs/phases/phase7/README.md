@@ -17,6 +17,7 @@ Phase 7D planning documents:
 - `PHASE_7D_VALKEY_INTEGRATION_PLAN.md`
 - `PHASE_7D_IMPLEMENTATION_SPEC.md`
 - `PHASE_7D_OPERATIONAL_RUNBOOK.md`
+- `PHASE_7D_RC1_PRODUCTION_ROLLOUT_RUNBOOK.md`
 
 Current Status:
 Phase 7A is complete / production ready. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Production Stabilization is active. Runtime popup validation remains planned because the Roblox runtime does not yet call `POST /api/validate` before main script execution. Premium license runtime enforcement and license hardening are deferred future license work, not completed Phase 7C work.

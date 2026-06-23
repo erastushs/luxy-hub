@@ -286,12 +286,15 @@ describe('rate-limit shadow executor', () => {
       mismatches: 2,
       mismatchRate: 2 / 3,
       backendFailures: 1,
+      comparisonFailures: 0,
       avgLatencyDeltaMs: expect.any(Number),
       decisionParity: {
         allow: { total: 2, identical: 1, rate: 1 / 2 },
         deny: { total: 1, identical: 1, rate: 1 },
       },
       retryAfterParity: { total: 1, identical: 0, rate: 0 },
+      lastUpdatedAt: expect.any(String),
+      runtimeMode: 'postgres',
     })
   })
 })
