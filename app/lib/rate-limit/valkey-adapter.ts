@@ -37,8 +37,22 @@ type CounterResult = {
   ttlMs: number | null
 }
 
+type ValkeyRateLimitAdapterOptions = {
+  logFailures?: boolean
+  throwOnFailure?: boolean
+}
+
 export class ValkeyRateLimitAdapter implements RateLimitAdapter {
-  constructor(private readonly manager: ValkeyConnectionManager = getValkeyConnectionManager()) {}
+  private readonly logFailures: boolean
+  private readonly throwOnFailure: boolean
+
+  constructor(
+    private readonly manager: ValkeyConnectionManager = getValkeyConnectionManager(),
+    options: ValkeyRateLimitAdapterOptions = {}
+  ) {
+    this.logFailures = options.logFailures ?? true
+    this.throwOnFailure = options.throwOnFailure ?? false
+  }
 
   async checkGeneralLimit(ip: string, limitKey: LimitKey): Promise<RateLimitResult> {
     const windowMs = WINDOW_MS[limitKey]
@@ -131,12 +145,13 @@ export class ValkeyRateLimitAdapter implements RateLimitAdapter {
     try {
       const client = await this.manager.connect()
       if (!client?.del) {
+        this.handleFailure('clear_login_failures', new Error('Valkey client unavailable'))
         return
       }
 
       await client.del(key)
     } catch (error) {
-      logValkeyRateLimitFailure('clear_login_failures', error)
+      this.handleFailure('clear_login_failures', error)
     }
   }
 
@@ -161,6 +176,7 @@ export class ValkeyRateLimitAdapter implements RateLimitAdapter {
       const client = await this.manager.connect()
 
       if (!client?.eval) {
+        this.handleFailure('increment_window', new Error('Valkey client unavailable'))
         return null
       }
 
@@ -169,7 +185,7 @@ export class ValkeyRateLimitAdapter implements RateLimitAdapter {
         arguments: [String(windowMs)],
       }))
     } catch (error) {
-      logValkeyRateLimitFailure('increment_window', error)
+      this.handleFailure('increment_window', error)
       return null
     }
   }
@@ -179,6 +195,7 @@ export class ValkeyRateLimitAdapter implements RateLimitAdapter {
       const client = await this.manager.connect()
 
       if (!client?.eval) {
+        this.handleFailure('read_window', new Error('Valkey client unavailable'))
         return null
       }
 
@@ -187,8 +204,18 @@ export class ValkeyRateLimitAdapter implements RateLimitAdapter {
         arguments: [],
       }))
     } catch (error) {
-      logValkeyRateLimitFailure('read_window', error)
+      this.handleFailure('read_window', error)
       return null
+    }
+  }
+
+  private handleFailure(operation: string, error: unknown): void {
+    if (this.logFailures) {
+      logValkeyRateLimitFailure(operation, error)
+    }
+
+    if (this.throwOnFailure) {
+      throw error
     }
   }
 }

@@ -18,6 +18,7 @@ import {
   retryAfterSeconds,
 } from '@/app/lib/rate-limit/config'
 import { resolveRateLimitAdapter } from '@/app/lib/rate-limit/runtime'
+import { ShadowRateLimitAdapter } from '@/app/lib/rate-limit/shadow-adapter'
 import {
   checkEventRateLimit,
   checkLoginFailureLimit,
@@ -225,9 +226,9 @@ describe('rate-limit configuration and runtime selection', () => {
     })
   })
 
-  it('always resolves PostgreSQL adapter in this phase', () => {
+  it('uses shadow runtime only for RATE_LIMIT_MODE=shadow', () => {
     expect(resolveRateLimitAdapter({})).toBeInstanceOf(PostgresRateLimitAdapter)
-    expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'shadow' })).toBeInstanceOf(PostgresRateLimitAdapter)
+    expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'shadow' })).toBeInstanceOf(ShadowRateLimitAdapter)
     expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'valkey' })).toBeInstanceOf(PostgresRateLimitAdapter)
   })
 

@@ -59,9 +59,22 @@ export type RateLimitComparison = RateLimitComparisonResult
 
 export type RateLimitShadowMetrics = {
   totalComparisons: number
-  parityCount: number
-  mismatchCount: number
-  averageLatencyDeltaMs: number
-  authoritativeExecutionMs: number
-  shadowExecutionMs: number
+  identical: number
+  mismatches: number
+  mismatchRate: number
+  backendFailures: number
+  avgLatencyDeltaMs: number
+  decisionParity: {
+    allow: RateLimitParityMetric
+    deny: RateLimitParityMetric
+  }
+  retryAfterParity: RateLimitParityMetric
 }
+
+export type RateLimitParityMetric = {
+  total: number
+  identical: number
+  rate: number
+}
+
+export type RateLimitShadowParityReport = RateLimitShadowMetrics

@@ -1,8 +1,18 @@
 import { PostgresRateLimitAdapter } from './postgres-adapter'
+import { ShadowRateLimitAdapter } from './shadow-adapter'
+import { ValkeyRateLimitAdapter } from './valkey-adapter'
 import { parseRateLimitRuntimeConfig } from './config'
 import type { RateLimitAdapter } from './types'
 
 const postgresRateLimitAdapter = new PostgresRateLimitAdapter()
+const valkeyRateLimitAdapter = new ValkeyRateLimitAdapter(undefined, {
+  logFailures: false,
+  throwOnFailure: true,
+})
+const shadowRateLimitAdapter = new ShadowRateLimitAdapter(
+  postgresRateLimitAdapter,
+  valkeyRateLimitAdapter
+)
 
 function logInvalidRuntimeMode(invalidMode: string): void {
   console.warn(JSON.stringify({
@@ -21,6 +31,10 @@ export function resolveRateLimitAdapter(
 
   if (config.invalidMode) {
     logInvalidRuntimeMode(config.invalidMode)
+  }
+
+  if (config.mode === 'shadow') {
+    return shadowRateLimitAdapter
   }
 
   return postgresRateLimitAdapter

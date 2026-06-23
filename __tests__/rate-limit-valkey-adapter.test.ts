@@ -226,6 +226,18 @@ describe('ValkeyRateLimitAdapter', () => {
     expect(output).not.toContain('203.0.113.10')
   })
 
+  it('can surface failures without logging for shadow execution', async () => {
+    const client = new MockValkeyClient()
+    client.failEval = true
+    const adapter = new ValkeyRateLimitAdapter(managerFor(client), {
+      logFailures: false,
+      throwOnFailure: true,
+    })
+
+    await expect(adapter.checkGeneralLimit('203.0.113.10', 'VALIDATE')).rejects.toThrow('valkey unavailable')
+    expect(console.warn).not.toHaveBeenCalled()
+  })
+
   it('is not selected by the runtime in this phase', () => {
     expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'valkey' })).toBeInstanceOf(PostgresRateLimitAdapter)
   })

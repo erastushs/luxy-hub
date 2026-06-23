@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { executeRateLimitShadow } from '@/app/lib/rate-limit/shadow'
+import {
+  executeRateLimitShadow,
+  getRateLimitShadowParityReport,
+  resetRateLimitShadowMetricsForTests,
+} from '@/app/lib/rate-limit/shadow'
 import type { RateLimitResult } from '@/app/lib/rate-limit/types'
 
 const baseContext = {
@@ -21,6 +25,7 @@ function denied(retryAfter: number): Promise<RateLimitResult> {
 describe('rate-limit shadow executor', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    resetRateLimitShadowMetricsForTests()
     vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
@@ -49,6 +54,18 @@ describe('rate-limit shadow executor', () => {
     expect(execution.comparison.authoritativeLatencyMs).toEqual(expect.any(Number))
     expect(execution.comparison.shadowLatencyMs).toEqual(expect.any(Number))
     expect(console.warn).not.toHaveBeenCalled()
+    expect(getRateLimitShadowParityReport()).toMatchObject({
+      totalComparisons: 1,
+      identical: 1,
+      mismatches: 0,
+      mismatchRate: 0,
+      backendFailures: 0,
+      decisionParity: {
+        allow: { total: 1, identical: 1, rate: 1 },
+        deny: { total: 0, identical: 0, rate: 0 },
+      },
+      retryAfterParity: { total: 0, identical: 0, rate: 0 },
+    })
   })
 
   it('compares retry-after values for denied decisions', async () => {
@@ -67,6 +84,16 @@ describe('rate-limit shadow executor', () => {
       parity: true,
       mismatchReason: null,
     })
+    expect(getRateLimitShadowParityReport()).toMatchObject({
+      totalComparisons: 1,
+      identical: 1,
+      mismatches: 0,
+      decisionParity: {
+        allow: { total: 0, identical: 0, rate: 0 },
+        deny: { total: 1, identical: 1, rate: 1 },
+      },
+      retryAfterParity: { total: 1, identical: 1, rate: 1 },
+    })
   })
 
   it('detects decision mismatches while preserving authoritative result', async () => {
@@ -84,6 +111,15 @@ describe('rate-limit shadow executor', () => {
       mismatchReason: 'decision_mismatch',
     })
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('shadow_mismatch'))
+    expect(getRateLimitShadowParityReport()).toMatchObject({
+      totalComparisons: 1,
+      identical: 0,
+      mismatches: 1,
+      mismatchRate: 1,
+      decisionParity: {
+        allow: { total: 1, identical: 0, rate: 0 },
+      },
+    })
   })
 
   it('detects retry-after mismatches', async () => {
@@ -99,6 +135,11 @@ describe('rate-limit shadow executor', () => {
       mismatchReason: 'retry_after_mismatch',
       authoritativeRetryAfter: 60,
       shadowRetryAfter: 30,
+    })
+    expect(getRateLimitShadowParityReport()).toMatchObject({
+      totalComparisons: 1,
+      mismatches: 1,
+      retryAfterParity: { total: 1, identical: 0, rate: 0 },
     })
   })
 
@@ -118,6 +159,11 @@ describe('rate-limit shadow executor', () => {
       parity: false,
       mismatchReason: 'error_state_mismatch',
     })
+    expect(getRateLimitShadowParityReport()).toMatchObject({
+      totalComparisons: 1,
+      backendFailures: 1,
+      mismatches: 1,
+    })
   })
 
   it('returns fail-closed fallback only if the authoritative operation throws', async () => {
@@ -136,6 +182,11 @@ describe('rate-limit shadow executor', () => {
       authoritativeError: { name: 'Error', message: 'authoritative failed' },
       parity: false,
       mismatchReason: 'error_state_mismatch',
+    })
+    expect(getRateLimitShadowParityReport()).toMatchObject({
+      totalComparisons: 1,
+      backendFailures: 1,
+      mismatches: 1,
     })
   })
 
@@ -184,5 +235,63 @@ describe('rate-limit shadow executor', () => {
 
     expect(execution.result).toEqual({ allowed: true })
     expect(execution.comparison.mismatchReason).toBe('decision_mismatch')
+  })
+
+  it('continues when comparison accessors fail', async () => {
+    const authoritativeResult = {
+      get allowed() {
+        throw new Error('comparison failed')
+      },
+    } as unknown as RateLimitResult
+    const execution = await executeRateLimitShadow({
+      context: baseContext,
+      authoritative: () => Promise.resolve(authoritativeResult),
+      shadow: allowed,
+    })
+
+    expect(execution.result).toBe(authoritativeResult)
+    expect(execution.comparison).toMatchObject({
+      parity: false,
+      mismatchReason: 'comparison_failed',
+    })
+    expect(getRateLimitShadowParityReport()).toMatchObject({
+      totalComparisons: 1,
+      mismatches: 1,
+    })
+  })
+
+  it('accumulates report metrics across comparisons', async () => {
+    await executeRateLimitShadow({
+      context: baseContext,
+      authoritative: allowed,
+      shadow: allowed,
+    })
+    await executeRateLimitShadow({
+      context: baseContext,
+      authoritative: () => denied(60),
+      shadow: () => denied(30),
+    })
+    await executeRateLimitShadow({
+      context: baseContext,
+      authoritative: allowed,
+      shadow: async () => {
+        throw new Error('shadow failed')
+      },
+    })
+
+    const report = getRateLimitShadowParityReport()
+    expect(report).toEqual({
+      totalComparisons: 3,
+      identical: 1,
+      mismatches: 2,
+      mismatchRate: 2 / 3,
+      backendFailures: 1,
+      avgLatencyDeltaMs: expect.any(Number),
+      decisionParity: {
+        allow: { total: 2, identical: 1, rate: 1 / 2 },
+        deny: { total: 1, identical: 1, rate: 1 },
+      },
+      retryAfterParity: { total: 1, identical: 0, rate: 0 },
+    })
   })
 })
