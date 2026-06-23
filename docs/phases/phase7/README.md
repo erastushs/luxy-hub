@@ -12,6 +12,12 @@ Phase 7B planning documents:
 - `PHASE7_KEY_MONETIZATION_MODEL.md`
 - `../../roadmap/PHASE7_ROADMAP_REALIGNMENT_REPORT.md`
 
+Phase 7D planning documents:
+
+- `PHASE_7D_VALKEY_INTEGRATION_PLAN.md`
+- `PHASE_7D_IMPLEMENTATION_SPEC.md`
+- `PHASE_7D_OPERATIONAL_RUNBOOK.md`
+
 Current Status:
 Phase 7A is complete / production ready. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Production Stabilization is active. Runtime popup validation remains planned because the Roblox runtime does not yet call `POST /api/validate` before main script execution. Premium license runtime enforcement and license hardening are deferred future license work, not completed Phase 7C work.
 
@@ -38,7 +44,7 @@ Phase 7D Status:
 
 - Name: Database Scalability & Runtime Optimization
 - Status: Planned / Not Implemented
-- Scope: database decoupling, analytics aggregation, Redis/Valkey rate limiting, internal monitoring dashboard, and post-optimization infrastructure review
+- Scope: Valkey integration planning, production baseline metrics, database decoupling, analytics aggregation, rate limit migration, delivery session migration, worker locks, cache layer, temporary counters, internal monitoring, and post-optimization infrastructure review
 - Non-goals for current state: database decoupling, Redis/Valkey integration, and database migrations are not implemented
 
 Approved access modes:
@@ -187,15 +193,24 @@ Current caveats:
 
 Status: Planned / not implemented.
 
+Primary planning document:
+
+- `PHASE_7D_VALKEY_INTEGRATION_PLAN.md`
+- `PHASE_7D_IMPLEMENTATION_SPEC.md`
+- `PHASE_7D_OPERATIONAL_RUNBOOK.md`
+
 Planned scope:
 
-- Phase 7D.1 Database Decoupling: decouple `script_executions` from `delivery_sessions`, allow true delivery session TTL cleanup, and preserve analytics without FK dependency.
-- Phase 7D.2 Analytics Aggregation: aggregate script executions into daily, weekly, and monthly statistics to reduce long-term raw row growth.
-- Phase 7D.3 Redis / Valkey Integration: move runtime rate limiting out of PostgreSQL, reduce write amplification, reduce cleanup load, and reduce database contention.
-- Phase 7D.4 Internal Monitoring Dashboard: database, cleanup, runtime, bandwidth, execution, storage growth, and operational health metrics.
-- Phase 7D.5 Post-Optimization Infrastructure Review: measure production impact, compare Supabase usage before and after optimization, and determine whether PostgreSQL migration is still justified.
+- Phase 7D.0 Production Baseline: collect database, application, cleanup, and infrastructure metrics before implementation begins.
+- Phase 7D.1 Infrastructure: deploy Valkey, establish the connection layer, health checks, network/security posture, and operational metrics without moving workloads.
+- Phase 7D.2 Rate Limit Migration: move rate limiting from PostgreSQL `rate_limits` rows to Valkey counters/windows.
+- Phase 7D.3 Delivery Session Migration: decouple analytics from `delivery_sessions`, move short-lived delivery sessions to Valkey, and preserve runtime/event behavior.
+- Phase 7D.4 Worker Locks: use Valkey for distributed locks around scheduled and worker operations.
+- Phase 7D.5 Cache Layer: add short-lived dashboard, script metadata, ready build metadata, and configuration caches.
+- Phase 7D.6 Analytics Counters: buffer temporary counters in Valkey and periodically flush durable aggregates into PostgreSQL.
+- Post-Optimization Infrastructure Review: measure production impact, compare Supabase usage before and after optimization, and determine whether further database infrastructure changes are justified.
 
-Phase 7D.5 is an evaluation milestone, not an implementation task.
+Post-Optimization Infrastructure Review is an evaluation milestone, not an implementation task.
 
 ## Deferred Future License Work
 
