@@ -27,6 +27,8 @@ export type ValkeyClient = {
   disconnect?: () => unknown
   ping: () => Promise<string>
   info: (section?: string) => Promise<string>
+  eval?: (script: string, options: { keys: string[]; arguments: string[] }) => Promise<unknown>
+  del?: (key: string | string[]) => Promise<number>
   on: (event: string, listener: (...args: unknown[]) => void) => unknown
   off?: (event: string, listener: (...args: unknown[]) => void) => unknown
 }
