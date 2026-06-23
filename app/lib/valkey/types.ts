@@ -1,0 +1,57 @@
+export type ValkeyConnectionState =
+  | 'disabled'
+  | 'idle'
+  | 'connecting'
+  | 'ready'
+  | 'error'
+  | 'closed'
+
+export type ValkeyConfig = {
+  enabled: boolean
+  requestedEnabled: boolean
+  host: string | null
+  port: number
+  password: string | null
+  database: number
+  tls: boolean
+  connectTimeoutMs: number
+  commandTimeoutMs: number
+  errors: string[]
+}
+
+export type ValkeyClient = {
+  isOpen?: boolean
+  isReady?: boolean
+  connect: () => Promise<unknown>
+  quit: () => Promise<unknown>
+  disconnect?: () => unknown
+  ping: () => Promise<string>
+  info: (section?: string) => Promise<string>
+  on: (event: string, listener: (...args: unknown[]) => void) => unknown
+}
+
+export type ValkeyMetricsSnapshot = {
+  connectionCount: number
+  reconnectCount: number
+  disconnectCount: number
+  commandFailureCount: number
+  healthFailureCount: number
+  lastLatencyMs: number | null
+  maxLatencyMs: number | null
+  lastMemoryUsedBytes: number | null
+  lastConnectionState: ValkeyConnectionState
+}
+
+export type ValkeyHealthStatus = 'disabled' | 'healthy' | 'unhealthy'
+
+export type ValkeyHealthResult = {
+  status: ValkeyHealthStatus
+  enabled: boolean
+  connectionState: ValkeyConnectionState
+  latencyMs: number | null
+  ping: 'ok' | 'failed' | 'skipped'
+  version: string | null
+  memoryUsedBytes: number | null
+  errors: string[]
+  checkedAt: string
+}
