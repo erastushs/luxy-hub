@@ -21,7 +21,8 @@ type ScriptCall = {
 class MockValkeyClient implements ValkeyClient {
   isOpen = true
   isReady = true
-  store = new Map<string, { count: number; ttlMs: number }>()
+  store = new Map<string, { entries: Array<{ score: number; member: string }>; ttlMs: number }>()
+  sequences = new Map<string, number>()
   evalCalls: ScriptCall[] = []
   delCalls: Array<string | string[]> = []
   failEval = false
@@ -40,20 +41,33 @@ class MockValkeyClient implements ValkeyClient {
     }
 
     const key = options.keys[0]
+    const windowMs = Number(options.arguments[0])
+    const nowMs = Number(options.arguments[1])
+    const ttlMs = Number(options.arguments[2])
+    const windowStart = nowMs - windowMs
+    const current = this.store.get(key) ?? { entries: [], ttlMs }
+    current.entries = current.entries.filter((entry) => entry.score >= windowStart)
 
-    if (options.arguments.length === 0) {
-      const current = this.store.get(key)
-      return [current?.count ?? 0, current?.ttlMs ?? -2]
+    if (options.keys.length > 1) {
+      const sequenceKey = options.keys[1]
+      const sequence = (this.sequences.get(sequenceKey) ?? 0) + 1
+      this.sequences.set(sequenceKey, sequence)
+      current.entries.push({ score: nowMs, member: `${nowMs}:${sequence}` })
+      current.ttlMs = ttlMs
+      this.store.set(key, current)
+      return [current.entries.filter((entry) => entry.score >= windowStart && entry.score <= nowMs).length, current.ttlMs]
     }
 
-    const ttlMs = Number(options.arguments[0])
-    const current = this.store.get(key)
-    const next = current
-      ? { count: current.count + 1, ttlMs: current.ttlMs }
-      : { count: 1, ttlMs }
+    const count = current.entries.filter((entry) => entry.score >= windowStart && entry.score <= nowMs).length
 
-    this.store.set(key, next)
-    return [next.count, next.ttlMs]
+    if (count === 0) {
+      this.store.delete(key)
+      return [0, -2]
+    }
+
+    current.ttlMs = ttlMs
+    this.store.set(key, current)
+    return [count, current.ttlMs]
   }
 
   async del(key: string | string[]) {
@@ -63,11 +77,13 @@ class MockValkeyClient implements ValkeyClient {
       let deleted = 0
       for (const entry of key) {
         deleted += this.store.delete(entry) ? 1 : 0
+        deleted += this.sequences.delete(entry) ? 1 : 0
       }
       return deleted
     }
 
-    return this.store.delete(key) ? 1 : 0
+    const deleted = this.store.delete(key) ? 1 : 0
+    return deleted + (this.sequences.delete(key) ? 1 : 0)
   }
 }
 
@@ -112,8 +128,11 @@ describe('ValkeyRateLimitAdapter', () => {
 
     expect(result).toEqual({ allowed: true })
     expect(client.evalCalls).toHaveLength(1)
-    expect(client.evalCalls[0].arguments).toEqual(['60000'])
-    expect([...client.store.values()][0]).toEqual({ count: 1, ttlMs: 60_000 })
+    expect(client.evalCalls[0].keys).toHaveLength(2)
+    expect(client.evalCalls[0].arguments[0]).toBe('60000')
+    expect(client.evalCalls[0].arguments[2]).toBe('65000')
+    expect([...client.store.values()][0]).toMatchObject({ ttlMs: 65_000 })
+    expect([...client.store.values()][0].entries).toHaveLength(1)
   })
 
   it('denies requests over the general limit with PostgreSQL-compatible retry-after', async () => {
@@ -133,7 +152,7 @@ describe('ValkeyRateLimitAdapter', () => {
     const second = createRateLimitKey('general', 'VALIDATE', '203.0.113.10')
 
     expect(first).toBe(second)
-    expect(first).toMatch(/^luxyhub:test:rate:general:[a-f0-9]{64}:[a-f0-9]{64}$/)
+    expect(first).toMatch(/^luxyhub:test:rate:v2:general:[a-f0-9]{64}:[a-f0-9]{64}$/)
     expect(first).not.toContain('203.0.113.10')
     expect(first).not.toContain('VALIDATE')
   })
@@ -146,7 +165,10 @@ describe('ValkeyRateLimitAdapter', () => {
 
     expect(result).toEqual({ allowed: true })
     expect(client.evalCalls).toHaveLength(2)
-    expect(client.evalCalls.every((call) => call.arguments.length === 0)).toBe(true)
+    expect(client.evalCalls.every((call) => call.keys.length === 1)).toBe(true)
+    expect(client.evalCalls[0].arguments[0]).toBe('300000')
+    expect(client.evalCalls[1].arguments[0]).toBe('900000')
+    expect(client.store.size).toBe(0)
   })
 
   it('records login failures in IP and hashed email buckets', async () => {
@@ -156,8 +178,12 @@ describe('ValkeyRateLimitAdapter', () => {
     await adapter.recordLoginFailure('203.0.113.10', 'Creator@Example.com')
 
     expect(client.evalCalls).toHaveLength(2)
-    expect(client.evalCalls[0].arguments).toEqual(['300000'])
-    expect(client.evalCalls[1].arguments).toEqual(['900000'])
+    expect(client.evalCalls[0].keys).toHaveLength(2)
+    expect(client.evalCalls[1].keys).toHaveLength(2)
+    expect(client.evalCalls[0].arguments[0]).toBe('300000')
+    expect(client.evalCalls[0].arguments[2]).toBe('305000')
+    expect(client.evalCalls[1].arguments[0]).toBe('900000')
+    expect(client.evalCalls[1].arguments[2]).toBe('905000')
     expect([...client.store.keys()].join('\n')).not.toContain('Creator@Example.com')
     expect([...client.store.keys()].join('\n')).not.toContain('203.0.113.10')
   })
@@ -172,6 +198,7 @@ describe('ValkeyRateLimitAdapter', () => {
     await adapter.clearLoginFailures('203.0.113.10', 'creator@example.com')
 
     expect(client.delCalls).toHaveLength(1)
+    expect(client.delCalls[0]).toHaveLength(2)
     expect(client.store.size).toBe(1)
   })
 
@@ -200,7 +227,7 @@ describe('ValkeyRateLimitAdapter', () => {
 
     expect(result).toEqual({ allowed: false, retryAfter: 60 })
     const key = [...client.store.keys()][0]
-    expect(key).toMatch(/^luxyhub:test:rate:event:/)
+    expect(key).toMatch(/^luxyhub:test:rate:v2:event:/)
     expect(key).not.toContain(sessionId)
   })
 
