@@ -153,7 +153,7 @@ Last updated: 2026-06-24
 
 | # | Program | Task | Purpose |
 |---|---------|------|---------|
-| 1 | Phase 7E.2 | Production canary planning | Prepare separately approved Valkey canary rollout from 1% to 100% |
+| 1 | Phase 7E.2 | Operational Rollout | Prepare separately approved Valkey canary rollout from 1% to 100% |
 | 2 | Production Operations | Monitor shadow runtime metrics | Maintain healthy status, 100% parity, backend failures 0, comparison failures 0, and mismatch rate 0 before canary |
 | 3 | Production Operations | Review Cloudflare IP attribution | Confirm rate limits, analytics, abuse detection, and audit logs use real client IPs |
 | 4 | Production Operations | Review event worker stability | Confirm event queue, worker, alerts, and Discord delivery remain stable |
@@ -163,7 +163,7 @@ Last updated: 2026-06-24
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 7E.2 | Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100% | Phase 7E.1 production verification |
+| 1 | Phase 7E.2 | Operational Rollout: 1% -> 5% -> 10% -> 25% -> 50% -> 100% | Phase 7E.1 production verification |
 | 2 | Valkey | Valkey authoritative runtime | Successful Phase 7E.2 canary progression and approval |
 | 3 | PostgreSQL | PostgreSQL rate-limit retirement | Valkey authoritative runtime accepted in production |
 | 4 | Analytics V2 | Analytics V2 | Production Operations |
@@ -201,7 +201,7 @@ Access Modes & Keys:    100% complete ██████████████
 Event Platform:        100% complete ████████████████████
 Runtime Performance:   100% complete ████████████████████
 Scale Runtime Baseline: 100% complete ████████████████████
-Production Canary:       0% complete ░░░░░░░░░░░░░░░░░░░░
+Operational Rollout:     0% complete ░░░░░░░░░░░░░░░░░░░░
 ```
 ---
 
@@ -261,7 +261,7 @@ Production Canary:       0% complete ░░░░░░░░░░░░░░�
 | Phase 7C | Production Runtime Performance | Complete | 100% |
 | Phase 7D | Database Scalability & Runtime Optimization | Engineering Complete / Production Baseline | 100% |
 | Phase 7E.1 | Operational Health and Canary Infrastructure | Production Verified ✅ | 100% |
-| Phase 7E.2 | Production Canary | Planned | 0% |
+| Phase 7E.2 | Operational Rollout | Planned | 0% |
 | Phase 8A | Event Foundation | Complete | 100% |
 | Phase 8B | Secure Event Delivery | Hardened | 100% |
 | Phase 8C | Queue, Worker, Dashboard Operations | Hardened | 100% |
@@ -270,7 +270,7 @@ Production Canary:       0% complete ░░░░░░░░░░░░░░�
 | Phase 9 | Internal Operations & Release Workflow | Deferred / Superseded | 0% |
 | Phase 10 | Scale & Infrastructure (Optional) | Superseded by Phase 7D/7E | 0% |
 
-## Current Focus: Phase 7E.2 Production Canary Planning
+## Current Focus: Phase 7E.2 Operational Rollout
 > Phase 1-6 are complete. Phase 7A, Phase 7B backend key monetization infrastructure, Phase 7C production runtime performance optimization, Phase 7D engineering, and Phase 7E.1 production verification are complete. Current runtime is `RATE_LIMIT_MODE=shadow`; PostgreSQL is authoritative; Valkey is shadow; health is healthy; parity is 100%; canary is disabled. Runtime API behavior is preserved. Roblox runtime popup validation against `POST /api/validate` is still planned because the current loader runtime does not yet gate execution through `/api/validate`. Premium license hardening remains deferred future work and is not part of completed Phase 7C.
 
 ### Phase 7E.1 Production State
@@ -309,7 +309,7 @@ Completed production validation:
 
 ### Next Phase
 
-Phase 7E.2 Production Canary:
+Phase 7E.2 Operational Rollout:
 
 1. 1%
 2. 5%
@@ -320,7 +320,7 @@ Phase 7E.2 Production Canary:
 
 ### Future Phase Order
 
-1. Phase 7E.2 — Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
+1. Phase 7E.2 — Operational Rollout: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
 2. Valkey authoritative runtime
 3. PostgreSQL rate-limit retirement
 4. Analytics V2
@@ -1288,9 +1288,9 @@ Risks to resolve before future license implementation:
 
 # Phase 7E — Future Infrastructure Improvements
 
-Status: Phase 7E.1 Production Verified ✅; Phase 7E.2 Planned.
+Status: Phase 7E.1 Production Verified ✅; Phase 7E.2 Operational Rollout planned.
 
-Phase 7E captures the production rollout from shadow verification to canary and eventual Valkey authority. Phase 7E.1 is complete and production verified. Phase 7E.2 is the next planned stage and must not begin without separate rollout approval.
+Phase 7E captures the production rollout from shadow verification to canary and eventual Valkey authority. Phase 7E.1 is complete and production verified. Phase 7E.2 is the operational rollout stage and must not begin without separate rollout approval.
 
 Current Phase 7E.1 state:
 
@@ -1304,7 +1304,7 @@ Current Phase 7E.1 state:
 - Comparison failures 0.
 - Mismatch rate 0.
 
-Next Phase 7E.2 canary progression:
+Next Phase 7E.2 operational rollout progression:
 
 1. 1%
 2. 5%
@@ -1704,13 +1704,13 @@ Grafana
 Current Sprint:
 
 ```text
-1. Phase 7E.2 Production Canary Planning — keep production at RATE_LIMIT_MODE=shadow until separately approved canary rollout begins.
+1. Phase 7E.2 Operational Rollout — keep production at RATE_LIMIT_MODE=shadow until separately approved canary rollout begins.
 ```
 
 Next Sprint:
 
 ```text
-1. Phase 7E.2 Production Canary — 1% -> 5% -> 10% -> 25% -> 50% -> 100%
+1. Phase 7E.2 Operational Rollout — 1% -> 5% -> 10% -> 25% -> 50% -> 100%
 ```
 
 Following:

@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Current Focus: Phase 7E.2 production canary planning after Phase 7E.1 production verification
+- Current Focus: Phase 7E.2 Operational Rollout preparation after Phase 7E.1 production verification
 - Documentation Status: DOCUMENTATION COMPLETE
 - Phase 8: Complete (100%), production verified, Roblox verified
 - Analytics V1: Complete
@@ -11,7 +11,7 @@
 - Phase 7C: Production Runtime Performance, complete
 - Phase 7D: Database Scalability & Runtime Optimization, engineering complete / production baseline
 - Phase 7E.1: Production verified; PostgreSQL authoritative, Valkey shadow, `RATE_LIMIT_MODE=shadow`, canary disabled
-- Phase 7E.2: Planned production canary rollout
+- Phase 7E.2: Operational Rollout for planned production canary progression
 - Premium license hardening: deferred future license work
 
 LuxyHub has closed Phase 7A with the access-mode foundation, key validation integration, license foundation, license management dashboard, and license analytics dashboard production ready for the implemented UI/backend scope. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete and preserved runtime API behavior while reducing delivery build payload reads, optimizing event write projections, improving cleanup batching, and safely pruning expired delivery sessions without execution references. Phase 7D engineering is complete as the current production baseline. Phase 7E.1 is production verified with PostgreSQL authoritative, Valkey shadow comparison, `RATE_LIMIT_MODE=shadow`, healthy runtime health, 100% parity, zero backend failures, zero comparison failures, and canary disabled. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
@@ -84,6 +84,7 @@ Scheduler notes:
 
 - `phases/phase4/PHASE4_DOCUMENTATION_REVIEW.md` — Phase 4 documentation review.
 - `phases/phase7/README.md` — Phase 7 status and source-of-truth pointers.
+- `phases/phase7/PHASE_7E2_CANARY_PLAYBOOK.md` — Phase 7E.2 operational rollout playbook for canary metrics, gates, monitoring, and rollback.
 - `phases/phase7/PHASE_7B_DESIGN.md` — Phase 7B Key Monetization Platform design.
 - `phases/phase7/PHASE_7B_THREAT_MODEL.md` — planned Phase 7B Key Monetization Platform threat model.
 - `phases/phase7/PHASE7_KEY_MONETIZATION_MODEL.md` — Phase 7B key product/provider/device model.
@@ -143,7 +144,7 @@ Scheduler notes:
 
 ### In Progress
 
-- Phase 7E.2 Production Canary Planning
+- Phase 7E.2 Operational Rollout
 
 ### Deferred / Not Started
 
@@ -159,7 +160,7 @@ Scheduler notes:
 
 ### Future Phase Order
 
-1. Phase 7E.2 Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
+1. Phase 7E.2 Operational Rollout: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
 2. Valkey authoritative runtime
 3. PostgreSQL rate-limit retirement
 4. Analytics V2

@@ -6,9 +6,9 @@ Last updated: 2026-06-24
 
 Phase 7A is complete and production ready for the implemented access-mode foundation, key validation integration, license foundation, license management dashboard, license analytics dashboard, and UI remediation scope.
 
-Current focus: Phase 7E.2 production canary planning after completed Phase 7E.1 production verification.
+Current focus: Phase 7E.2 Operational Rollout preparation after completed Phase 7E.1 production verification.
 
-Next planned roadmap phase: Phase 7E.2 production canary. Runtime popup validation and execution gating for `POST /api/validate` remain planned runtime UX work because the current loader does not call `/api/validate` before execution.
+Next planned roadmap phase: Phase 7E.2 Operational Rollout. Runtime popup validation and execution gating for `POST /api/validate` remain planned runtime UX work because the current loader does not call `/api/validate` before execution.
 
 Phase 7B backend key monetization infrastructure is complete. Phase 7C is the completed Production Runtime Performance phase. Phase 7D engineering is complete. Phase 7E.1 is production verified with PostgreSQL authoritative, Valkey shadow, `RATE_LIMIT_MODE=shadow`, healthy runtime health, 100% parity, zero backend failures, zero comparison failures, mismatch rate 0, and canary disabled. Premium license hardening is deferred future license work and is not part of completed Phase 7C.
 
@@ -29,7 +29,7 @@ Phase 7B backend key monetization infrastructure is complete. Phase 7C is the co
 
 ## In Progress
 
-- Phase 7E.2 Production Canary Planning
+- Phase 7E.2 Operational Rollout
 
 ## Deferred / Not Started
 
@@ -63,7 +63,7 @@ Phase 7B backend key monetization infrastructure is complete. Phase 7C is the co
 
 ## Current Focus
 
-- Phase 7E.2 Production Canary: PLANNED
+- Phase 7E.2 Operational Rollout: PLANNED
 - Phase 7B Backend Key Monetization Platform: Complete
 - Phase 7C Production Runtime Performance: Complete
 - Phase 7D Database Scalability & Runtime Optimization: Engineering Complete / Production Baseline
@@ -89,11 +89,11 @@ Current runtime:
 - Mismatch rate: 0.
 - Cloudflare client IP resolution verified.
 
-Next: Phase 7E.2 production canary at 1% -> 5% -> 10% -> 25% -> 50% -> 100%.
+Next: Phase 7E.2 Operational Rollout at 1% -> 5% -> 10% -> 25% -> 50% -> 100%.
 
 ## Future Phase Order
 
-1. Phase 7E.2 Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
+1. Phase 7E.2 Operational Rollout: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
 2. Valkey authoritative runtime
 3. PostgreSQL rate-limit retirement
 4. Analytics V2

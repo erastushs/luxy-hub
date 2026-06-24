@@ -11,9 +11,9 @@ This README is the primary navigation and current-status page for Phase 7 docume
 | Phase 7C | Complete | Production runtime performance optimization is production validated. |
 | Phase 7D | Engineering Complete / Production Baseline | PostgreSQL remains authoritative; Valkey runs in shadow mode with monitoring and rollback. |
 | Phase 7E.1 | Production Verified ✅ | Canary infrastructure, rollout metrics, `/api/health`, shadow comparison, and Cloudflare client IP resolution are production verified. |
-| Phase 7E.2 | Planned | Production canary rollout: 1% -> 5% -> 10% -> 25% -> 50% -> 100%. |
+| Phase 7E.2 | Operational Rollout | Production canary rollout playbook: 1% -> 5% -> 10% -> 25% -> 50% -> 100%. |
 
-Current milestone: **Phase 7E.2 — Production Canary (Planned)**.
+Current milestone: **Phase 7E.2 — Operational Rollout**.
 
 ## Document Navigation
 
@@ -35,6 +35,10 @@ Phase 7D planning documents:
 - `PHASE_7D_IMPLEMENTATION_SPEC.md`
 - `PHASE_7D_OPERATIONAL_RUNBOOK.md`
 - `PHASE_7D_RC1_PRODUCTION_ROLLOUT_RUNBOOK.md`
+
+Phase 7E operational rollout documents:
+
+- `PHASE_7E2_CANARY_PLAYBOOK.md`
 
 Historical documents:
 
@@ -151,7 +155,7 @@ Completed:
 
 Next:
 
-- Phase 7E.2: 1% production canary, subject to explicit rollout approval.
+- Phase 7E.2 Operational Rollout: 1% production canary, subject to explicit rollout approval.
 
 ## Migration Progress
 
@@ -207,7 +211,7 @@ Current:
 
 Next:
 
-- Phase 7E.2 Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
+- Phase 7E.2 Operational Rollout: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
 
 Future:
 
@@ -467,7 +471,7 @@ RC1 scope:
 
 Post-Optimization Infrastructure Review is an evaluation milestone, not an implementation task.
 
-Phase 7E.1 is production verified. Phase 7E.2 production canary is planned and must not be enabled without a separate rollout approval.
+Phase 7E.1 is production verified. Phase 7E.2 is an operational rollout and must not be enabled without a separate rollout approval.
 
 ## Deferred Future License Work
 

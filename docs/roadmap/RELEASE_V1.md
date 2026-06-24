@@ -206,7 +206,7 @@ Completed after Release V1:
 
 Current active track:
 
-- Phase 7E.2 Production Canary Planning: current production remains `RATE_LIMIT_MODE=shadow` with PostgreSQL authoritative, Valkey shadow, health healthy, parity 100%, and canary disabled until separately approved rollout.
+- Phase 7E.2 Operational Rollout: current production remains `RATE_LIMIT_MODE=shadow` with PostgreSQL authoritative, Valkey shadow, health healthy, parity 100%, and canary disabled until separately approved rollout.
 
 Deferred tracks:
 
@@ -217,7 +217,7 @@ Deferred tracks:
 
 Future ordering:
 
-1. Phase 7E.2 Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
+1. Phase 7E.2 Operational Rollout: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
 2. Valkey authoritative runtime
 3. PostgreSQL rate-limit retirement
 4. Analytics V2
