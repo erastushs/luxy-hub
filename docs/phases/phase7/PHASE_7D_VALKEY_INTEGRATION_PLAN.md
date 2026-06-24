@@ -1,10 +1,10 @@
 # Phase 7D — Valkey Integration Architecture RFC
 
-Status: Historical RFC; Phase 7D engineering complete, Phase 7E.1 complete
-Date: 2026-06-20
+Status: Historical RFC; Phase 7D engineering complete, Phase 7E.1 production verified
+Date: 2026-06-24
 Scope: Original architecture planning, retained for design history
 
-This Architecture RFC defined the planned Phase 7D migration from PostgreSQL-backed temporary data to Valkey-backed temporary data. It is retained for architecture history. Current production state is narrower than the long-term target: PostgreSQL remains authoritative, Valkey runs in rate-limit shadow mode, canary is disabled, `/api/health` is the primary operational health endpoint, and `/api/internal/rate-limit-shadow` remains the admin-only shadow monitoring endpoint. Phase 7E.2 is the next planned milestone for a separately approved 1% production canary.
+This Architecture RFC defined the planned Phase 7D migration from PostgreSQL-backed temporary data to Valkey-backed temporary data. It is retained for architecture history. Current production state is narrower than the long-term target: PostgreSQL remains authoritative, Valkey runs in rate-limit shadow mode, canary is disabled, `/api/health` is the primary operational health endpoint, `/api/internal/rate-limit-shadow` remains the admin-only shadow monitoring endpoint, and Cloudflare-aware client IP resolution is production verified. Phase 7E.2 is the next planned milestone for a separately approved production canary beginning at 1%.
 
 ## Current Implementation Status
 
@@ -14,24 +14,24 @@ This Architecture RFC defined the planned Phase 7D migration from PostgreSQL-bac
 | Valkey | Implemented as temporary layer for rate-limit shadow comparison. |
 | Runtime mode | `RATE_LIMIT_MODE=shadow`. |
 | Canary | Disabled; deterministic canary infrastructure exists for future Phase 7E.2. |
+| Production health | Healthy; backend failures `0`; comparison failures `0`; parity `100%`; mismatch rate `0`. |
+| Client IP resolution | `CF-Connecting-IP`, `X-Vercel-Forwarded-For`, `X-Forwarded-For`, `X-Real-IP`, localhost fallback. |
 | Rollback | Immediate configuration rollback to `RATE_LIMIT_MODE=postgres`. |
 | Schema/migrations | No Phase 7D/7E.1 schema changes or migrations. |
 | Cleanup | Existing cleanup behavior retained. |
 
-Current production flow:
+Current production rate-limit shadow flow:
 
 ```text
 Client
   ↓
+Cloudflare
+  ↓
 Next.js API
   ↓
-PostgreSQL
-(source of truth)
-  ↓
-Shadow comparison
-  ↓
-Valkey
-(temporary shadow layer)
+Rate-limit evaluation (`RATE_LIMIT_MODE=shadow`)
+  ├─ PostgreSQL authoritative decision returned to caller
+  └─ Valkey shadow comparison for parity and health metrics
 ```
 
 Operational endpoints:

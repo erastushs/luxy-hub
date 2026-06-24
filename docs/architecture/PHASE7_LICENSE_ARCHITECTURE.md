@@ -1,7 +1,7 @@
 # Phase 7 — Access Modes, Keys, and License Authorization Architecture
 
-Status: Phase 7A Complete / Production Ready; Phase 7B Backend Key Monetization Complete; Phase 7C Production Runtime Performance Complete; Phase 7D Database Scalability & Runtime Optimization Planned
-Date: 2026-06-18
+Status: Phase 7A Complete / Production Ready; Phase 7B Backend Key Monetization Complete; Phase 7C Production Runtime Performance Complete; Phase 7D Engineering Complete; Phase 7E.1 Production Verified
+Date: 2026-06-24
 Scope: Current MAIN architecture and roadmap ownership for access modes, provider-backed keys, device-limited key monetization, premium license foundations, and completed runtime performance optimization. Phase 7B backend key monetization is complete. Phase 7C is now the completed production runtime performance optimization phase. Premium licenses, license assignments, customer identifiers, HWID binding, license entitlements, license analytics, and license hardening are deferred future license work.
 
 ## 1. Approved Direction
@@ -34,7 +34,9 @@ Important separation of concerns:
 | Phase 7B | Backend Key Monetization Platform complete |
 | Runtime popup validation | Planned / not implemented |
 | Phase 7C | Production Runtime Performance complete |
-| Phase 7D | Database Scalability & Runtime Optimization planned / not implemented |
+| Phase 7D | Engineering complete / production baseline |
+| Phase 7E.1 | Production verified; PostgreSQL authoritative, Valkey shadow, canary disabled |
+| Phase 7E.2 | Planned production canary |
 
 Analytics V1 is complete and uses `script_executions` as the canonical execution event table for secure delivery sessions. Future key analytics should add key monetization visibility for generated, validated, expired, denied, provider source, and device-limit outcomes without redefining execution-count semantics. Future premium license work should add license analytics only after premium runtime enforcement is designed.
 
@@ -94,15 +96,25 @@ Analytics V1 is complete and uses `script_executions` as the canonical execution
 - License counter updates during runtime authorization.
 - Runtime audit trail for license authorization decisions.
 
-### Phase 7D Planned Database Scalability & Runtime Optimization
+### Phase 7D/7E.1 Runtime Baseline
+
+- PostgreSQL remains authoritative for rate limits and permanent application data.
+- Valkey runs as the rate-limit shadow comparison backend.
+- Production runtime mode is `RATE_LIMIT_MODE=shadow`.
+- Canary is disabled until Phase 7E.2 receives separate rollout approval.
+- Production health is healthy with backend failures `0`, comparison failures `0`, parity `100%`, and mismatch rate `0`.
+- Client IP resolution behind Cloudflare prioritizes `CF-Connecting-IP`, `X-Vercel-Forwarded-For`, `X-Forwarded-For`, and `X-Real-IP`.
+
+### Remaining Database Scalability & Runtime Optimization
 
 - Database decoupling: decouple `script_executions` from `delivery_sessions`, allow true delivery session TTL cleanup, and preserve analytics without FK dependency.
 - Analytics aggregation: daily, weekly, and monthly script execution statistics to reduce long-term raw row growth.
-- Redis / Valkey integration: move runtime rate limiting out of PostgreSQL, reduce write amplification, reduce cleanup load, and reduce database contention.
+- Valkey authoritative runtime: move rate-limit authority out of PostgreSQL after canary progression and production approval.
+- PostgreSQL rate-limit retirement: remove PostgreSQL rate-limit authority only after Valkey authoritative runtime is production accepted.
 - Internal monitoring dashboard: database, cleanup, runtime, bandwidth, execution, storage growth, and operational health metrics.
 - Post-optimization infrastructure review: measure production impact, compare Supabase usage before and after optimization, and decide whether PostgreSQL migration is still justified.
 
-Phase 7D is planned only. Database decoupling, Redis/Valkey integration, analytics aggregation, monitoring dashboards, schema changes, and migrations are not implemented.
+No Phase 7D/7E.1 schema changes or migrations were introduced. Database decoupling, analytics aggregation, Valkey authoritative runtime, PostgreSQL rate-limit retirement, and external monitoring stack expansion remain future work.
 
 ### Future Work Outside Current Phase 7 Minimum Scope
 
@@ -130,6 +142,26 @@ Phase 5-6 Secure Delivery +--------------------------+
                           | runtime payload delivery  |
                           | loader bootstrap/runtime  |
                           +--------------------------+
+```
+
+Current rate-limit runtime path:
+
+```text
+Cloudflare
+  |
+  v
+Next.js API
+  |
+  v
+Client IP resolution
+  |-- CF-Connecting-IP
+  |-- X-Vercel-Forwarded-For
+  |-- X-Forwarded-For
+  |-- X-Real-IP
+  v
+Rate-limit shadow mode
+  |-- PostgreSQL authoritative decision
+  `-- Valkey shadow comparison
 ```
 
 Authorization occurs only during:

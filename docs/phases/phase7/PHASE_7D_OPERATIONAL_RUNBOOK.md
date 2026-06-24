@@ -1,16 +1,16 @@
 # Phase 7D — Valkey Operational Runbook
 
-Status: Active for Phase 7D production baseline and Phase 7E.1 observability
-Date: 2026-06-23
+Status: Active for Phase 7D production baseline and Phase 7E.1 production-verified observability
+Date: 2026-06-24
 Scope: Production operations runbook for current shadow-mode baseline and future canary stages
 Related documents:
 
 - `PHASE_7D_VALKEY_INTEGRATION_PLAN.md`
 - `PHASE_7D_IMPLEMENTATION_SPEC.md`
 
-This runbook describes how Phase 7D/7E.1 should be operated in production. It is not an implementation guide and does not authorize code changes, package installation, migrations, schema changes, infrastructure changes, runtime behavior changes, Valkey authority, or production canary enablement.
+This runbook describes how Phase 7D/7E.1 is operated in production. It is not an implementation guide and does not authorize code changes, package installation, migrations, schema changes, infrastructure changes, runtime behavior changes, Valkey authority, or production canary enablement.
 
-Phase 7D operational posture is based on one rule: PostgreSQL remains authoritative for permanent application data, and Valkey operates temporary runtime state, locks, caches, nonces, and aggregation buffers with explicit TTLs and rollback controls.
+Phase 7D operational posture is based on one rule: PostgreSQL remains authoritative for permanent application data and current rate-limit decisions. Valkey participates in rate-limit shadow comparison only in the current production baseline. Other temporary runtime state, locks, caches, nonces, and aggregation buffers remain future Valkey workloads unless separately implemented and approved.
 
 ## Current Production State
 
@@ -23,27 +23,70 @@ Phase 7D operational posture is based on one rule: PostgreSQL remains authoritat
 | Rollback | Set `RATE_LIMIT_MODE=postgres` and restart the application process. |
 | Schema/migrations | No Phase 7D/7E.1 schema changes. |
 | Cleanup | Existing cleanup behavior unchanged. |
+| Health | Healthy. |
+| Backend failures | 0. |
+| Comparison failures | 0. |
+| Parity | 100%. |
+| Mismatch rate | 0. |
 
 Current operational architecture:
 
 ```text
 Client
   ↓
+Cloudflare
+  ↓
 Next.js API
   ↓
-PostgreSQL
-(source of truth)
-  ↓
-Shadow comparison
-  ↓
-Valkey
-(temporary shadow layer)
+Rate-limit evaluation (`RATE_LIMIT_MODE=shadow`)
+  ├─ PostgreSQL authoritative decision returned to caller
+  └─ Valkey shadow comparison for parity and health metrics
 ```
 
 Primary operational endpoints:
 
 - `/api/health`: overall production health endpoint with `summary`, `postgres`, `valkey`, `rateLimit`, `rollout`, `performance`, `runtime`, and `notes`.
 - `/api/internal/rate-limit-shadow`: admin-only shadow monitoring endpoint with parity, comparison metrics, rollout metrics, Valkey health, and runtime metadata.
+
+## Cloudflare Deployment Requirements
+
+Production deployments behind Cloudflare must preserve the real client IP at both the application and infrastructure layers.
+
+Application client IP priority order:
+
+1. `CF-Connecting-IP`
+2. `X-Vercel-Forwarded-For`
+3. `X-Forwarded-For`
+4. `X-Real-IP`
+5. `127.0.0.1` fallback
+
+Application behavior requirements:
+
+- Trim whitespace.
+- Ignore empty values.
+- Return only a single IP.
+- For comma-separated forwarded headers, use the first non-empty trimmed IP.
+
+Infrastructure requirements for nginx deployments behind Cloudflare:
+
+- Enable `real_ip_header CF-Connecting-IP`.
+- Enable `real_ip_recursive on`.
+- Configure Cloudflare trusted proxy ranges with `set_real_ip_from`.
+
+Incorrect Cloudflare Real IP configuration causes:
+
+- Incorrect rate limiting.
+- Incorrect analytics.
+- Incorrect abuse detection.
+- Incorrect audit logs.
+
+Resolved production incident:
+
+- Issue: production requests were bucketed by Cloudflare proxy IPs rather than the real client IP.
+- Application root cause: `getClientIP()` did not prioritize `CF-Connecting-IP` and selected the last value from `X-Forwarded-For`.
+- Infrastructure root cause: nginx did not restore Cloudflare Real IP.
+- Resolution: application client IP priority was corrected and nginx Cloudflare Real IP support was enabled.
+- Result: rate limiting now groups requests by real client IP, and production verification confirmed HTTP 429 after exceeding the configured request limit.
 
 Current migration KPIs:
 
@@ -534,7 +577,7 @@ Verification:
 
 Rollback:
 
-- Reduce `VALKEY_CANARY_PERCENT` to `0`.
+- Reduce `RATE_LIMIT_CANARY_PERCENT` to `0`.
 - Switch affected workload mode to PostgreSQL/disabled.
 
 ### Memory Exhausted

@@ -1,7 +1,7 @@
 # LuxyHub Architecture
 
-Last updated: 2026-06-18
-Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, Phase 7A access-mode/license foundation closeout, Phase 7B backend key monetization completion, and Phase 7C production runtime performance optimization. Production Stabilization is the active track. Phase 7D database scalability and runtime optimization is planned, not implemented. Premium license hardening is deferred future license work.
+Last updated: 2026-06-24
+Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, Phase 7A access-mode/license foundation closeout, Phase 7B backend key monetization completion, Phase 7C production runtime performance optimization, Phase 7D engineering completion, and Phase 7E.1 production verification. PostgreSQL is authoritative, Valkey is shadow for rate limits, `RATE_LIMIT_MODE=shadow`, canary is disabled, and Phase 7E.2 production canary is planned. Premium license hardening is deferred future license work.
 
 ## Overview
 
@@ -15,6 +15,7 @@ LuxyHub is a Next.js 16 application that currently provides:
 - Phase 7A access-mode foundation, key validation integration, license foundation, license management dashboard, and license analytics dashboard
 - Phase 7B backend key monetization infrastructure
 - Phase 7C runtime performance optimizations for delivery build metadata reads, event write projections, cleanup batching, and safe expired session pruning
+- Phase 7D/7E.1 rate-limit shadow runtime with PostgreSQL authoritative, Valkey shadow comparison, 100% parity, healthy production status, and deterministic canary infrastructure disabled until Phase 7E.2
 - Supabase-backed authentication, ownership enforcement, RLS, Turnstile login protection, rate limiting, and audit logging
 
 The current production architecture is a single Next.js application. Dedicated `dashboard`, `api`, `cdn`, or `vault` subdomains are not implemented.
@@ -83,6 +84,11 @@ Repository Layer
   |
   v
 Supabase Postgres + Supabase Auth
+
+Rate-limit runtime (`RATE_LIMIT_MODE=shadow`)
+  |-- PostgreSQL authoritative decision
+  |-- Valkey shadow comparison
+  |-- /api/health and /api/internal/rate-limit-shadow metrics
 ```
 
 ## Frontend Architecture
@@ -339,7 +345,11 @@ Audit logging is fire-and-forget. Audit failures must not block user operations.
 
 ## Rate Limiting
 
-Rate limits are stored in the `rate_limits` table and enforced fail-closed. Each route uses an endpoint-specific key such as `VALIDATE`, `SCRIPT_RAW`, `DASHBOARD_SCRIPTS_LIST`, or `DASHBOARD_VERSIONS_GET`.
+Production rate-limit decisions are currently authoritative in PostgreSQL through `RATE_LIMIT_MODE=shadow`. Valkey runs as the shadow comparison backend for parity, latency, and health metrics. Canary infrastructure exists but is disabled until Phase 7E.2. Immediate rollback is `RATE_LIMIT_MODE=postgres`.
+
+Each route uses an endpoint-specific key such as `VALIDATE`, `SCRIPT_RAW`, `DASHBOARD_SCRIPTS_LIST`, or `DASHBOARD_VERSIONS_GET`.
+
+Client IP resolution behind Cloudflare prioritizes `CF-Connecting-IP`, then `X-Vercel-Forwarded-For`, `X-Forwarded-For`, `X-Real-IP`, and finally `127.0.0.1`. Forwarded headers return the first non-empty trimmed IP. This avoids bucketing requests by Cloudflare proxy IPs and preserves correct rate limiting, analytics, abuse detection, and audit logs.
 
 Login uses a failed-attempt limiter that records only failed Supabase login attempts after Turnstile succeeds:
 
@@ -359,6 +369,7 @@ Loader delivery rate limits:
 Completed infrastructure:
 
 - Cloudflare public traffic protection, DNS, and SSL/TLS.
+- Cloudflare Real IP restoration for nginx deployments with `real_ip_header CF-Connecting-IP`, `real_ip_recursive on`, and Cloudflare `set_real_ip_from` trusted proxy ranges.
 - Vercel deployment for the single Next.js app.
 - GitHub Actions scheduler invokes `https://luxyhub.vercel.app/api/internal/event-worker` every 5 minutes.
 - Required GitHub repository secrets: `EVENT_WORKER_URL=https://luxyhub.vercel.app/api/internal/event-worker` and `CRON_SECRET`.
@@ -415,16 +426,18 @@ Current accepted decisions:
 - `decisions/ADR-007-webhook-credential-storage-risk.md` — current webhook credential storage risks are accepted with operational mitigations and rotation processes.
 - `decisions/ADR-008-payload-secret-fallback-policy.md` — payload encryption prefers `DELIVERY_PAYLOAD_SECRET` with documented fallback and rotation implications.
 - `decisions/ADR-009-license-authorization-model.md` — `scripts.access_mode` is the accepted license/key/public delivery authorization model. Phase 7B backend key monetization is complete; premium license hardening is deferred future license work.
+- `decisions/ADR-010-client-ip-resolution-behind-reverse-proxies.md` — client IP resolution prioritizes Cloudflare and forwarded headers for correct rate limiting behind reverse proxies.
 
 ## Roadmap Alignment
 
 Current phase:
 
-- Production Stabilization Program: active.
+- Phase 7E.2 Production Canary: planned.
 - Phase 7B — Backend Key Monetization Platform: complete.
 - Runtime popup key validation: planned / not implemented.
 - Phase 7C — Production Runtime Performance: complete.
-- Phase 7D — Database Scalability & Runtime Optimization: planned / not implemented.
+- Phase 7D — Database Scalability & Runtime Optimization: engineering complete / production baseline.
+- Phase 7E.1 — Observability and canary infrastructure: production verified.
 - Premium license hardening: deferred future license work. MAIN contains Phase 7A foundation only.
 
 Completed phases:
@@ -438,18 +451,22 @@ Completed phases:
 - Phase 7A — License Foundation and Dashboard: complete / production ready
 - Phase 7B — Backend Key Monetization Platform: complete
 - Phase 7C — Production Runtime Performance: complete
+- Phase 7D — Database Scalability & Runtime Optimization: engineering complete / production baseline
+- Phase 7E.1 — Operational health and canary infrastructure: production verified
 - Phase 8 — Event Reporting & Webhook Platform: complete / 100%, production verified, and Roblox verified (database foundation, HMAC reporting API, replay and timestamp validation, queue worker with claim leases, dead-letter handling, Discord provider, dashboard webhook management, event operations, analytics dashboard, security dashboard, internal alerts, GitHub Actions scheduler, event retention cleanup, monitoring counters, and RLS hardening). Telegram and Slack providers, webhook encryption at rest, nonce atomicity improvements, and durable audit event stream expansion are deferred future enhancements and accepted risks, not Phase 8 blockers.
 
 Future ordering:
 
-1. Phase 7D — Database Scalability & Runtime Optimization
-2. Analytics V2
-3. QA & Test Coverage Expansion
-4. Operational Hardening
-5. Security Review
-6. Final Security Audit
-7. Release Candidate
-8. V1 Release
+1. Phase 7E.2 — Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
+2. Valkey authoritative runtime
+3. PostgreSQL rate-limit retirement
+4. Analytics V2
+5. QA & Test Coverage Expansion
+6. Operational Hardening
+7. Security Review
+8. Final Security Audit
+9. Release Candidate
+10. V1 Release
 
 Deprecated roadmap assumptions removed from current architecture:
 

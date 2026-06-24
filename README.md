@@ -18,6 +18,7 @@ LuxyHub is a Next.js 16 application for Roblox script distribution, key validati
 - SHA-256 hashed delivery session tokens, consume-once validation, and 60-second TTL
 - Security headers, CORS controls, API body limits, route rate limiting, and cleanup retention jobs
 - Production runtime performance optimizations for delivery build metadata reads, event write projections, cleanup batching, and safe expired session pruning
+- Phase 7D/7E.1 rate-limit shadow runtime with PostgreSQL authoritative, Valkey shadow comparison, production health reporting, and Cloudflare-aware client IP resolution
 
 ## Tech Stack
 
@@ -122,6 +123,20 @@ npx vitest run
 npm run build
 ```
 
+## Current Runtime
+
+| Area | Current Production State |
+|---|---|
+| PostgreSQL | Authoritative |
+| Valkey | Shadow |
+| Health | Healthy |
+| Parity | 100% |
+| Runtime mode | `RATE_LIMIT_MODE=shadow` |
+| Canary | Disabled |
+| Rollback | Immediate PostgreSQL via `RATE_LIMIT_MODE=postgres` |
+
+Production is deployed behind Cloudflare. Rate-limit client IP resolution prioritizes `CF-Connecting-IP`, then `X-Vercel-Forwarded-For`, `X-Forwarded-For`, and `X-Real-IP`, with `127.0.0.1` as the local fallback.
+
 ## Documentation
 
 - `docs/README.md` — documentation index and source-of-truth map
@@ -130,7 +145,7 @@ npm run build
 - `docs/runtime/SECURE_DELIVERY.md` — current secure delivery runtime behavior
 - `docs/runtime/EVENT_QUEUE.md` — current event queue/runtime behavior
 - `docs/runtime/BUILD_PIPELINE.md` — current build pipeline runtime behavior
-- `docs/roadmap/TODO.md` — current roadmap, completed phases, and planned Phase 7D scope
+- `docs/roadmap/TODO.md` — current roadmap, completed phases, and planned Phase 7E.2 canary scope
 - `docs/deployment/DEPLOYMENT_CHECKLIST.md` — deployment and production validation
 - `docs/architecture/ARCHITECTURE.md` — secure delivery design and implementation notes
 - `docs/archive/integration/DASHBOARD_USER_GUIDE.md` — creator dashboard usage

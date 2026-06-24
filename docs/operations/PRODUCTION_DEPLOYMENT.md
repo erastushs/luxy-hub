@@ -1,7 +1,7 @@
 # LuxyHub V1 Production Deployment Guide
 
 Status: Canonical V1 production deployment guide  
-Last updated: 2026-06-18
+Last updated: 2026-06-24
 
 This guide replaces outdated deployment instructions for the current LuxyHub V1 implemented scope. It is documentation only and does not change runtime behavior.
 
@@ -15,8 +15,9 @@ Expected production systems:
 - License Foundation: license schema, license lifecycle APIs, assignment APIs, license management dashboard, license analytics dashboard.
 - Phase 7B Backend Key Monetization: provider foundation, premium keys, access modes, provider hardening, key management refinement, key type alignment, device limits, and custom device limits.
 - Phase 7C Production Runtime Performance: metadata-only delivery build readiness reads, optimized event write projections, improved cleanup batching, and safe expired session pruning.
+- Phase 7D/7E.1 rate-limit shadow runtime: PostgreSQL authoritative, Valkey shadow, `RATE_LIMIT_MODE=shadow`, healthy production status, 100% parity, and canary disabled.
 
-Runtime popup key validation, Phase 7D database scalability/runtime optimization, Redis/Valkey integration, database decoupling, analytics aggregation, and premium runtime license hardening are planned or deferred separately and are not part of this deployment guide.
+Runtime popup key validation, Phase 7E.2 production canary, Valkey authoritative runtime, PostgreSQL rate-limit retirement, database decoupling, analytics aggregation, and premium runtime license hardening are planned or deferred separately and are not part of this deployment guide.
 
 ## 1. Environment Setup
 

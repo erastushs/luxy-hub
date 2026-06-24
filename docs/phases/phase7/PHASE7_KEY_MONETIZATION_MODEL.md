@@ -242,7 +242,7 @@ Data minimization rules:
 
 ## 10. Deferred Future License Scope
 
-Current roadmap note (updated 2026-06-23): Phase 7C refers to completed Production Runtime Performance optimization. Phase 7D engineering is complete and Phase 7E.1 operational health/canary infrastructure is complete; PostgreSQL remains authoritative and Valkey is shadow-only. Premium License System work is deferred future license work:
+Current roadmap note (updated 2026-06-24): Phase 7C refers to completed Production Runtime Performance optimization. Phase 7D engineering is complete and Phase 7E.1 is production verified; PostgreSQL remains authoritative, Valkey is shadow, `RATE_LIMIT_MODE=shadow`, canary is disabled, and Phase 7E.2 production canary is planned. Premium License System work is deferred future license work:
 
 - Premium licenses.
 - License assignments.

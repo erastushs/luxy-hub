@@ -10,7 +10,8 @@ This README is the primary navigation and current-status page for Phase 7 docume
 | Phase 7B | Complete for backend infrastructure | Runtime popup validation remains separate planned runtime work. |
 | Phase 7C | Complete | Production runtime performance optimization is production validated. |
 | Phase 7D | Engineering Complete / Production Baseline | PostgreSQL remains authoritative; Valkey runs in shadow mode with monitoring and rollback. |
-| Phase 7E.1 | Complete | Canary infrastructure, rollout metrics, and `/api/health` operational polish are implemented. |
+| Phase 7E.1 | Production Verified ✅ | Canary infrastructure, rollout metrics, `/api/health`, shadow comparison, and Cloudflare client IP resolution are production verified. |
+| Phase 7E.2 | Planned | Production canary rollout: 1% -> 5% -> 10% -> 25% -> 50% -> 100%. |
 
 Current milestone: **Phase 7E.2 — Production Canary (Planned)**.
 
@@ -45,15 +46,13 @@ Historical documents:
 ```text
 Client
   ↓
+Cloudflare
+  ↓
 Next.js API
   ↓
-PostgreSQL
-(source of truth and authoritative rate-limit backend)
-  ↓
-Shadow comparison
-  ↓
-Valkey
-(temporary layer; shadow-only for rate limits)
+Rate-limit evaluation (`RATE_LIMIT_MODE=shadow`)
+  ├─ PostgreSQL authoritative decision returned to caller
+  └─ Valkey shadow comparison for parity and health metrics
 ```
 
 PostgreSQL remains authoritative for durable product state, ownership, auth-derived user context, scripts, builds, keys, licenses, analytics history, audit history, and current rate-limit decisions. Valkey is implemented as a temporary operational layer and currently participates in rate-limit shadow comparison only.
@@ -65,9 +64,46 @@ PostgreSQL remains authoritative for durable product state, ownership, auth-deri
 | Runtime mode | `RATE_LIMIT_MODE=shadow` |
 | Authoritative backend | PostgreSQL |
 | Shadow backend | Valkey |
+| Health | Healthy |
+| Backend failures | 0 |
+| Comparison failures | 0 |
+| Parity | 100% |
+| Mismatch rate | 0 |
 | Canary | Disabled |
 | Rollback | Immediate configuration rollback to `RATE_LIMIT_MODE=postgres` |
 | Production canary | Not enabled; Phase 7E.2 planned for 1% canary |
+
+Production validation completed successfully for sequential rate-limit testing, parallel rate-limit testing, high-concurrency testing, shadow comparison verification, health endpoint verification, PostgreSQL authoritative verification, Valkey shadow verification, runtime health verification, Cloudflare deployment verification, client IP resolution verification, and production HTTP 429 behavior after exceeding the configured request limit.
+
+## Client IP Resolution
+
+Production is behind Cloudflare. Client IP resolution must return one trimmed, non-empty IP using this priority order:
+
+1. `CF-Connecting-IP`
+2. `X-Vercel-Forwarded-For`
+3. `X-Forwarded-For`
+4. `X-Real-IP`
+5. `127.0.0.1` fallback
+
+For comma-separated forwarded headers, the first non-empty trimmed IP is the client IP.
+
+### Resolved Production Incident
+
+Production requests were previously bucketed by Cloudflare proxy IPs rather than the real client IP.
+
+Root cause:
+
+- Application client IP resolution did not prioritize `CF-Connecting-IP`.
+- Application parsing selected the last value from `X-Forwarded-For`.
+- Infrastructure nginx did not restore Cloudflare Real IP.
+
+Resolution:
+
+- Application now supports `CF-Connecting-IP`.
+- Application now parses `X-Vercel-Forwarded-For` and `X-Forwarded-For` using the first client IP.
+- Infrastructure enabled Cloudflare Real IP support with `real_ip_header CF-Connecting-IP`, `real_ip_recursive on`, and Cloudflare `set_real_ip_from` trusted proxy ranges.
+
+Result: rate limiting now groups requests using the real client IP, and production verification confirmed HTTP 429 after exceeding the configured request limit.
 
 ## Operational Endpoints
 
@@ -163,6 +199,27 @@ Current `/api/health` shape is additive and should remain backward-compatible at
 }
 ```
 
+## Roadmap And Backlog
+
+Current:
+
+- Phase 7E.1: Production Verified ✅
+
+Next:
+
+- Phase 7E.2 Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
+
+Future:
+
+- Valkey authoritative runtime.
+- PostgreSQL rate-limit retirement.
+- Grafana.
+- Prometheus.
+- Alertmanager.
+- Historical parity.
+- Circuit breaker.
+- Automatic rollback.
+
 ## Long-Term Backlog
 
 ### Observability V2
@@ -207,16 +264,14 @@ Current `/api/health` shape is additive and should remain backward-compatible at
 - Deployment history.
 - Version compatibility matrix.
 
-## ADR Recommendations
+## ADR References
 
-Future ADRs are recommended but not created by this consolidation pass:
+- ADR-010: Client IP Resolution Behind Reverse Proxies.
 
-- ADR-001: Valkey Temporary Data Strategy.
-- ADR-002: Shadow Comparison Architecture.
-- ADR-003: Progressive Canary Rollout.
+Future ADR topics must use the next available ADR number in `docs/architecture/decisions/` to avoid conflicts with existing ADR-001 through ADR-010.
 
 Current Status:
-Phase 7A is complete / production ready. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Phase 7D engineering is complete and forms the production baseline. Phase 7E.1 observability and canary infrastructure is complete. Runtime popup validation remains planned because the Roblox runtime does not yet call `POST /api/validate` before main script execution. Premium license runtime enforcement and license hardening are deferred future license work, not completed Phase 7C work.
+Phase 7A is complete / production ready. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Phase 7D engineering is complete and forms the production baseline. Phase 7E.1 observability and canary infrastructure is production verified. Runtime popup validation remains planned because the Roblox runtime does not yet call `POST /api/validate` before main script execution. Premium license runtime enforcement and license hardening are deferred future license work, not completed Phase 7C work.
 
 Phase 7B Status:
 
@@ -412,7 +467,7 @@ RC1 scope:
 
 Post-Optimization Infrastructure Review is an evaluation milestone, not an implementation task.
 
-Phase 7E.1 is complete. Phase 7E.2 production canary is planned and must not be enabled without a separate rollout approval.
+Phase 7E.1 is production verified. Phase 7E.2 production canary is planned and must not be enabled without a separate rollout approval.
 
 ## Deferred Future License Work
 

@@ -1,10 +1,10 @@
 # Production Validation Report
 
-Last updated: 2026-06-18
+Last updated: 2026-06-24
 
 ## Summary
 
-The repository implementation is structurally sound in code and includes the current dashboard, script APIs, loader delivery, Turnstile login protection, login failed-attempt rate limiting, security hardening controls, Phase 6 loader integration, completed Phase 8 Event Platform, Phase 7A license foundation/dashboard scope, completed Phase 7B backend key monetization infrastructure, and completed Phase 7C production runtime performance optimizations.
+The repository implementation is structurally sound in code and includes the current dashboard, script APIs, loader delivery, Turnstile login protection, login failed-attempt rate limiting, security hardening controls, Phase 6 loader integration, completed Phase 8 Event Platform, Phase 7A license foundation/dashboard scope, completed Phase 7B backend key monetization infrastructure, completed Phase 7C production runtime performance optimizations, Phase 7D engineering baseline, and Phase 7E.1 production-verified rate-limit shadow runtime.
 
 ## Passed Code-Level Checks
 
@@ -27,6 +27,8 @@ The repository implementation is structurally sound in code and includes the cur
 - Phase 7A license schema foundation, license lifecycle APIs, assignment create/remove APIs, license management dashboard, and license analytics dashboard are implemented.
 - Phase 7B backend key monetization infrastructure is implemented for Provider Foundation, Premium Key Infrastructure, Access Mode Support, Provider Hardening, Dashboard UX Refinement, Key Management Refinement, Key Type Alignment, Device Limits V1, and Custom Device Limits.
 - Phase 7C runtime performance optimizations are implemented: delivery session creation avoids unnecessary `payload_ciphertext` reads, ready build metadata projection is used, event write projections omit payload, cleanup batching is improved, and expired delivery session cleanup preserves sessions referenced by execution analytics.
+- Phase 7D/7E.1 rate-limit shadow runtime is production verified: PostgreSQL authoritative, Valkey shadow, `RATE_LIMIT_MODE=shadow`, healthy runtime health, 100% parity, backend failures 0, comparison failures 0, mismatch rate 0, and canary disabled.
+- Cloudflare client IP resolution is production verified with `CF-Connecting-IP`, `X-Vercel-Forwarded-For`, `X-Forwarded-For`, and `X-Real-IP` priority.
 
 ## Checks Requiring Live Production Access
 
@@ -44,7 +46,7 @@ The repository implementation is structurally sound in code and includes the cur
 - Cleanup endpoint logs per-step errors and continues for best-effort cleanup substeps, while event log retention cleanup errors still fail the cleanup route.
 - True delivery session TTL cleanup is not implemented yet because sessions with `script_executions` references are retained for analytics. Database decoupling is planned for Phase 7D.
 - Runtime popup validation is not integrated into the Roblox runtime yet. Premium license runtime enforcement, assignment capacity enforcement, strict customer identifier handling, license counters, and runtime audit trail remain deferred future license work.
-- Redis/Valkey rate limiting and database decoupling are planned Phase 7D items, not completed production behavior.
+- Valkey authoritative rate limiting, PostgreSQL rate-limit retirement, and database decoupling remain future work; current production behavior is PostgreSQL authoritative with Valkey shadow comparison.
 - Production validation cannot fully confirm migration drift or RLS behavior without deployed database access.
 
 ## Recommendations
@@ -69,9 +71,11 @@ Phase 7B Backend Key Monetization readiness: 100/100 for the implemented backend
 
 Phase 7C Production Runtime Performance readiness: 100/100 for the completed optimization scope.
 
+Phase 7D/7E.1 Runtime Baseline readiness: 100/100 for the production-verified shadow scope.
+
 ## Final Decision
 
-GO for current implemented scope. Phase 7A is complete and production ready. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Production Stabilization is active. Phase 7D database scalability and runtime optimization is planned, not implemented. Runtime popup validation and premium license hardening remain deferred/planned work outside the completed optimization scope.
+GO for current implemented scope. Phase 7A is complete and production ready. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Phase 7D engineering is complete. Phase 7E.1 is production verified with PostgreSQL authoritative, Valkey shadow, and canary disabled. Runtime popup validation, Phase 7E.2 production canary, Valkey authoritative runtime, PostgreSQL rate-limit retirement, and premium license hardening remain deferred/planned work outside the completed verification scope.
 
 ## Basis
 

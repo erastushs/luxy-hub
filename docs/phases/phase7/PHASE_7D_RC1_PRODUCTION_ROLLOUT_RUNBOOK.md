@@ -1,11 +1,11 @@
 # Phase 7D RC1 — Valkey Shadow Mode Production Rollout Runbook
 
-Status: Engineering Complete (RC1)  
-Date: 2026-06-23  
+Status: Engineering Complete (RC1); Phase 7E.1 Production Verified ✅  
+Date: 2026-06-24  
 Scope: Documentation-only operator procedure for deploying Phase 7D Valkey shadow mode  
 Audience: Production operators deploying LuxyHub
 
-Current consolidation note: Phase 7D engineering is complete, Phase 7E.1 operational health and canary infrastructure is complete, and the production baseline is `RATE_LIMIT_MODE=shadow` with PostgreSQL authoritative and Valkey shadow-only. This RC1 runbook is preserved as the rollout and rollback procedure. Pre-activation steps that set `RATE_LIMIT_MODE=postgres` describe rollout sequencing and rollback, not the current runtime state.
+Current consolidation note: Phase 7D engineering is complete, Phase 7E.1 operational health and canary infrastructure is production verified, and the production baseline is `RATE_LIMIT_MODE=shadow` with PostgreSQL authoritative and Valkey shadow-only. Current production health is healthy with backend failures `0`, comparison failures `0`, parity `100%`, mismatch rate `0`, Valkey healthy, PostgreSQL healthy, and canary disabled. This RC1 runbook is preserved as the rollout and rollback procedure. Pre-activation steps that set `RATE_LIMIT_MODE=postgres` describe rollout sequencing and rollback, not the current runtime state.
 
 This runbook assumes Phase 7D engineering is complete through Phase 7D.2.6. It does not authorize application code changes, runtime changes, API changes, middleware changes, database schema changes, canary rollout, Valkey authority, or PostgreSQL removal.
 
@@ -22,9 +22,10 @@ Current migration state:
 |---|---|
 | PostgreSQL | Authoritative |
 | Valkey | Shadow |
-| Shadow parity | 100% target/state before canary |
-| Backend failures | 0 target/state before canary |
-| Comparison failures | 0 target/state before canary |
+| Shadow parity | 100% production verified |
+| Backend failures | 0 production verified |
+| Comparison failures | 0 production verified |
+| Mismatch rate | 0 production verified |
 | Canary | Disabled |
 | Next milestone | Phase 7E.2 planned 1% canary |
 
@@ -42,6 +43,10 @@ Request
 ```
 
 Rollback is a configuration-only operation: restore `RATE_LIMIT_MODE=postgres` and restart the PM2 application process.
+
+Production validation completed successfully for sequential rate-limit testing, parallel rate-limit testing, high-concurrency testing, shadow comparison verification, health endpoint verification, PostgreSQL authoritative verification, Valkey shadow verification, runtime health verification, Cloudflare deployment verification, client IP resolution verification, and production HTTP 429 behavior.
+
+Client IP resolution in production behind Cloudflare uses `CF-Connecting-IP`, then `X-Vercel-Forwarded-For`, `X-Forwarded-For`, and `X-Real-IP`, returning the first non-empty trimmed value from comma-separated forwarded headers. nginx must restore Cloudflare Real IP with `real_ip_header CF-Connecting-IP`, `real_ip_recursive on`, and Cloudflare `set_real_ip_from` ranges.
 
 ## Required Operator Inputs
 

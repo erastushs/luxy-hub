@@ -3,7 +3,7 @@
 Status: Backend Complete / Runtime Integration Planned
 Date: 2026-06-17
 
-Current roadmap note (updated 2026-06-23): Phase 7B backend key monetization infrastructure is complete. Phase 7C refers to completed Production Runtime Performance optimization. Phase 7D engineering is complete and Phase 7E.1 operational health/canary infrastructure is complete; PostgreSQL remains authoritative and Valkey is shadow-only. Premium-license threats and controls in this document are deferred future license work, not completed Phase 7C work.
+Current roadmap note (updated 2026-06-24): Phase 7B backend key monetization infrastructure is complete. Phase 7C refers to completed Production Runtime Performance optimization. Phase 7D engineering is complete and Phase 7E.1 is production verified; PostgreSQL remains authoritative, Valkey is shadow, `RATE_LIMIT_MODE=shadow`, canary is disabled, and Phase 7E.2 production canary is planned. Premium-license threats and controls in this document are deferred future license work, not completed Phase 7C work.
 
 Reason: Backend monetization infrastructure is complete, but popup validation has not yet been integrated into the Roblox runtime. Premium License System threats and controls remain deferred future license work.
 

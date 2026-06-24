@@ -19,7 +19,7 @@ Phase 7A introduced the license foundation:
 - License management dashboard
 - License analytics dashboard
 
-Roadmap update: Phase 7B backend key monetization is complete. Phase 7C now refers to completed Production Runtime Performance optimization, and Phase 7D refers to planned Database Scalability & Runtime Optimization. Runtime license enforcement and premium license hardening are deferred future license work. The current architectural boundary remains delivery session creation.
+Roadmap update: Phase 7B backend key monetization is complete. Phase 7C refers to completed Production Runtime Performance optimization. Phase 7D engineering is complete as the production baseline, and Phase 7E.1 is production verified with PostgreSQL authoritative, Valkey shadow, and canary disabled. Runtime license enforcement and premium license hardening are deferred future license work. The license architectural boundary remains delivery session creation.
 
 ## Problem
 

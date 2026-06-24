@@ -2,7 +2,7 @@
 
 Date: 2026-06-17
 
-Superseded note (2026-06-18): This report is retained as a historical roadmap realignment record. The current roadmap now uses Phase 7C for completed Production Runtime Performance optimization and Phase 7D for planned Database Scalability & Runtime Optimization. References in this report to “Phase 7C Premium License System” now map to deferred future license work, not completed Phase 7C.
+Superseded note (2026-06-24): This report is retained as a historical roadmap realignment record. The current roadmap now uses Phase 7C for completed Production Runtime Performance optimization, Phase 7D for the engineering-complete production baseline, Phase 7E.1 for production-verified shadow runtime, and Phase 7E.2 for planned production canary. References in this report to “Phase 7C Premium License System” now map to deferred future license work, not completed Phase 7C.
 
 Branch reviewed: current MAIN branch only.
 

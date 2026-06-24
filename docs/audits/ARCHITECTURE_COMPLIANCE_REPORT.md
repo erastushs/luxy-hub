@@ -98,7 +98,7 @@ Status: ✅ COMPLIANT — historical Phase 2/3 compliance record. Phase 7A statu
 
 ## 7. Future License Compatibility
 
-> Historical note: this section predates Phase 7A implementation. Phase 7A is now complete/production ready for the implemented access-mode, key-validation, license foundation, and dashboard scope. Current roadmap ownership supersedes the older wording: Phase 7B backend key monetization is complete, Phase 7C production runtime performance optimization is complete, Phase 7D database scalability/runtime optimization is planned, and premium runtime enforcement is deferred future license work.
+> Historical note: this section predates Phase 7A implementation. Phase 7A is now complete/production ready for the implemented access-mode, key-validation, license foundation, and dashboard scope. Current roadmap ownership supersedes the older wording: Phase 7B backend key monetization is complete, Phase 7C production runtime performance optimization is complete, Phase 7D engineering is complete, Phase 7E.1 is production verified, Phase 7E.2 production canary is planned, and premium runtime enforcement is deferred future license work.
 
 | Phase 7 Requirement | CDN MVP Readiness | Action Needed |
 |--------------------|-------------------|---------------|
@@ -159,7 +159,7 @@ Compat:      85%  █████████████████░░░
 
 **GO — Production Ready (code and documentation).**
 
-Phase 3 (Creator Dashboard) compatibility is implemented. Historical Phase 7 planning notes in this report are superseded: Phase 7A is complete/production ready for the implemented access-mode, key-validation, license foundation, and dashboard scope; Phase 7B backend key monetization is complete; Phase 7C production runtime performance optimization is complete; Production Stabilization is active; and Phase 7D database scalability/runtime optimization is planned. Marketplace, paid scripts, and creator economy are not part of the current roadmap. The CDN MVP is ready for database migration execution and endpoint testing (Phase 2C).
+Phase 3 (Creator Dashboard) compatibility is implemented. Historical Phase 7 planning notes in this report are superseded: Phase 7A is complete/production ready for the implemented access-mode, key-validation, license foundation, and dashboard scope; Phase 7B backend key monetization is complete; Phase 7C production runtime performance optimization is complete; Phase 7D engineering is complete; Phase 7E.1 is production verified; and Phase 7E.2 production canary is planned. Marketplace, paid scripts, and creator economy are not part of the current roadmap. The CDN MVP is ready for database migration execution and endpoint testing (Phase 2C).
 
 ### Remaining Work (Phase 2C)
 

@@ -1,6 +1,6 @@
 # LuxyHub Roadmap 2026
 
-Last updated: 2026-06-18
+Last updated: 2026-06-24
 
 ---
 
@@ -144,6 +144,8 @@ Last updated: 2026-06-18
 | 132 | **UI** | Phase 7A.9 UI Remediation | breadcrumbs, race guards, loading/error remediation, naming consistency |
 | 133 | **Code** | Phase 7B Backend Key Monetization Infrastructure | provider foundation, premium keys, access modes, key management refinement, key type alignment, device limits |
 | 134 | **Performance** | Phase 7C Production Runtime Performance Optimizations | delivery build metadata projection, optimized event write projections, cleanup batching, safe expired session pruning |
+| 135 | **Infrastructure** | Phase 7D Valkey Shadow Runtime Baseline | PostgreSQL authoritative, Valkey shadow comparison, rollback to PostgreSQL |
+| 136 | **Operations** | Phase 7E.1 Production Verification | `RATE_LIMIT_MODE=shadow`, healthy runtime, 100% parity, zero backend/comparison failures, Cloudflare client IP verification |
 ---
 
 
@@ -151,26 +153,26 @@ Last updated: 2026-06-18
 
 | # | Program | Task | Purpose |
 |---|---------|------|---------|
-| 1 | Production Stabilization | Monitor production metrics | Confirm production behavior after Phase 7A, Phase 7B backend, and Phase 7C optimization closeout |
-| 2 | Production Stabilization | Review analytics accuracy | Validate Analytics V1 and license dashboard reporting after runtime optimization |
-| 3 | Production Stabilization | Review event worker stability | Confirm event queue, worker, alerts, and Discord delivery remain stable |
-| 4 | Production Stabilization | Review build stability | Monitor build pipeline success/failure behavior |
-| 5 | Production Stabilization | Review delivery stability | Monitor secure delivery success rates and runtime errors |
-| 6 | Production Stabilization | Collect bug reports | Capture production issues before new runtime enforcement work |
-| 7 | Production Stabilization | Review operational alerts | Validate alert usefulness, noise level, and incident response needs |
+| 1 | Phase 7E.2 | Production canary planning | Prepare separately approved Valkey canary rollout from 1% to 100% |
+| 2 | Production Operations | Monitor shadow runtime metrics | Maintain healthy status, 100% parity, backend failures 0, comparison failures 0, and mismatch rate 0 before canary |
+| 3 | Production Operations | Review Cloudflare IP attribution | Confirm rate limits, analytics, abuse detection, and audit logs use real client IPs |
+| 4 | Production Operations | Review event worker stability | Confirm event queue, worker, alerts, and Discord delivery remain stable |
+| 5 | Production Operations | Review build and delivery stability | Monitor build pipeline, secure delivery success rates, and runtime errors |
 
 ### Pending ❌
 
 | # | Phase | Task | Depends On |
 |---|-------|------|------------|
-| 1 | Phase 7D | Database Scalability & Runtime Optimization | Phase 7C production impact review |
-| 2 | Analytics V2 | Analytics V2 | Production Stabilization Program |
-| 3 | QA | QA & Test Coverage Expansion | Analytics V2 |
-| 4 | Operations | Operational Hardening | QA & Test Coverage Expansion |
-| 5 | Security | Security Review | Operational Hardening |
-| 6 | Security | Final Security Audit | Phase 7B backend and Phase 7C optimization closeout |
-| 7 | Release | Release Candidate | Final Security Audit |
-| 8 | Release | V1 Release | Release Candidate |
+| 1 | Phase 7E.2 | Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100% | Phase 7E.1 production verification |
+| 2 | Valkey | Valkey authoritative runtime | Successful Phase 7E.2 canary progression and approval |
+| 3 | PostgreSQL | PostgreSQL rate-limit retirement | Valkey authoritative runtime accepted in production |
+| 4 | Analytics V2 | Analytics V2 | Production Operations |
+| 5 | QA | QA & Test Coverage Expansion | Analytics V2 |
+| 6 | Operations | Operational Hardening | QA & Test Coverage Expansion |
+| 7 | Security | Security Review | Operational Hardening |
+| 8 | Security | Final Security Audit | Phase 7B backend and Phase 7E rollout closeout |
+| 9 | Release | Release Candidate | Final Security Audit |
+| 10 | Release | V1 Release | Release Candidate |
 
 ### Deferred / Sequenced Work
 
@@ -181,7 +183,8 @@ Last updated: 2026-06-18
 | 3 | Key Operations | Device analytics and reset tooling | Depends on validation event foundation |
 | 4 | Provider Expansion | Linkvertise and LootLabs | Future provider expansion after current provider/key flow is stable |
 | 5 | Premium License Work | License hardening and runtime enforcement | Deferred; not Phase 7C and not completed |
-| 6 | Phase 7E | Future Infrastructure Improvements | Optional / future after Phase 7D evaluation |
+| 6 | Observability | Grafana, Prometheus, Alertmanager, historical parity | Future external observability stack after current internal health and parity metrics |
+| 7 | Resilience | Circuit breaker and automatic rollback | Future automation after canary behavior is proven manually |
 ---
 ## Overall Completion
 ```text
@@ -197,7 +200,8 @@ Loader Integration:    100% complete ██████████████�
 Access Modes & Keys:    100% complete ████████████████████
 Event Platform:        100% complete ████████████████████
 Runtime Performance:   100% complete ████████████████████
-Scale Planning:          0% complete ░░░░░░░░░░░░░░░░░░░░
+Scale Runtime Baseline: 100% complete ████████████████████
+Production Canary:       0% complete ░░░░░░░░░░░░░░░░░░░░
 ```
 ---
 
@@ -255,8 +259,9 @@ Scale Planning:          0% complete ░░░░░░░░░░░░░░�
 | Phase 7B | Key Monetization Backend Platform | Complete | 100% |
 | Runtime UX | Roblox Popup Key Validation | Planned / Not Implemented | 0% |
 | Phase 7C | Production Runtime Performance | Complete | 100% |
-| Phase 7D | Database Scalability & Runtime Optimization | Planned | 0% |
-| Phase 7E | Future Infrastructure Improvements | Optional / Future | 0% |
+| Phase 7D | Database Scalability & Runtime Optimization | Engineering Complete / Production Baseline | 100% |
+| Phase 7E.1 | Operational Health and Canary Infrastructure | Production Verified ✅ | 100% |
+| Phase 7E.2 | Production Canary | Planned | 0% |
 | Phase 8A | Event Foundation | Complete | 100% |
 | Phase 8B | Secure Event Delivery | Hardened | 100% |
 | Phase 8C | Queue, Worker, Dashboard Operations | Hardened | 100% |
@@ -265,44 +270,66 @@ Scale Planning:          0% complete ░░░░░░░░░░░░░░�
 | Phase 9 | Internal Operations & Release Workflow | Deferred / Superseded | 0% |
 | Phase 10 | Scale & Infrastructure (Optional) | Superseded by Phase 7D/7E | 0% |
 
-## Current Focus: Production Stabilization Program
-> Phase 4, Phase 5, Phase 6, Analytics V1, Phase 8 Event Reporting & Webhook Platform, Phase 7A, Phase 7B backend key monetization infrastructure, and Phase 7C production runtime performance optimization are complete. Runtime API behavior is preserved. Roblox runtime popup validation against `POST /api/validate` is still planned because the current loader runtime does not yet gate execution through `/api/validate`. Premium license hardening remains deferred future work and is not part of completed Phase 7C.
+## Current Focus: Phase 7E.2 Production Canary Planning
+> Phase 1-6 are complete. Phase 7A, Phase 7B backend key monetization infrastructure, Phase 7C production runtime performance optimization, Phase 7D engineering, and Phase 7E.1 production verification are complete. Current runtime is `RATE_LIMIT_MODE=shadow`; PostgreSQL is authoritative; Valkey is shadow; health is healthy; parity is 100%; canary is disabled. Runtime API behavior is preserved. Roblox runtime popup validation against `POST /api/validate` is still planned because the current loader runtime does not yet gate execution through `/api/validate`. Premium license hardening remains deferred future work and is not part of completed Phase 7C.
 
-### Production Stabilization Program
+### Phase 7E.1 Production State
 
-Status: ACTIVE
+Status: PRODUCTION VERIFIED ✅
 
-Goals:
+Verified state:
 
-- Observe production behavior.
-- Validate analytics accuracy.
-- Validate event platform stability.
-- Validate secure delivery stability.
-- Monitor build pipeline.
-- Collect bug reports.
-- Collect user feedback.
-- Monitor runtime errors.
+- PostgreSQL authoritative.
+- Valkey shadow.
+- `RATE_LIMIT_MODE=shadow`.
+- Canary disabled.
+- Rollback: immediate PostgreSQL via `RATE_LIMIT_MODE=postgres`.
+- Health: healthy.
+- Backend failures: 0.
+- Comparison failures: 0.
+- Parity: 100%.
+- Mismatch rate: 0.
+- Valkey healthy.
+- PostgreSQL healthy.
+- Cloudflare client IP resolution verified.
+- Production HTTP 429 verified after exceeding the configured request limit.
 
-Success Criteria:
+Completed production validation:
 
-- Stable delivery success rates.
-- Stable event processing.
-- Stable analytics reporting.
-- No critical production incidents.
-- No unresolved P0 bugs.
+- Sequential rate-limit testing.
+- Parallel rate-limit testing.
+- High-concurrency testing.
+- Shadow comparison verification.
+- Health endpoint verification.
+- PostgreSQL authoritative verification.
+- Valkey shadow verification.
+- Runtime health verification.
+- Cloudflare deployment verification.
+- Client IP resolution verification.
 
-Suggested Duration: 2-4 weeks.
+### Next Phase
+
+Phase 7E.2 Production Canary:
+
+1. 1%
+2. 5%
+3. 10%
+4. 25%
+5. 50%
+6. 100%
 
 ### Future Phase Order
 
-1. Phase 7D — Database Scalability & Runtime Optimization
-2. Analytics V2
-3. QA & Test Coverage Expansion
-4. Operational Hardening
-5. Security Review
-6. Final Security Audit
-7. Release Candidate
-8. V1 Release
+1. Phase 7E.2 — Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
+2. Valkey authoritative runtime
+3. PostgreSQL rate-limit retirement
+4. Analytics V2
+5. QA & Test Coverage Expansion
+6. Operational Hardening
+7. Security Review
+8. Final Security Audit
+9. Release Candidate
+10. V1 Release
 
 # Phase 1 — Infrastructure & Monitoring
 
@@ -1153,7 +1180,7 @@ Source commits:
 - Session creation and rebuild invalidation use metadata-only ready-build projections. They still filter for non-null/non-empty `payload_ciphertext` at the database level so readiness semantics are unchanged.
 - Runtime fetch/consume still intentionally reads `payload_ciphertext` server-side when generating the runtime payload.
 - Event write results are intentionally partial and omit `payload`; read paths still use the full event projection.
-- Cleanup is safer and more bounded, but true delivery session TTL cleanup is still blocked by the current `script_executions.session_id` relationship. That scalability work is planned in Phase 7D and is not implemented yet.
+- Cleanup is safer and more bounded, but true delivery session TTL cleanup is still blocked by the current `script_executions.session_id` relationship. That database decoupling work remains future scope and was not part of the Phase 7D/7E.1 rate-limit shadow baseline.
 
 ## Verification Coverage
 
@@ -1168,9 +1195,18 @@ Source commits:
 
 # Phase 7D — Database Scalability & Runtime Optimization
 
-Status: Planned / not implemented.
+Status: Engineering Complete / Production Baseline.
 
-Scope note: Phase 7D is documentation only at this stage. Do not treat database decoupling, Redis, Valkey, analytics aggregation, monitoring dashboards, schema changes, or migrations as completed work.
+Scope note: Phase 7D/7E.1 completed the rate-limit shadow runtime baseline, health reporting, rollout metrics, and production verification. PostgreSQL remains authoritative, Valkey is shadow, `RATE_LIMIT_MODE=shadow`, canary is disabled, and rollback is immediate PostgreSQL via `RATE_LIMIT_MODE=postgres`. Do not treat database decoupling, analytics aggregation, schema changes, migrations, Valkey authoritative runtime, or PostgreSQL rate-limit retirement as completed work.
+
+## Phase 7D Completed Baseline
+
+- [x] Valkey connection, metrics, and health visibility.
+- [x] Rate-limit shadow mode with PostgreSQL authoritative.
+- [x] `/api/health` operational reporting.
+- [x] `/api/internal/rate-limit-shadow` admin-only shadow monitoring.
+- [x] Rollout metrics and deterministic canary infrastructure.
+- [x] Rollback path to `RATE_LIMIT_MODE=postgres`.
 
 ## Phase 7D.1 — Database Decoupling
 
@@ -1188,16 +1224,23 @@ Scope note: Phase 7D is documentation only at this stage. Do not treat database 
 
 ## Phase 7D.3 — Redis / Valkey Integration
 
-- [ ] Move runtime rate limiting out of PostgreSQL.
-- [ ] Reduce write amplification.
-- [ ] Reduce cleanup load.
-- [ ] Reduce database contention.
+- [x] Add Valkey shadow comparison for runtime rate limiting.
+- [x] Verify PostgreSQL authoritative and Valkey shadow behavior in production.
+- [ ] Move runtime rate-limit authority out of PostgreSQL.
+- [ ] Retire PostgreSQL rate-limit authority.
+- [ ] Reduce write amplification through authoritative Valkey runtime.
+- [ ] Reduce cleanup load through PostgreSQL rate-limit retirement.
+- [ ] Reduce database contention through authoritative Valkey runtime.
 
 ## Phase 7D.4 — Internal Monitoring Dashboard
 
-- [ ] Database metrics.
-- [ ] Cleanup metrics.
-- [ ] Runtime metrics.
+- [x] Runtime health via `/api/health`.
+- [x] Rate-limit shadow metrics via `/api/internal/rate-limit-shadow`.
+- [x] Valkey health summary.
+- [x] Rollout metrics.
+- [ ] Database metrics dashboard.
+- [ ] Cleanup metrics dashboard.
+- [ ] Runtime metrics dashboard.
 - [ ] Bandwidth metrics.
 - [ ] Execution metrics.
 - [ ] Storage growth.
@@ -1245,12 +1288,41 @@ Risks to resolve before future license implementation:
 
 # Phase 7E — Future Infrastructure Improvements
 
-Status: Optional / future.
+Status: Phase 7E.1 Production Verified ✅; Phase 7E.2 Planned.
 
-Phase 7E captures infrastructure improvements that may follow the Phase 7D.5 evaluation. No Phase 7E work is implemented or committed.
+Phase 7E captures the production rollout from shadow verification to canary and eventual Valkey authority. Phase 7E.1 is complete and production verified. Phase 7E.2 is the next planned stage and must not begin without separate rollout approval.
 
-Potential future items:
+Current Phase 7E.1 state:
 
+- PostgreSQL authoritative.
+- Valkey shadow.
+- `RATE_LIMIT_MODE=shadow`.
+- Canary disabled.
+- Health healthy.
+- Parity 100%.
+- Backend failures 0.
+- Comparison failures 0.
+- Mismatch rate 0.
+
+Next Phase 7E.2 canary progression:
+
+1. 1%
+2. 5%
+3. 10%
+4. 25%
+5. 50%
+6. 100%
+
+Future items:
+
+- Valkey authoritative runtime.
+- PostgreSQL rate-limit retirement.
+- Grafana.
+- Prometheus.
+- Alertmanager.
+- Historical parity.
+- Circuit breaker.
+- Automatic rollback.
 - Database provider migration if Supabase/PostgreSQL usage remains a bottleneck after Phase 7C and Phase 7D improvements.
 - Dedicated worker infrastructure if GitHub Actions scheduling becomes insufficient.
 - Dedicated app/domain separation if operational requirements justify it.
@@ -1632,25 +1704,27 @@ Grafana
 Current Sprint:
 
 ```text
-1. Production Stabilization — monitor production metrics, delivery stability, event worker stability, analytics accuracy, build stability, runtime errors, bug reports, user feedback, and operational alerts.
+1. Phase 7E.2 Production Canary Planning — keep production at RATE_LIMIT_MODE=shadow until separately approved canary rollout begins.
 ```
 
 Next Sprint:
 
 ```text
-1. Phase 7D — Database Scalability & Runtime Optimization
+1. Phase 7E.2 Production Canary — 1% -> 5% -> 10% -> 25% -> 50% -> 100%
 ```
 
 Following:
 
 ```text
-1. Analytics V2
-2. QA & Test Coverage Expansion
-3. Operational Hardening
-4. Security Review
-5. Final Security Audit
-6. Release Candidate
-7. V1 Release
+1. Valkey authoritative runtime
+2. PostgreSQL rate-limit retirement
+3. Analytics V2
+4. QA & Test Coverage Expansion
+5. Operational Hardening
+6. Security Review
+7. Final Security Audit
+8. Release Candidate
+9. V1 Release
 ```
 
 Deferred:
@@ -1658,7 +1732,7 @@ Deferred:
 ```text
 1. Runtime popup key validation until runtime UX requirements are finalized.
 2. Premium license hardening until a future license design is approved.
-3. Phase 7E/Phase 10 scale infrastructure unless Phase 7D.5 production impact review justifies it.
+3. Grafana, Prometheus, Alertmanager, historical parity, circuit breaker, and automatic rollback until Phase 7E.2 canary behavior is reviewed.
 ```
 
 Long-Term Goal:

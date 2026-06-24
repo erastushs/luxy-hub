@@ -2,17 +2,19 @@
 
 ## Current Status
 
-- Current Focus: Production Stabilization after Phase 7C production runtime performance optimization
+- Current Focus: Phase 7E.2 production canary planning after Phase 7E.1 production verification
 - Documentation Status: DOCUMENTATION COMPLETE
 - Phase 8: Complete (100%), production verified, Roblox verified
 - Analytics V1: Complete
 - Phase 7A: Complete / production ready
 - Phase 7B: Backend Key Monetization Platform, complete
 - Phase 7C: Production Runtime Performance, complete
-- Phase 7D: Database Scalability & Runtime Optimization, planned / not implemented
+- Phase 7D: Database Scalability & Runtime Optimization, engineering complete / production baseline
+- Phase 7E.1: Production verified; PostgreSQL authoritative, Valkey shadow, `RATE_LIMIT_MODE=shadow`, canary disabled
+- Phase 7E.2: Planned production canary rollout
 - Premium license hardening: deferred future license work
 
-LuxyHub has closed Phase 7A with the access-mode foundation, key validation integration, license foundation, license management dashboard, and license analytics dashboard production ready for the implemented UI/backend scope. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete and preserved runtime API behavior while reducing delivery build payload reads, optimizing event write projections, improving cleanup batching, and safely pruning expired delivery sessions without execution references. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
+LuxyHub has closed Phase 7A with the access-mode foundation, key validation integration, license foundation, license management dashboard, and license analytics dashboard production ready for the implemented UI/backend scope. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete and preserved runtime API behavior while reducing delivery build payload reads, optimizing event write projections, improving cleanup batching, and safely pruning expired delivery sessions without execution references. Phase 7D engineering is complete as the current production baseline. Phase 7E.1 is production verified with PostgreSQL authoritative, Valkey shadow comparison, `RATE_LIMIT_MODE=shadow`, healthy runtime health, 100% parity, zero backend failures, zero comparison failures, and canary disabled. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
 
 ## Source of Truth Documents
 
@@ -61,6 +63,7 @@ Scheduler notes:
 - `architecture/decisions/ADR-007-webhook-credential-storage-risk.md` — webhook credential storage risk and mitigations.
 - `architecture/decisions/ADR-008-payload-secret-fallback-policy.md` — payload secret fallback and rotation policy.
 - `architecture/decisions/ADR-009-license-authorization-model.md` — Phase 7A access-mode authorization model and Phase 7B/7C boundary.
+- `architecture/decisions/ADR-010-client-ip-resolution-behind-reverse-proxies.md` — client IP resolution priority behind Cloudflare and reverse proxies.
 
 ### `roadmap/`
 
@@ -117,6 +120,8 @@ Scheduler notes:
 - Phase 7A — complete / production ready.
 - Phase 7B — backend key monetization infrastructure complete.
 - Phase 7C — production runtime performance complete.
+- Phase 7D — engineering complete / production baseline.
+- Phase 7E.1 — production verified.
 - Phase 8 — complete / formally closed at 100%, production verified, Roblox verified.
 
 ## Project Status
@@ -133,14 +138,17 @@ Scheduler notes:
 - License Dashboard
 - Phase 7B Backend Key Monetization Infrastructure
 - Phase 7C Production Runtime Performance
+- Phase 7D Valkey Shadow Runtime Baseline
+- Phase 7E.1 Operational Health and Canary Infrastructure
 
 ### In Progress
 
-- Production Stabilization Program
+- Phase 7E.2 Production Canary Planning
 
 ### Deferred / Not Started
 
-- Phase 7D Database Scalability & Runtime Optimization
+- Valkey authoritative runtime
+- PostgreSQL rate-limit retirement
 - Analytics V2
 - QA & Test Coverage Expansion
 - Operational Hardening
@@ -151,11 +159,13 @@ Scheduler notes:
 
 ### Future Phase Order
 
-1. Phase 7D Database Scalability & Runtime Optimization
-2. Analytics V2
-3. QA & Test Coverage Expansion
-4. Operational Hardening
-5. Security Review
-6. Final Security Audit
-7. Release Candidate
-8. V1 Release
+1. Phase 7E.2 Production Canary: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
+2. Valkey authoritative runtime
+3. PostgreSQL rate-limit retirement
+4. Analytics V2
+5. QA & Test Coverage Expansion
+6. Operational Hardening
+7. Security Review
+8. Final Security Audit
+9. Release Candidate
+10. V1 Release

@@ -1,11 +1,11 @@
 # Phase 7D — Valkey Implementation Specification
 
-Status: Historical specification; Phase 7D engineering complete, Phase 7E.1 complete
-Date: 2026-06-23
+Status: Historical specification; Phase 7D engineering complete, Phase 7E.1 production verified
+Date: 2026-06-24
 Scope: Original implementation specification, retained for design and rollout history
 Source RFC: `PHASE_7D_VALKEY_INTEGRATION_PLAN.md`
 
-This document defined how Phase 7D should be implemented. It is now retained as the historical implementation specification. Current production state is PostgreSQL authoritative, Valkey shadow mode, deterministic canary infrastructure present but disabled, `/api/health` operating as the primary operational health endpoint, and `/api/internal/rate-limit-shadow` providing admin-only shadow monitoring.
+This document defined how Phase 7D should be implemented. It is now retained as the historical implementation specification. Current production state is PostgreSQL authoritative, Valkey shadow mode, deterministic canary infrastructure present but disabled, `/api/health` operating as the primary operational health endpoint, `/api/internal/rate-limit-shadow` providing admin-only shadow monitoring, and Cloudflare-aware client IP resolution verified in production.
 
 ## Current Implementation Status
 
@@ -17,6 +17,8 @@ This document defined how Phase 7D should be implemented. It is now retained as 
 | Canary controls | `RATE_LIMIT_MODE=valkey_canary` and `RATE_LIMIT_CANARY_PERCENT` infrastructure exists; production canary is not enabled. |
 | Operational health | `/api/health` reports `summary`, `postgres`, `valkey`, `rateLimit`, `rollout`, `performance`, `runtime`, and `notes`. |
 | Shadow monitoring | `/api/internal/rate-limit-shadow` reports parity, comparison metrics, rollout metrics, and Valkey health for admins. |
+| Production health | Healthy; backend failures `0`; comparison failures `0`; parity `100%`; mismatch rate `0`. |
+| Client IP resolution | `CF-Connecting-IP`, `X-Vercel-Forwarded-For`, `X-Forwarded-For`, `X-Real-IP`, localhost fallback. |
 | Rollback | Set `RATE_LIMIT_MODE=postgres`. |
 
 Current rate-limit architecture:
@@ -120,7 +122,7 @@ This specification itself did not create files, but later Phase 7D/7E.1 implemen
 
 All flags default to disabled unless explicitly stated otherwise. Disabling a flag must restore the prior PostgreSQL-backed or no-cache behavior without a deployment rollback whenever the legacy path still exists.
 
-Original recommended flag model. Current implemented rate-limit runtime uses `RATE_LIMIT_MODE` with `postgres`, `shadow`, `dual_write`, `valkey_canary`, and `valkey` recognized as modes, plus `RATE_LIMIT_CANARY_PERCENT` for deterministic future canary selection. Production remains `RATE_LIMIT_MODE=shadow` and canary disabled.
+Original recommended flag model is retained for historical context. Current implemented rate-limit runtime uses `RATE_LIMIT_MODE` with `postgres`, `shadow`, `dual_write`, `valkey_canary`, and `valkey` recognized as modes, plus `RATE_LIMIT_CANARY_PERCENT` for deterministic future canary selection. Production remains `RATE_LIMIT_MODE=shadow` and canary disabled. Historical flag names in the table below are not the implemented rate-limit runtime contract unless explicitly mapped to `RATE_LIMIT_MODE` or `RATE_LIMIT_CANARY_PERCENT`.
 
 | Flag | Default | Purpose | Rollback Behavior |
 |---|---|---|---|
@@ -141,7 +143,7 @@ Original recommended flag model. Current implemented rate-limit runtime uses `RA
 | `CACHE_V1_WRITES` | `false` | Allows cache population and mutation-driven invalidation. | Disable writes; reads should also be disabled unless stale values are impossible. |
 | `COUNTERS_V1` | `false` | Enables temporary Valkey analytics counter buffers. | Stop incrementing Valkey counters and resume direct PostgreSQL analytics writes or previous durable event path. |
 | `COUNTERS_V1_FLUSH` | `false` | Enables scheduled flushing of Valkey counters into PostgreSQL aggregates. | Disable flush if it is unsafe; otherwise run final idempotent flush before rollback where possible. |
-| `VALKEY_CANARY_PERCENT` | `0` | Controls percentage of eligible traffic using Valkey authority for canary-capable workloads. | Set to `0` to stop canary authority. |
+| Historical Valkey canary percent flag | `0` | Historical proposed canary variable. Current implemented rate-limit runtime uses `RATE_LIMIT_CANARY_PERCENT`. | Set current `RATE_LIMIT_CANARY_PERCENT` to `0` to stop rate-limit canary authority. |
 | `VALKEY_FAIL_CLOSED_ENABLED` | `true` for protected paths | Enforces fail-closed behavior when protected workloads cannot use Valkey and have no approved fallback. | For rollback, prefer PostgreSQL fallback over disabling fail-closed protection. |
 | `VALKEY_LOG_SAMPLE_RATE` | minimal safe value | Controls safe diagnostic log sampling for shadow mismatches and operational errors. | Set to `0` to suppress optional diagnostics during incident response. |
 
@@ -413,7 +415,7 @@ Rollback:
 
 Exit Criteria:
 
-- Valkey is authoritative for approved delivery-session traffic.
+- Future Valkey delivery-session authority is approved for the selected traffic slice.
 - No new PostgreSQL `delivery_sessions` rows are written for migrated traffic after rollback validation.
 - Runtime behavior and event validation remain compatible.
 - Permanent analytics no longer require retaining temporary delivery-session rows for migrated traffic.
