@@ -11,15 +11,29 @@ import { checkValkeyHealth } from '@/app/lib/valkey/health'
 
 const RUNTIME_STARTED_AT_MS = Date.now() - Math.floor(process.uptime() * 1000)
 
+function optionalBuildMetadata(env: Record<string, string | undefined> = process.env) {
+  const build = {
+    deployment: env.VERCEL_ENV,
+    commitSha: env.VERCEL_GIT_COMMIT_SHA,
+    commitRef: env.VERCEL_GIT_COMMIT_REF,
+  }
+  const entries = Object.entries(build).filter((entry): entry is [string, string] => Boolean(entry[1]))
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined
+}
+
 function runtimeMetadata(runtimeMode: string) {
   const uptimeSeconds = Math.max(0, Math.floor(process.uptime()))
+  const build = optionalBuildMetadata()
 
   return {
-    phase: '7D',
+    phase: '7',
+    milestone: '7E.2',
     release: 'RC1',
     runtimeMode,
     startedAt: new Date(RUNTIME_STARTED_AT_MS).toISOString(),
     uptimeSeconds,
+    ...(build ? { build } : {}),
   }
 }
 
@@ -76,16 +90,20 @@ export async function GET() {
       `Latency: Postgres ${formatLatency(latency.postgresAverageMs)}, Valkey ${formatLatency(latency.valkeyAverageMs)}, Delta ${formatLatency(latency.deltaAverageMs)}`,
       `Valkey: ${valkey.connectionState}`,
       `Uptime: ${runtime.uptimeSeconds}s`,
-      `Status: ${health.status}`,
+      `Status: ${health.observabilityStatus}`,
     ].join(' | ')
 
     return NextResponse.json({
       enabled: health.enabled,
       runtimeMode: health.runtimeMode,
+      operationalState: health.operationalState,
+      observabilityStatus: health.observabilityStatus,
       runtime,
       rollout,
       health: {
         status: health.status,
+        observabilityStatus: health.observabilityStatus,
+        operationalState: health.operationalState,
         backendFailures: health.backendFailures,
         comparisonFailures: metrics.comparisonFailures,
       },

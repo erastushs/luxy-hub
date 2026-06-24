@@ -44,6 +44,8 @@ function mockHealthyMetrics() {
   vi.mocked(getRateLimitShadowHealth).mockReturnValue({
     enabled: true,
     runtimeMode: 'shadow',
+    operationalState: 'shadow_comparison_active',
+    observabilityStatus: 'healthy',
     totalComparisons: 154_203,
     mismatchRate: 0.000006,
     backendFailures: 0,
@@ -101,6 +103,13 @@ function mockHealthyMetrics() {
   vi.mocked(getRateLimitRolloutMetrics).mockReturnValue({
     mode: 'shadow',
     canaryPercentage: 0,
+    configuredCanaryPercentage: 0,
+    effectiveCanaryPercentage: 0,
+    effectivePostgresPercentage: 0,
+    effectiveValkeyPercentage: 0,
+    fallbackPercentage: 0,
+    totalRequests: 0,
+    nonCanaryRequests: 0,
     canaryRequests: 0,
     postgresRequests: 0,
     valkeyRequests: 0,
@@ -110,6 +119,8 @@ function mockHealthyMetrics() {
   })
   vi.mocked(getRateLimitShadowOperationalSnapshot).mockReturnValue({
     runtimeMode: 'shadow',
+    operationalState: 'shadow_comparison_active',
+    observabilityStatus: 'healthy',
     comparisons: 154_203,
     parityRate: 0.999994,
     backendFailures: 0,
@@ -193,8 +204,11 @@ describe('GET /api/internal/rate-limit-shadow', () => {
     expect(body).toEqual({
       enabled: true,
       runtimeMode: 'shadow',
+      operationalState: 'shadow_comparison_active',
+      observabilityStatus: 'healthy',
       runtime: {
-        phase: '7D',
+        phase: '7',
+        milestone: '7E.2',
         release: 'RC1',
         runtimeMode: 'shadow',
         startedAt: expect.any(String),
@@ -203,6 +217,13 @@ describe('GET /api/internal/rate-limit-shadow', () => {
       rollout: {
         mode: 'shadow',
         canaryPercentage: 0,
+        configuredCanaryPercentage: 0,
+        effectiveCanaryPercentage: 0,
+        effectivePostgresPercentage: 0,
+        effectiveValkeyPercentage: 0,
+        fallbackPercentage: 0,
+        totalRequests: 0,
+        nonCanaryRequests: 0,
         canaryRequests: 0,
         postgresRequests: 0,
         valkeyRequests: 0,
@@ -212,6 +233,8 @@ describe('GET /api/internal/rate-limit-shadow', () => {
       },
       health: {
         status: 'healthy',
+        observabilityStatus: 'healthy',
+        operationalState: 'shadow_comparison_active',
         backendFailures: 0,
         comparisonFailures: 0,
       },
@@ -267,7 +290,8 @@ describe('GET /api/internal/rate-limit-shadow', () => {
       deltaAverageMs: 0.18,
     })
     expect(body.runtime).toMatchObject({
-      phase: '7D',
+      phase: '7',
+      milestone: '7E.2',
       release: 'RC1',
       runtimeMode: 'shadow',
       startedAt: expect.any(String),
@@ -276,6 +300,13 @@ describe('GET /api/internal/rate-limit-shadow', () => {
     expect(body.rollout).toEqual({
       mode: 'shadow',
       canaryPercentage: 0,
+      configuredCanaryPercentage: 0,
+      effectiveCanaryPercentage: 0,
+      effectivePostgresPercentage: 0,
+      effectiveValkeyPercentage: 0,
+      fallbackPercentage: 0,
+      totalRequests: 0,
+      nonCanaryRequests: 0,
       canaryRequests: 0,
       postgresRequests: 0,
       valkeyRequests: 0,
@@ -297,6 +328,8 @@ describe('GET /api/internal/rate-limit-shadow', () => {
     vi.mocked(getRateLimitShadowHealth).mockReturnValue({
       enabled: false,
       runtimeMode: 'postgres',
+      operationalState: 'postgres_authoritative',
+      observabilityStatus: 'standby',
       totalComparisons: 0,
       mismatchRate: 0,
       backendFailures: 0,
@@ -354,6 +387,13 @@ describe('GET /api/internal/rate-limit-shadow', () => {
     vi.mocked(getRateLimitRolloutMetrics).mockReturnValue({
       mode: 'postgres',
       canaryPercentage: 0,
+      configuredCanaryPercentage: 0,
+      effectiveCanaryPercentage: 0,
+      effectivePostgresPercentage: 0,
+      effectiveValkeyPercentage: 0,
+      fallbackPercentage: 0,
+      totalRequests: 0,
+      nonCanaryRequests: 0,
       canaryRequests: 0,
       postgresRequests: 0,
       valkeyRequests: 0,
@@ -363,6 +403,8 @@ describe('GET /api/internal/rate-limit-shadow', () => {
     })
     vi.mocked(getRateLimitShadowOperationalSnapshot).mockReturnValue({
       runtimeMode: 'postgres',
+      operationalState: 'postgres_authoritative',
+      observabilityStatus: 'standby',
       comparisons: 0,
       parityRate: 0,
       backendFailures: 0,
@@ -379,7 +421,15 @@ describe('GET /api/internal/rate-limit-shadow', () => {
     expect(body).toMatchObject({
       enabled: false,
       runtimeMode: 'postgres',
-      health: { status: 'disabled', backendFailures: 0, comparisonFailures: 0 },
+      operationalState: 'postgres_authoritative',
+      observabilityStatus: 'standby',
+      health: {
+        status: 'disabled',
+        observabilityStatus: 'standby',
+        operationalState: 'postgres_authoritative',
+        backendFailures: 0,
+        comparisonFailures: 0,
+      },
       metrics: {
         totalComparisons: 0,
         identical: 0,
@@ -390,6 +440,13 @@ describe('GET /api/internal/rate-limit-shadow', () => {
       rollout: {
         mode: 'postgres',
         canaryPercentage: 0,
+        configuredCanaryPercentage: 0,
+        effectiveCanaryPercentage: 0,
+        effectivePostgresPercentage: 0,
+        effectiveValkeyPercentage: 0,
+        fallbackPercentage: 0,
+        totalRequests: 0,
+        nonCanaryRequests: 0,
         postgresRequests: 0,
         valkeyRequests: 0,
         fallbackCount: 0,

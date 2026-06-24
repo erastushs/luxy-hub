@@ -35,6 +35,13 @@ export type RateLimitShadowMetricsSnapshot = {
 export type RateLimitRolloutMetricsSnapshot = {
   mode: RateLimitRuntimeMode
   canaryPercentage: number
+  configuredCanaryPercentage: number
+  effectiveCanaryPercentage: number
+  effectivePostgresPercentage: number
+  effectiveValkeyPercentage: number
+  fallbackPercentage: number
+  totalRequests: number
+  nonCanaryRequests: number
   canaryRequests: number
   postgresRequests: number
   valkeyRequests: number
@@ -44,10 +51,19 @@ export type RateLimitRolloutMetricsSnapshot = {
 }
 
 export type RateLimitShadowHealthStatus = 'disabled' | 'healthy' | 'degraded' | 'unhealthy'
+export type RateLimitOperationalState =
+  | 'postgres_authoritative'
+  | 'shadow_comparison_active'
+  | 'dual_write_active'
+  | 'valkey_canary_active'
+  | 'valkey_authoritative'
+export type RateLimitObservabilityStatus = Exclude<RateLimitShadowHealthStatus, 'disabled'> | 'standby'
 
 export type RateLimitShadowHealth = {
   enabled: boolean
   runtimeMode: RateLimitRuntimeMode
+  operationalState: RateLimitOperationalState
+  observabilityStatus: RateLimitObservabilityStatus
   totalComparisons: number
   mismatchRate: number
   backendFailures: number
@@ -57,6 +73,8 @@ export type RateLimitShadowHealth = {
 
 export type RateLimitShadowOperationalSnapshot = {
   runtimeMode: RateLimitRuntimeMode
+  operationalState: RateLimitOperationalState
+  observabilityStatus: RateLimitObservabilityStatus
   comparisons: number
   parityRate: number
   backendFailures: number
@@ -164,8 +182,49 @@ function formatNullableLatency(value: number | null): string {
   return value == null ? 'unavailable' : formatLatency(value)
 }
 
-function statusLabel(status: RateLimitShadowHealthStatus): string {
+function observabilityStatusLabel(status: RateLimitObservabilityStatus): string {
   return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
+function resolveOperationalState(mode: RateLimitRuntimeMode): RateLimitOperationalState {
+  if (mode === 'shadow') {
+    return 'shadow_comparison_active'
+  }
+
+  if (mode === 'dual_write') {
+    return 'dual_write_active'
+  }
+
+  if (mode === 'valkey_canary') {
+    return 'valkey_canary_active'
+  }
+
+  if (mode === 'valkey') {
+    return 'valkey_authoritative'
+  }
+
+  return 'postgres_authoritative'
+}
+
+function resolveObservabilityStatus(params: {
+  runtimeMode: RateLimitRuntimeMode
+  status: RateLimitShadowHealthStatus
+  backendFailures: number
+  comparisonFailures: number
+}): RateLimitObservabilityStatus {
+  if (params.status !== 'disabled') {
+    return params.status
+  }
+
+  if (params.runtimeMode === 'postgres') {
+    return 'standby'
+  }
+
+  if (params.backendFailures > 0 || params.comparisonFailures > 0) {
+    return 'degraded'
+  }
+
+  return 'healthy'
 }
 
 export class RateLimitShadowMetricsService {
@@ -321,15 +380,23 @@ export class RateLimitShadowMetricsService {
   health(env: Record<string, string | undefined> = process.env): RateLimitShadowHealth {
     const checkedAt = new Date().toISOString()
     const snapshot = this.snapshot(env)
-    const enabled = snapshot.runtimeMode === 'shadow'
+    const enabled = snapshot.runtimeMode === 'shadow' || snapshot.runtimeMode === 'valkey_canary'
+    const status = this.resolveHealthStatus(snapshot, enabled)
 
     return {
       enabled,
       runtimeMode: snapshot.runtimeMode,
+      operationalState: resolveOperationalState(snapshot.runtimeMode),
+      observabilityStatus: resolveObservabilityStatus({
+        runtimeMode: snapshot.runtimeMode,
+        status,
+        backendFailures: snapshot.backendFailures,
+        comparisonFailures: snapshot.comparisonFailures,
+      }),
       totalComparisons: snapshot.totalComparisons,
       mismatchRate: snapshot.mismatchRate,
       backendFailures: snapshot.backendFailures,
-      status: this.resolveHealthStatus(snapshot, enabled),
+      status,
       checkedAt,
     }
   }
@@ -350,11 +417,13 @@ export class RateLimitShadowMetricsService {
       `Backend Failures: ${formatNumber(snapshot.backendFailures)}`,
       `Comparison Failures: ${formatNumber(snapshot.comparisonFailures)}`,
       `Latency: Postgres ${formatNullableLatency(snapshot.avgPostgresLatencyMs)}, Valkey ${formatNullableLatency(snapshot.avgValkeyLatencyMs)}, Delta ${formatLatency(snapshot.avgLatencyDeltaMs)}`,
-      `Status: ${statusLabel(health.status)}`,
+      `Status: ${observabilityStatusLabel(health.observabilityStatus)}`,
     ].join('\n')
 
     return {
       runtimeMode: snapshot.runtimeMode,
+      operationalState: health.operationalState,
+      observabilityStatus: health.observabilityStatus,
       comparisons: snapshot.totalComparisons,
       parityRate,
       backendFailures: snapshot.backendFailures,
@@ -367,10 +436,19 @@ export class RateLimitShadowMetricsService {
 
   rolloutSnapshot(env: Record<string, string | undefined> = process.env): RateLimitRolloutMetricsSnapshot {
     const snapshot = this.snapshot(env)
+    const totalRequests = snapshot.postgresRequests + snapshot.valkeyRequests
+    const percentage = (count: number) => totalRequests === 0 ? 0 : (count / totalRequests) * 100
 
     return {
       mode: snapshot.runtimeMode,
       canaryPercentage: snapshot.canaryPercentage,
+      configuredCanaryPercentage: snapshot.canaryPercentage,
+      effectiveCanaryPercentage: percentage(snapshot.canaryRequests),
+      effectivePostgresPercentage: percentage(snapshot.postgresRequests),
+      effectiveValkeyPercentage: percentage(snapshot.valkeyRequests),
+      fallbackPercentage: percentage(snapshot.fallbackCount),
+      totalRequests,
+      nonCanaryRequests: Math.max(0, snapshot.postgresRequests - snapshot.fallbackCount),
       canaryRequests: snapshot.canaryRequests,
       postgresRequests: snapshot.postgresRequests,
       valkeyRequests: snapshot.valkeyRequests,

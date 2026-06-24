@@ -67,11 +67,17 @@ function mockRateLimit(overrides: {
   const valkeyRequests = overrides.valkeyRequests ?? 0
   const fallbackCount = overrides.fallbackCount ?? 0
 
-  vi.mocked(getRateLimitShadowHealth).mockReturnValue({
-    enabled: runtimeMode === 'shadow',
-    runtimeMode,
-    totalComparisons,
-    mismatchRate,
+    vi.mocked(getRateLimitShadowHealth).mockReturnValue({
+      enabled: runtimeMode === 'shadow' || runtimeMode === 'valkey_canary',
+      runtimeMode,
+      operationalState: runtimeMode === 'valkey_canary'
+        ? 'valkey_canary_active'
+        : runtimeMode === 'shadow'
+          ? 'shadow_comparison_active'
+          : 'postgres_authoritative',
+      observabilityStatus: overrides.health === 'disabled' ? 'healthy' : overrides.health ?? 'healthy',
+      totalComparisons,
+      mismatchRate,
     backendFailures,
     status: overrides.health ?? 'healthy',
     checkedAt: '2026-06-23T00:00:00.000Z',
@@ -100,11 +106,26 @@ function mockRateLimit(overrides: {
     fallbackCount,
     canaryPercentage,
   })
-  vi.mocked(getRateLimitRolloutMetrics).mockReturnValue({
-    mode: runtimeMode,
-    canaryPercentage,
-    canaryRequests: valkeyRequests,
-    postgresRequests,
+    vi.mocked(getRateLimitRolloutMetrics).mockReturnValue({
+      mode: runtimeMode,
+      canaryPercentage,
+      configuredCanaryPercentage: canaryPercentage,
+      effectiveCanaryPercentage: valkeyRequests + postgresRequests === 0
+        ? 0
+        : (valkeyRequests / (valkeyRequests + postgresRequests)) * 100,
+      effectivePostgresPercentage: valkeyRequests + postgresRequests === 0
+        ? 0
+        : (postgresRequests / (valkeyRequests + postgresRequests)) * 100,
+      effectiveValkeyPercentage: valkeyRequests + postgresRequests === 0
+        ? 0
+        : (valkeyRequests / (valkeyRequests + postgresRequests)) * 100,
+      fallbackPercentage: valkeyRequests + postgresRequests === 0
+        ? 0
+        : (fallbackCount / (valkeyRequests + postgresRequests)) * 100,
+      totalRequests: valkeyRequests + postgresRequests,
+      nonCanaryRequests: Math.max(0, postgresRequests - fallbackCount),
+      canaryRequests: valkeyRequests,
+      postgresRequests,
     valkeyRequests,
     fallbackCount,
     postgresAuthoritativeWrites: postgresRequests,
@@ -130,7 +151,7 @@ describe('GET /api/health', () => {
     expect(body.postgres).toEqual({ status: 'healthy', connected: true })
     expect(body.runtime).toMatchObject({
       phase: '7',
-      milestone: '7E.1',
+      milestone: '7E.2',
       release: 'RC1',
       startedAt: expect.any(String),
       uptimeSeconds: expect.any(Number),
@@ -203,7 +224,9 @@ describe('GET /api/health', () => {
 
     expect(body.rateLimit).toEqual({
       runtimeMode: 'shadow',
+      operationalState: 'shadow_comparison_active',
       health: 'healthy',
+      observabilityStatus: 'healthy',
       backendFailures: 0,
       comparisonFailures: 0,
       mismatchRate: 0,
@@ -215,7 +238,7 @@ describe('GET /api/health', () => {
   it('reports canary runtime and rollout metrics', async () => {
     mockRateLimit({
       runtimeMode: 'valkey_canary',
-      health: 'disabled',
+      health: 'healthy',
       totalComparisons: 0,
       identical: 0,
       canaryPercentage: 5,
@@ -236,6 +259,13 @@ describe('GET /api/health', () => {
     expect(body.rollout).toEqual({
       mode: 'valkey_canary',
       canaryPercentage: 5,
+      configuredCanaryPercentage: 5,
+      effectiveCanaryPercentage: 5,
+      effectivePostgresPercentage: 95,
+      effectiveValkeyPercentage: 5,
+      fallbackPercentage: 0.2,
+      totalRequests: 1000,
+      nonCanaryRequests: 948,
       canaryRequests: 50,
       postgresRequests: 950,
       valkeyRequests: 50,
@@ -335,9 +365,9 @@ describe('GET /api/health', () => {
     const body = await response.json()
 
     expect(body.notes).toEqual([
-      'PostgreSQL remains authoritative by default.',
-      'Valkey operates in shadow mode unless an explicit canary configuration is enabled.',
-      'No production traffic is routed exclusively to Valkey by default.',
+      'PostgreSQL remains authoritative outside explicit Valkey canary routing.',
+      'Valkey canary routing is controlled by RATE_LIMIT_MODE=valkey_canary and RATE_LIMIT_CANARY_PERCENT.',
+      'Rollback remains available through RATE_LIMIT_MODE=postgres.',
     ])
   })
 
@@ -403,7 +433,7 @@ describe('GET /api/health', () => {
     expect(body.error).toBe('health_check_unavailable')
     expect(body.runtime).toMatchObject({
       phase: '7',
-      milestone: '7E.1',
+      milestone: '7E.2',
       release: 'RC1',
       uptimeSeconds: expect.any(Number),
     })

@@ -11,10 +11,21 @@ type ServiceStatus = OverallStatus | 'disabled'
 
 const RUNTIME_STARTED_AT_MS = Date.now() - Math.floor(process.uptime() * 1000)
 const OPERATIONAL_NOTES = [
-  'PostgreSQL remains authoritative by default.',
-  'Valkey operates in shadow mode unless an explicit canary configuration is enabled.',
-  'No production traffic is routed exclusively to Valkey by default.',
+  'PostgreSQL remains authoritative outside explicit Valkey canary routing.',
+  'Valkey canary routing is controlled by RATE_LIMIT_MODE=valkey_canary and RATE_LIMIT_CANARY_PERCENT.',
+  'Rollback remains available through RATE_LIMIT_MODE=postgres.',
 ] as const
+
+function optionalBuildMetadata(env: Record<string, string | undefined> = process.env) {
+  const build = {
+    deployment: env.VERCEL_ENV,
+    commitSha: env.VERCEL_GIT_COMMIT_SHA,
+    commitRef: env.VERCEL_GIT_COMMIT_REF,
+  }
+  const entries = Object.entries(build).filter((entry): entry is [string, string] => Boolean(entry[1]))
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined
+}
 
 function uptimeSecondsSince(timestamp: string | null): number | null {
   if (!timestamp) {
@@ -26,12 +37,15 @@ function uptimeSecondsSince(timestamp: string | null): number | null {
 }
 
 function runtimeMetadata() {
+  const build = optionalBuildMetadata()
+
   return {
     phase: '7',
-    milestone: '7E.1',
+    milestone: '7E.2',
     release: 'RC1',
     startedAt: new Date(RUNTIME_STARTED_AT_MS).toISOString(),
     uptimeSeconds: Math.max(0, Math.floor(process.uptime())),
+    ...(build ? { build } : {}),
   }
 }
 
@@ -160,7 +174,9 @@ export async function GET() {
     }
     const rateLimit = {
       runtimeMode: rateLimitHealthSnapshot.runtimeMode,
+      operationalState: rateLimitHealthSnapshot.operationalState,
       health: rateLimitHealth,
+      observabilityStatus: rateLimitHealthSnapshot.observabilityStatus ?? rateLimitHealth,
       backendFailures: rateLimitMetrics.backendFailures,
       comparisonFailures: rateLimitMetrics.comparisonFailures,
       mismatchRate: rateLimitMetrics.mismatchRate,

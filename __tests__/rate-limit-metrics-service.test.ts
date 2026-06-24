@@ -112,12 +112,17 @@ describe('RateLimitShadowMetricsService', () => {
       valkeyRequests: 1,
       fallbackCount: 1,
     })
-    expect(service.rolloutSnapshot({
+    const rollout = service.rolloutSnapshot({
       RATE_LIMIT_MODE: 'valkey_canary',
       RATE_LIMIT_CANARY_PERCENT: '5',
-    })).toEqual({
+    })
+
+    expect(rollout).toMatchObject({
       mode: 'valkey_canary',
       canaryPercentage: 5,
+      configuredCanaryPercentage: 5,
+      totalRequests: 3,
+      nonCanaryRequests: 1,
       canaryRequests: 1,
       postgresRequests: 2,
       valkeyRequests: 1,
@@ -125,6 +130,10 @@ describe('RateLimitShadowMetricsService', () => {
       postgresAuthoritativeWrites: 2,
       valkeyAuthoritativeWrites: 1,
     })
+    expect(rollout.effectiveCanaryPercentage).toBeCloseTo(100 / 3)
+    expect(rollout.effectivePostgresPercentage).toBeCloseTo(200 / 3)
+    expect(rollout.effectiveValkeyPercentage).toBeCloseTo(100 / 3)
+    expect(rollout.fallbackPercentage).toBeCloseTo(100 / 3)
   })
 
   it('aggregates parity, retry-after, backend, comparison, and latency metrics', () => {
@@ -267,6 +276,8 @@ describe('RateLimitShadowMetricsService', () => {
     expect(service.health({ RATE_LIMIT_MODE: 'shadow' })).toMatchObject({
       enabled: true,
       runtimeMode: 'shadow',
+      operationalState: 'shadow_comparison_active',
+      observabilityStatus: 'healthy',
       totalComparisons: 1,
       mismatchRate: 0,
       backendFailures: 0,
@@ -276,7 +287,16 @@ describe('RateLimitShadowMetricsService', () => {
     expect(service.health({ RATE_LIMIT_MODE: 'postgres' })).toMatchObject({
       enabled: false,
       runtimeMode: 'postgres',
+      operationalState: 'postgres_authoritative',
+      observabilityStatus: 'standby',
       status: 'disabled',
+    })
+    expect(service.health({ RATE_LIMIT_MODE: 'valkey_canary' })).toMatchObject({
+      enabled: true,
+      runtimeMode: 'valkey_canary',
+      operationalState: 'valkey_canary_active',
+      observabilityStatus: 'healthy',
+      status: 'healthy',
     })
   })
 
@@ -364,6 +384,10 @@ describe('RateLimitShadowMetricsService', () => {
       'Latency: Postgres 1.00 ms, Valkey 1.18 ms, Delta 0.18 ms',
       'Status: Healthy',
     ].join('\n'))
+    expect(service.operationalSnapshot({ RATE_LIMIT_MODE: 'shadow' })).toMatchObject({
+      operationalState: 'shadow_comparison_active',
+      observabilityStatus: 'healthy',
+    })
   })
 
   it('exposes singleton internal report, health, and operational helpers', () => {
@@ -375,6 +399,7 @@ describe('RateLimitShadowMetricsService', () => {
     expect(getRateLimitShadowHealth({ RATE_LIMIT_MODE: 'shadow' })).toMatchObject({
       enabled: true,
       runtimeMode: 'shadow',
+      operationalState: 'shadow_comparison_active',
       totalComparisons: 0,
     })
     expect(getRateLimitShadowOperationalSnapshot({ RATE_LIMIT_MODE: 'shadow' })).toMatchObject({
