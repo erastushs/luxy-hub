@@ -34,13 +34,19 @@ Override it for one command with:
 LUXYHUB_BASE_URL=https://www.luxyhub.space ops/monitor/monitor.sh
 ```
 
-The shadow endpoint is admin-only. If needed, pass an already authenticated admin session cookie for the current shell only:
+Operational monitoring uses `LUXY_MONITOR_TOKEN` and does not depend on Supabase sessions.
+You can set it in a local `ops/monitor/.env` file or export it in the current shell:
 
 ```bash
-LUXYHUB_COOKIE_HEADER='name=value; name2=value2' ops/monitor/shadow.sh
+LUXY_MONITOR_TOKEN=xxxx ops/monitor/shadow.sh
 ```
 
-The scripts do not attempt to bypass authentication.
+Supported headers:
+
+- `Authorization: Bearer <token>`
+- `X-Luxy-Monitor-Token: <token>`
+
+The token is only for operational monitoring endpoints.
 
 ## Launch
 
@@ -115,27 +121,38 @@ The panel does not suppress ordinary log lines. It highlights operational keywor
 
 ### Shadow Metrics
 
-Refreshes every 2 seconds from `/api/internal/rate-limit-shadow` when `LUXYHUB_COOKIE_HEADER` contains an authenticated admin session cookie.
+Refreshes every 2 seconds from `/api/internal/rate-limit-shadow` when `LUXY_MONITOR_TOKEN` is configured.
 
 Displays parity, mismatch count, allow parity, deny parity, retry-after parity, backend failures, comparison failures, canary requests, PostgreSQL requests, Valkey requests, effective canary percentage, and average latency delta.
 
-If authentication fails, the panel displays a clean operator message and does not dump raw JSON:
+If authentication is not configured, the panel prints a clean operator message and does not dump raw JSON:
 
 ```text
 Shadow Metrics
 
-Authentication Required
+Monitoring authentication not configured.
 
 Endpoint:
 /api/internal/rate-limit-shadow
 
-Provide:
-LUXYHUB_COOKIE_HEADER
+Set:
+LUXY_MONITOR_TOKEN=xxxx
 
-to enable this panel.
+or export LUXY_MONITOR_TOKEN before launching this panel.
+
+Supported headers:
+Authorization: Bearer <token>
+X-Luxy-Monitor-Token: <token>
 
 No authentication bypass is attempted.
 ```
+
+## Security Notes
+
+- Use at least 32 random bytes for `LUXY_MONITOR_TOKEN`.
+- Never commit the token or a populated `ops/monitor/.env` file.
+- Rotate the token periodically.
+- Never expose the token in logs, screenshots, shared terminals, or public issue reports.
 
 ## Color Meanings
 

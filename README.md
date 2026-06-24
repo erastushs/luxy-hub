@@ -66,7 +66,13 @@ DELIVERY_PAYLOAD_KEY_ID=
 NEXT_PUBLIC_SITE_URL=
 ```
 
-`ADMIN_API_KEY` is used only for admin-bearer access to private raw script reads. `CRON_SECRET` protects `/api/cleanup`, `/api/internal/event-worker`, and `/api/internal/check-alerts`; cron secrets are not accepted for admin access.
+Operational monitoring uses a separate token:
+
+```env
+LUXY_MONITOR_TOKEN=
+```
+
+`ADMIN_API_KEY` is used only for admin-bearer access to private raw script reads. `CRON_SECRET` protects `/api/cleanup`, `/api/internal/event-worker`, and `/api/internal/check-alerts`; cron secrets are not accepted for admin access. `LUXY_MONITOR_TOKEN` is only for operational monitoring endpoints and is not part of the creator auth flow.
 
 ## Authentication Flow
 

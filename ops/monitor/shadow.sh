@@ -4,6 +4,15 @@ set -u
 BASE_URL="${LUXYHUB_BASE_URL:-${1:-http://127.0.0.1:3000}}"
 ENDPOINT="${BASE_URL%/}/api/internal/rate-limit-shadow"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/lib.sh"
+load_monitor_token
+
+AUTH_HEADER=()
+if [ -n "${LUXY_MONITOR_TOKEN:-}" ]; then
+  AUTH_HEADER=(-H "Authorization: Bearer ${LUXY_MONITOR_TOKEN}")
+fi
+
 RESET=$'\033[0m'
 BOLD=$'\033[1m'
 DIM=$'\033[2m'
@@ -20,11 +29,12 @@ require_command() {
 }
 
 fetch_shadow() {
-  if [ -n "${LUXYHUB_COOKIE_HEADER:-}" ]; then
-    curl -sS --max-time 5 -X GET -H "Cookie: ${LUXYHUB_COOKIE_HEADER}" -w '\n%{http_code}' "$ENDPOINT"
-  else
-    curl -sS --max-time 5 -X GET -w '\n%{http_code}' "$ENDPOINT"
+  if [ -z "${LUXY_MONITOR_TOKEN:-}" ]; then
+    printf 'missing-token\n401'
+    return 0
   fi
+
+  curl -sS --max-time 5 -X GET "${AUTH_HEADER[@]}" -w '\n%{http_code}' "$ENDPOINT"
 }
 
 header() {
@@ -54,10 +64,11 @@ render_rows() {
 
 auth_message() {
   printf '%sShadow Metrics%s\n\n' "$BOLD" "$RESET"
-  printf '%sAuthentication Required%s\n\n' "$YELLOW" "$RESET"
+  printf '%sMonitoring authentication not configured.%s\n\n' "$YELLOW" "$RESET"
   printf 'Endpoint:\n%s\n\n' '/api/internal/rate-limit-shadow'
-  printf 'Provide:\n%s\n\n' 'LUXYHUB_COOKIE_HEADER'
-  printf 'to enable this panel.\n\n'
+  printf 'Set:\n%s\n\n' 'LUXY_MONITOR_TOKEN=xxxx'
+  printf 'or export LUXY_MONITOR_TOKEN before launching this panel.\n\n'
+  printf 'Supported headers:\n%s\n%s\n\n' 'Authorization: Bearer <token>' 'X-Luxy-Monitor-Token: <token>'
   printf 'No authentication bypass is attempted.\n'
 }
 
@@ -77,7 +88,7 @@ while true; do
     body="${raw%$'\n'*}"
 
     case "$http_status" in
-      401|403)
+      401|403|missing-token)
         auth_message
         ;;
       2*)
@@ -87,8 +98,13 @@ while true; do
         else
           printf '%s\n' "$body" | jq -r '
             def fixed2: (. * 100 | round / 100);
-            def pct_ratio: if . == null then "n/a" else (((. * 100) | fixed2 | tostring) + "%") end;
-            def pct_value: if . == null then "n/a" else ((fixed2 | tostring) + "%") end;
+            def scalar_rate:
+              if . == null then null
+              elif type == "number" then .
+              elif type == "object" then (.rate // .value // .percentage // .ratio)
+              else null end;
+            def pct_ratio: if scalar_rate == null then "n/a" else (((scalar_rate * 100) | fixed2 | tostring) + "%") end;
+            def pct_value: if scalar_rate == null then "n/a" else ((scalar_rate | fixed2 | tostring) + "%") end;
             def ms: if . == null then "n/a" else ((fixed2 | tostring) + " ms") end;
             def parity_color:
               if . == null then "neutral"

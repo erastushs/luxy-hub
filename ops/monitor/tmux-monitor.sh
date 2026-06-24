@@ -30,7 +30,7 @@ tmux select-pane -t "$SESSION_NAME:0.2" -T "PM2 Live Logs - luxyhub"
 
 tmux split-window -v -t "$SESSION_NAME:0.1"
 tmux send-keys -t "$SESSION_NAME:0.3" "$SCRIPT_DIR/shadow.sh" C-m
-tmux select-pane -t "$SESSION_NAME:0.3" -T "Shadow Metrics - authenticated"
+tmux select-pane -t "$SESSION_NAME:0.3" -T "Shadow Metrics - monitor auth"
 
 tmux select-layout -t "$SESSION_NAME:0" tiled
 tmux set-option -t "$SESSION_NAME" pane-border-status top >/dev/null 2>&1 || true

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { AuthError, requireRole } from '@/app/lib/auth/session-auth'
+import { MonitorAuthError, requireMonitorAuth } from '@/app/lib/monitor/auth'
 import {
   getRateLimitRolloutMetrics,
   getRateLimitShadowHealth,
@@ -56,7 +56,7 @@ function formatPercent(value: number): string {
 
 export async function GET() {
   try {
-    await requireRole('admin')
+    await requireMonitorAuth()
 
     const health = getRateLimitShadowHealth()
     const metrics = getRateLimitShadowMetrics()
@@ -122,7 +122,7 @@ export async function GET() {
       operationalSummary,
     })
   } catch (error) {
-    if (error instanceof AuthError) {
+    if (error instanceof MonitorAuthError) {
       return NextResponse.json(
         { success: false, error: error.message },
         { status: error.status }

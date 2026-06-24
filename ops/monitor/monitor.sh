@@ -2,9 +2,18 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/lib.sh"
+
 BASE_URL="${LUXYHUB_BASE_URL:-${1:-http://127.0.0.1:3000}}"
 HEALTH_ENDPOINT="${BASE_URL%/}/api/health"
 SHADOW_ENDPOINT="${BASE_URL%/}/api/internal/rate-limit-shadow"
+
+load_monitor_token
+
+SHADOW_AUTH_ARGS=()
+if [ -n "${LUXY_MONITOR_TOKEN:-}" ]; then
+  SHADOW_AUTH_ARGS=(-H "Authorization: Bearer ${LUXY_MONITOR_TOKEN}")
+fi
 
 missing=0
 
@@ -27,11 +36,12 @@ check_tmux() {
 }
 
 shadow_probe() {
-  if [ -n "${LUXYHUB_COOKIE_HEADER:-}" ]; then
-    curl -sS --max-time 5 -X GET -H "Cookie: ${LUXYHUB_COOKIE_HEADER}" -o /dev/null -w '%{http_code}' "$SHADOW_ENDPOINT"
-  else
-    curl -sS --max-time 5 -X GET -o /dev/null -w '%{http_code}' "$SHADOW_ENDPOINT"
+  if [ -z "${LUXY_MONITOR_TOKEN:-}" ]; then
+    printf 'missing-token'
+    return 0
   fi
+
+  curl -sS --max-time 5 -X GET "${SHADOW_AUTH_ARGS[@]}" -o /dev/null -w '%{http_code}' "$SHADOW_ENDPOINT"
 }
 
 printf 'LuxyHub Production Monitor\n'
@@ -56,19 +66,23 @@ else
   printf 'warning: GET %s returned HTTP %s\n' "$HEALTH_ENDPOINT" "${health_status:-unavailable}"
 fi
 
-shadow_status="$(shadow_probe 2>/dev/null)"
-case "$shadow_status" in
-  401|403)
-    printf 'warning: GET %s returned HTTP %s; authenticated admin session is required.\n' "$SHADOW_ENDPOINT" "$shadow_status"
-    printf '         This toolkit does not attempt to bypass authentication.\n'
-    ;;
-  2*)
-    printf 'ok: GET %s returned HTTP %s\n' "$SHADOW_ENDPOINT" "$shadow_status"
-    ;;
-  *)
-    printf 'warning: GET %s returned HTTP %s\n' "$SHADOW_ENDPOINT" "${shadow_status:-unavailable}"
-    ;;
-esac
+if [ -z "${LUXY_MONITOR_TOKEN:-}" ]; then
+  printf 'warning: Monitoring authentication not configured.\n'
+else
+  shadow_status="$(shadow_probe 2>/dev/null)"
+  case "$shadow_status" in
+    401|403)
+      printf 'warning: GET %s returned HTTP %s; monitoring authentication failed.\n' "$SHADOW_ENDPOINT" "$shadow_status"
+      printf '         This toolkit does not attempt to bypass authentication.\n'
+      ;;
+    2*)
+      printf 'ok: GET %s returned HTTP %s\n' "$SHADOW_ENDPOINT" "$shadow_status"
+      ;;
+    *)
+      printf 'warning: GET %s returned HTTP %s\n' "$SHADOW_ENDPOINT" "${shadow_status:-unavailable}"
+      ;;
+  esac
+fi
 
 printf '\nChoose a monitor:\n'
 printf '1) Health only\n'
