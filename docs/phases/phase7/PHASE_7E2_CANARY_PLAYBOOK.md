@@ -1,8 +1,8 @@
 # Phase 7E.2 Canary Playbook
 
-Status: Operational Rollout Preparation  
-Date: 2026-06-24  
-Scope: Documentation-only playbook for a separately approved production canary  
+Status: Operational Readiness Prepared
+Date: 2026-06-24
+Scope: Documentation-only playbook for a separately approved production canary
 Audience: Production operators approving, activating, monitoring, or rolling back the Phase 7E.2 Valkey rate-limit canary
 
 This playbook prepares the project for a safe 1% production canary rollout. It does not enable canary, modify runtime behavior, change application code, change production environment variables, change schemas, or authorize Valkey as the default authoritative backend.
@@ -10,6 +10,8 @@ This playbook prepares the project for a safe 1% production canary rollout. It d
 ## Objective
 
 Prepare a controlled, observable, and reversible Phase 7E.2 production canary that routes a small percentage of rate-limit decisions to Valkey while retaining an immediate configuration-only rollback path to PostgreSQL authority.
+
+Production activation must require only approved environment configuration changes and a normal deployment. This playbook does not approve activation.
 
 Primary objective:
 
@@ -62,6 +64,96 @@ Do not start a canary unless every prerequisite is satisfied.
 - Current production baseline metrics have been recorded in the rollout log.
 - Incident owner, rollout owner, and rollback owner are assigned.
 
+## Current Readiness Assessment
+
+The Phase 7E.2 canary implementation is operationally ready for a separately approved 1% activation based on the current code audit and production baseline.
+
+Implementation readiness:
+
+- `RATE_LIMIT_MODE=valkey_canary` is a recognized runtime mode.
+- `RATE_LIMIT_CANARY_PERCENT` is parsed as an integer percentage from `0` through `100`; missing, invalid, or out-of-range values safely resolve to `0` through `100` bounds.
+- Deterministic routing uses a SHA-256 hash of a stable rate-limit identifier and selects Valkey when the stable bucket is below the configured percentage.
+- PostgreSQL remains authoritative for non-canary traffic.
+- Valkey-authoritative canary traffic still runs PostgreSQL as the comparison backend.
+- Fallback logic returns to PostgreSQL when Valkey-authoritative execution fails.
+- Rollout counters expose PostgreSQL requests, Valkey requests, canary requests, fallback count, and authoritative write counters.
+- Health reporting exposes runtime mode, canary percentage, parity, mismatch rate, backend failures, comparison failures, latency diagnostics, Valkey health, PostgreSQL health, runtime metadata, and operator notes.
+- Rollback is configuration-only: set `RATE_LIMIT_MODE=postgres`, deploy normally, and verify health.
+
+Current production baseline:
+
+- PostgreSQL authoritative.
+- Valkey shadow.
+- Allow parity: `100%`.
+- Deny parity: `100%`.
+- Retry-after parity: `100%`.
+- Mismatch rate: `0`.
+- Backend failures: `0`.
+- Comparison failures: `0`.
+- Runtime health: `healthy`.
+- Canary: disabled.
+
+Operational readiness conclusion: no runtime, environment, nginx, schema, or API behavior change is required before a separately approved 1% canary activation.
+
+## Exposed Operational Metrics
+
+Use `/api/health` as the primary production health endpoint.
+
+Current `/api/health` fields relevant to canary rollout:
+
+- `status` and `summary`: overall health state.
+- `postgres.status` and `postgres.connected`: PostgreSQL readiness and rollback backend availability.
+- `valkey.enabled`, `valkey.connected`, `valkey.status`, `valkey.connectionState`, `valkey.latencyMs`, `valkey.memoryUsedBytes`, `valkey.version`, and `valkey.uptimeSeconds`: Valkey readiness.
+- `rateLimit.runtimeMode`: effective rate-limit runtime mode.
+- `rateLimit.health`: rate-limit health state.
+- `rateLimit.backendFailures`: backend failure count.
+- `rateLimit.comparisonFailures`: comparison failure count.
+- `rateLimit.mismatchRate`: shadow/canary comparison mismatch rate.
+- `rateLimit.parity`: total parity ratio.
+- `rateLimit.averageLatencyDeltaMs`: shadow/canary latency delta where positive means the shadow backend is slower than the authoritative backend for the current comparison direction.
+- `rollout.mode`: effective rollout mode.
+- `rollout.canaryPercentage`: effective canary percentage.
+- `rollout.canaryRequests`: Valkey-selected canary requests.
+- `rollout.postgresRequests`: PostgreSQL-served requests, including fallback increments.
+- `rollout.valkeyRequests`: Valkey-authoritative requests.
+- `rollout.fallbackCount`: canary fallback count.
+- `rollout.postgresAuthoritativeWrites`: current PostgreSQL authoritative write counter alias.
+- `rollout.valkeyAuthoritativeWrites`: current Valkey authoritative write counter alias.
+- `performance.latencyDifferenceMs`, `performance.direction`, and `performance.speedup`: human-readable latency diagnostics.
+- `runtime.phase`, `runtime.milestone`, `runtime.release`, `runtime.startedAt`, and `runtime.uptimeSeconds`: runtime metadata.
+- `notes`: operator-facing current-state notes.
+
+Use `/api/internal/rate-limit-shadow` as the admin-only detailed rate-limit monitoring endpoint.
+
+Current `/api/internal/rate-limit-shadow` fields relevant to canary rollout:
+
+- `enabled`: whether shadow health mode is enabled for the current runtime mode.
+- `runtimeMode`: effective rate-limit runtime mode.
+- `runtime`: phase, release, runtime mode, start time, and uptime.
+- `rollout`: same rollout metrics used by `/api/health`.
+- `health.status`, `health.backendFailures`, and `health.comparisonFailures`: rate-limit health details.
+- `metrics.totalComparisons`, `metrics.identical`, `metrics.mismatches`, and `metrics.mismatchRate`: comparison counts and mismatch rate.
+- `metrics.latency.postgresAverageMs`, `metrics.latency.valkeyAverageMs`, and `metrics.latency.deltaAverageMs`: backend latency averages and Valkey-minus-PostgreSQL delta.
+- `metrics.averageLatencyDeltaMs`: compatibility latency delta field.
+- `decisionParity.allow`: allow decision parity totals and rate.
+- `decisionParity.deny`: deny decision parity totals and rate.
+- `retryAfterParity`: retry-after parity totals and rate.
+- `valkey`: Valkey health details, including check timestamp.
+- `lastUpdatedAt`: most recent comparison metric update.
+- `operationalSummary`: concise operator-readable summary.
+
+Metrics not required before a 1% canary:
+
+- Separate canary allow rate and canary deny rate are not required for initial activation because allow parity, deny parity, total comparison counts, mismatch rate, and HTTP 429 behavior already cover the safety decision. They may become useful if operators need traffic-mix diagnostics after 1%.
+- Persistent parity history is not required for initial activation because the rollout log records stage snapshots. It is valuable for later Grafana/Prometheus work and long burn-in analysis.
+- Rollout start time and rollout duration are not required in runtime responses because this playbook records them in the rollout log. They may be useful later if rollout state becomes system-managed rather than operator-managed.
+
+Recommended future metric additions, not required to unblock 1%:
+
+- `fallbackReasons`: count fallback causes such as Valkey authoritative exception, missing Valkey result, or comparison execution failure. This would reduce incident triage time if `fallbackCount` becomes non-zero.
+- `windowedRolloutRates`: short-window canary, PostgreSQL, Valkey, fallback, allow, and deny rates. This would make dashboarding easier but is not necessary for manual 1% activation.
+- `parityHistory`: persisted rolling parity windows. This belongs with future monitoring infrastructure rather than the readiness phase.
+
 ## Baseline Metrics
 
 Capture baseline metrics immediately before activation from `/api/health` and `/api/internal/rate-limit-shadow`.
@@ -78,7 +170,8 @@ Required metrics:
 | `postgresRequests` | Requests served by PostgreSQL authority during the observation window. | Record current value and rate |
 | `valkeyRequests` | Requests served by Valkey authority during the observation window. | `0` before canary, unless an approved canary is already active |
 | `canaryRequests` | Requests selected for canary routing. | `0` before canary |
-| `latencyDifferenceMs` | Valkey average latency minus PostgreSQL average latency. Negative values mean Valkey is faster. | Record value |
+| `latencyDifferenceMs` | Absolute latency difference from `/api/health.performance`, with direction in `/api/health.performance.direction`. | Record value |
+| `metrics.latency.deltaAverageMs` | Valkey average latency minus PostgreSQL average latency from `/api/internal/rate-limit-shadow`; negative values mean Valkey is faster. | Record value |
 | `speedup` | Relative latency improvement when available. | Record value |
 
 Baseline health fields:
@@ -93,23 +186,31 @@ Baseline health fields:
 
 Complete before setting any canary percentage.
 
-- Confirm this is an approved Phase 7E.2 operational rollout window.
-- Confirm no production incident is active.
-- Confirm no unrelated deployment is in progress.
-- Confirm current runtime behavior is unchanged from the Phase 7E.1 baseline.
-- Confirm current mode is the approved pre-canary baseline.
-- Confirm `/api/health` reports healthy system health.
-- Confirm `/api/internal/rate-limit-shadow` is accessible to authorized operators.
-- Record all required baseline metrics.
-- Confirm `mismatchRate == 0`.
-- Confirm `backendFailures == 0`.
-- Confirm `comparisonFailures == 0`.
-- Confirm `fallbackCount == 0`.
-- Confirm Valkey memory, connection state, and latency are within expected baseline.
-- Confirm PostgreSQL latency and availability are within expected baseline.
-- Confirm rollback owner can change production configuration to `RATE_LIMIT_MODE=postgres` immediately.
-- Confirm deployment verification procedure is ready.
-- Confirm rollout log is open and being updated.
+- [ ] Confirm this is an approved Phase 7E.2 operational rollout window.
+- [ ] Confirm production is healthy.
+- [ ] Confirm PostgreSQL is healthy.
+- [ ] Confirm Valkey is healthy.
+- [ ] Confirm allow parity is `100%`.
+- [ ] Confirm deny parity is `100%`.
+- [ ] Confirm retry-after parity is `100%`.
+- [ ] Confirm mismatch count is `0`.
+- [ ] Confirm `mismatchRate == 0`.
+- [ ] Confirm `backendFailures == 0`.
+- [ ] Confirm `comparisonFailures == 0`.
+- [ ] Confirm `fallbackCount == 0`.
+- [ ] Confirm no production incident is active.
+- [ ] Confirm no unrelated deployment is in progress.
+- [ ] Confirm current runtime behavior is unchanged from the Phase 7E.1 baseline.
+- [ ] Confirm current mode is the approved pre-canary baseline.
+- [ ] Confirm `/api/health` reports healthy system health.
+- [ ] Confirm `/api/internal/rate-limit-shadow` is accessible to authorized operators.
+- [ ] Record all required baseline metrics.
+- [ ] Confirm Valkey memory, connection state, and latency are within expected baseline.
+- [ ] Confirm PostgreSQL latency and availability are within expected baseline.
+- [ ] Confirm deployment is complete before activation begins.
+- [ ] Confirm rollback owner can change production configuration to `RATE_LIMIT_MODE=postgres` immediately.
+- [ ] Confirm deployment verification procedure is ready.
+- [ ] Confirm rollout log is open and being updated.
 
 ## Activation Procedure
 
@@ -118,13 +219,22 @@ Activation requires separate approval. This repository change does not activate 
 1. Announce the approved rollout window and assigned operators.
 2. Record pre-activation baseline metrics in the rollout log.
 3. Confirm system health is `healthy` immediately before activation.
-4. Apply the approved production configuration for 1% canary through the normal deployment path.
+4. Apply the approved production configuration for 1% canary through the normal deployment path: `RATE_LIMIT_MODE=valkey_canary` and `RATE_LIMIT_CANARY_PERCENT=1`.
 5. Deploy using the standard production deployment process.
 6. Verify deployment completion.
 7. Confirm `/api/health` reports the expected canary percentage.
 8. Confirm `canaryRequests` begins increasing under production traffic.
 9. Confirm user-visible API behavior remains unchanged.
 10. Begin the monitoring checklist for the 1% stage.
+
+Activation checklist:
+
+- [ ] `RATE_LIMIT_MODE=valkey_canary` configured through the approved production path.
+- [ ] `RATE_LIMIT_CANARY_PERCENT=1` configured through the approved production path.
+- [ ] Normal deployment completed.
+- [ ] `/api/health.rollout.mode` reports `valkey_canary`.
+- [ ] `/api/health.rollout.canaryPercentage` reports `1`.
+- [ ] `/api/internal/rate-limit-shadow.runtimeMode` reports `valkey_canary`.
 
 Do not advance beyond 1% until the 1% stage satisfies all success criteria and rollout gates.
 
@@ -135,6 +245,9 @@ Monitor continuously during each stage: 1%, 5%, 10%, 25%, 50%, and 100%.
 Required observations:
 
 - `parity` remains `1` or `100%`.
+- Allow parity remains `100%`.
+- Deny parity remains `100%`.
+- Retry-after parity remains `100%`.
 - `mismatchRate` remains `0`.
 - `backendFailures` remains `0`.
 - `comparisonFailures` remains `0`.
@@ -151,6 +264,13 @@ Required observations:
 - No unexpected application errors appear in production logs.
 - No user-visible error-rate increase is observed.
 - No unexpected HTTP 429 behavior is observed beyond configured rate limits.
+
+Verification checklist:
+
+- [ ] Observe `/api/health` and `/api/internal/rate-limit-shadow` metrics.
+- [ ] Observe `fallbackCount` remains `0`.
+- [ ] Observe latency metrics and confirm no material regression.
+- [ ] Observe allow, deny, retry-after, and total parity remain at `100%`.
 
 Latency note: `latencyDifferenceMs` and `speedup` are diagnostic rollout signals, not override criteria. A faster Valkey result does not compensate for any mismatch, backend failure, comparison failure, fallback, or unhealthy system status.
 
@@ -213,13 +333,25 @@ Hold criteria:
 Rollback must require only `RATE_LIMIT_MODE=postgres` plus deployment verification.
 
 1. Set production configuration to `RATE_LIMIT_MODE=postgres` through the approved deployment path.
-2. Deploy or restart using the standard production process required for the configuration change to take effect.
-3. Verify deployment completion.
-4. Confirm `/api/health` reports PostgreSQL authority and no active canary routing.
-5. Confirm `canaryRequests` and `valkeyRequests` stop increasing for authoritative canary traffic.
-6. Confirm system health is `healthy` or returns to the known PostgreSQL baseline.
-7. Confirm user-visible behavior has returned to the PostgreSQL authoritative baseline.
-8. Record rollback time, owner, reason, and post-rollback metrics in the rollout log.
+2. Leave `RATE_LIMIT_CANARY_PERCENT` unchanged or remove it according to normal configuration hygiene; it is ignored when `RATE_LIMIT_MODE=postgres` is active.
+3. Deploy or restart using the standard production process required for the configuration change to take effect.
+4. Verify deployment completion.
+5. Confirm `/api/health.rateLimit.runtimeMode` reports `postgres`.
+6. Confirm `/api/health.rollout.mode` reports `postgres`.
+7. Confirm `/api/internal/rate-limit-shadow.runtimeMode` reports `postgres`.
+8. Confirm canary authority is no longer active.
+9. Confirm system health is `healthy` or returns to the known PostgreSQL baseline.
+10. Confirm user-visible behavior has returned to the PostgreSQL authoritative baseline.
+11. Record rollback time, owner, reason, and post-rollback metrics in the rollout log.
+
+Rollback checklist:
+
+- [ ] `RATE_LIMIT_MODE=postgres` configured through the approved production path.
+- [ ] Normal deployment completed.
+- [ ] `/api/health` reports PostgreSQL authority.
+- [ ] `/api/internal/rate-limit-shadow` reports `runtimeMode=postgres`.
+- [ ] Health verified after rollback.
+- [ ] Rollback recorded in the rollout log.
 
 Rollback completion criteria:
 
@@ -271,7 +403,11 @@ Pre-stage state:
 
 Baseline metrics:
 - parity:
+- allow parity:
+- deny parity:
+- retry-after parity:
 - mismatchRate:
+- mismatch count:
 - backendFailures:
 - comparisonFailures:
 - fallbackCount:
@@ -279,6 +415,7 @@ Baseline metrics:
 - valkeyRequests:
 - canaryRequests:
 - latencyDifferenceMs:
+- metrics.latency.deltaAverageMs:
 - speedup:
 
 Activation details:
@@ -291,7 +428,11 @@ Activation details:
 Monitoring observations:
 - Observation window:
 - parity:
+- allow parity:
+- deny parity:
+- retry-after parity:
 - mismatchRate:
+- mismatch count:
 - backendFailures:
 - comparisonFailures:
 - fallbackCount:
@@ -299,6 +440,7 @@ Monitoring observations:
 - valkeyRequests:
 - canaryRequests:
 - latencyDifferenceMs:
+- metrics.latency.deltaAverageMs:
 - speedup:
 - System health:
 - Notes:
