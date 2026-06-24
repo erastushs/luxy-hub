@@ -24,19 +24,25 @@ export function getClientIP(request: Request): string {
 }
 
 export function getClientIPFromHeaders(headers: Headers): string {
-  if (headers.has('x-vercel-forwarded-for')) {
-    return headers.get('x-vercel-forwarded-for')!.trim()
-  }
+  const cloudflareIp = headers.get('cf-connecting-ip')?.trim()
+  if (cloudflareIp) return cloudflareIp
 
-  const forwarded = headers.get('x-forwarded-for')
-  if (forwarded) {
-    const ips = forwarded.split(',').map((s) => s.trim())
-    const ip = ips[ips.length - 1]
-    if (ip) return ip
-  }
+  const vercelForwardedIp = headers
+    .get('x-vercel-forwarded-for')
+    ?.split(',')
+    .map((s) => s.trim())
+    .find(Boolean)
+  if (vercelForwardedIp) return vercelForwardedIp
 
-  const realIp = headers.get('x-real-ip')
-  if (realIp) return realIp.trim()
+  const forwardedIp = headers
+    .get('x-forwarded-for')
+    ?.split(',')
+    .map((s) => s.trim())
+    .find(Boolean)
+  if (forwardedIp) return forwardedIp
+
+  const realIp = headers.get('x-real-ip')?.trim()
+  if (realIp) return realIp
 
   return '127.0.0.1'
 }
