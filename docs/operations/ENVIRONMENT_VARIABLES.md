@@ -30,6 +30,14 @@ Optional variables:
 | `NEXT_PUBLIC_SITE_URL` | No | Vercel |
 | `INTERNAL_ALERT_DISCORD_WEBHOOK` | No | Vercel |
 
+## Delivery Session Variables
+
+| Name | Required | Location |
+|---|---|---|
+| `DELIVERY_SESSION_MODE` | No | Vercel |
+| `DELIVERY_SESSION_TTL_SECONDS` | No | Vercel |
+| `DELIVERY_SESSION_CANARY_PERCENT` | No | Vercel |
+
 ## Required Variables
 
 ### `NEXT_PUBLIC_SUPABASE_URL`
@@ -337,6 +345,66 @@ Rotation guidance:
 - Delete the old webhook in Discord.
 - Redeploy if required by the hosting environment.
 - Run `/api/internal/check-alerts` with `CRON_SECRET` and verify expected notification behavior when an alert condition exists.
+
+## Delivery Session Variables
+
+### `DELIVERY_SESSION_MODE`
+
+Purpose: Runtime mode for delivery session storage backend.
+
+Required/Optional: Optional. Defaults to `postgres`.
+
+Supported values: `postgres`, `shadow`, `valkey_canary`, `valkey`.
+
+Used by:
+
+- `app/lib/delivery-session/config.ts`
+
+Security considerations:
+
+- Not secret. Controls which backend stores delivery session data.
+- `valkey` mode: sessions stored in Valkey with TTL-based expiration. PostgreSQL is not written to.
+- `postgres` mode: sessions stored in PostgreSQL (legacy behavior).
+- `shadow` mode: PostgreSQL authoritative, Valkey shadow comparison for parity analysis.
+- `valkey_canary` mode: deterministic percentage-based rollout to Valkey, fallback to PostgreSQL.
+
+### `DELIVERY_SESSION_TTL_SECONDS`
+
+Purpose: Delivery session TTL in seconds.
+
+Required/Optional: Optional. Defaults to 60.
+
+Valid range: 1–3600.
+
+Used by:
+
+- `app/lib/delivery-session/config.ts`
+- `app/lib/delivery-session/valkey-adapter.ts`
+- `app/lib/services/delivery-session-service.ts`
+
+Security considerations:
+
+- Controls how long a delivery session token remains valid.
+- Must be long enough for the loader to complete a fetch, but short enough to limit replay window.
+- The default 60 seconds is appropriate for most deployment scenarios.
+
+### `DELIVERY_SESSION_CANARY_PERCENT`
+
+Purpose: Percentage of traffic routed to Valkey in `valkey_canary` mode.
+
+Required/Optional: Optional. Defaults to 0.
+
+Valid range: 0–100.
+
+Used by:
+
+- `app/lib/delivery-session/config.ts`
+
+Security considerations:
+
+- Not secret. Controls canary rollout percentage.
+- Set to 0 for no Valkey traffic, 100 for full canary, intermediate values for gradual rollout.
+- Deterministic routing based on SHA-256 hash of request identifier ensures consistent routing per identifier.
 
 ## Validation Checklist
 

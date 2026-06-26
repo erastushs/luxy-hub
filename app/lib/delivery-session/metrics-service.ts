@@ -16,6 +16,9 @@ type MutableDeliverySessionMetrics = {
   valkeyLatencyCount: number
   totalPostgresLatencyMs: number
   postgresLatencyCount: number
+  activeSessions: number
+  estimatedMemoryBytes: number
+  estimatedAverageSessionSize: number
 }
 
 function createEmptyMetrics(): MutableDeliverySessionMetrics {
@@ -34,6 +37,9 @@ function createEmptyMetrics(): MutableDeliverySessionMetrics {
     valkeyLatencyCount: 0,
     totalPostgresLatencyMs: 0,
     postgresLatencyCount: 0,
+    activeSessions: 0,
+    estimatedMemoryBytes: 0,
+    estimatedAverageSessionSize: 0,
   }
 }
 
@@ -41,15 +47,21 @@ export class DeliverySessionMetricsService {
   private metrics = createEmptyMetrics()
 
   incrementCreated(): void {
+    this.metrics.activeSessions += 1
     this.metrics.createdSessions += 1
+    this.estimateMemory()
   }
 
   incrementConsumed(): void {
+    this.metrics.activeSessions = Math.max(0, this.metrics.activeSessions - 1)
     this.metrics.consumedSessions += 1
+    this.estimateMemory()
   }
 
   incrementExpired(): void {
+    this.metrics.activeSessions = Math.max(0, this.metrics.activeSessions - 1)
     this.metrics.expiredSessions += 1
+    this.estimateMemory()
   }
 
   incrementLookupFailure(): void {
@@ -106,11 +118,20 @@ export class DeliverySessionMetricsService {
       avgPostgresLatencyMs: this.metrics.postgresLatencyCount === 0
         ? null
         : this.metrics.totalPostgresLatencyMs / this.metrics.postgresLatencyCount,
+      activeSessions: this.metrics.activeSessions,
+      estimatedMemoryBytes: this.metrics.estimatedMemoryBytes,
+      estimatedAverageSessionSize: this.metrics.estimatedAverageSessionSize,
     }
   }
 
   reset(): void {
     this.metrics = createEmptyMetrics()
+  }
+
+  private estimateMemory(): void {
+    const avgSerializedSize = 320
+    this.metrics.estimatedAverageSessionSize = avgSerializedSize
+    this.metrics.estimatedMemoryBytes = this.metrics.activeSessions * avgSerializedSize
   }
 }
 

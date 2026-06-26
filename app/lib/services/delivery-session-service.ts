@@ -21,8 +21,9 @@ import {
 import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { authorizeDeliveryAccess } from '@/app/lib/services/delivery-authorization-service'
 import { getDeliverySessionMetricsService } from '@/app/lib/delivery-session/metrics-service'
+import { getDeliverySessionTtlSeconds } from '@/app/lib/delivery-session/config'
 
-export const DELIVERY_SESSION_TTL_SECONDS = 60
+export const DELIVERY_SESSION_TTL_SECONDS = getDeliverySessionTtlSeconds()
 const UNAVAILABLE_MESSAGE = 'Delivery unavailable'
 const INVALID_SESSION_MESSAGE = 'Invalid delivery session'
 

@@ -375,6 +375,16 @@ export async function POST(req: NextRequest) {
       pending: await deletePendingEventsBefore(sevenDaysAgo),
     }
 
+    /*
+     * Delivery session cleanup — LEGACY (PostgreSQL mode only)
+     *
+     * When DELIVERY_SESSION_MODE=valkey, sessions auto-expire via Valkey TTL.
+     * No PostgreSQL cleanup is needed.
+     * When DELIVERY_SESSION_MODE=postgres, expired sessions must be pruned
+     * from the delivery_sessions table to prevent unbounded growth.
+     * Shadow/canary modes also execute PostgreSQL cleanup since they
+     * write to PostgreSQL.
+     */
     const deliverySessionMode = parseDeliverySessionRuntimeConfig().mode
     const deliverySessionsResult = deliverySessionMode === 'valkey'
       ? { deleted: 0, status: 'success' as const }

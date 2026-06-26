@@ -1,7 +1,7 @@
 # LuxyHub Architecture
 
-Last updated: 2026-06-24
-Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, Phase 7A access-mode/license foundation closeout, Phase 7B backend key monetization completion, Phase 7C production runtime performance optimization, Phase 7D engineering completion, Phase 7E.1 production verification, and Phase 7E.3 runtime simplification. Valkey is authoritative for rate limits (`RATE_LIMIT_MODE=valkey`). Shadow comparison is disabled. PostgreSQL remains available as a rollback backend. Premium license hardening is deferred future license work.
+Last updated: 2026-06-26
+Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, Phase 7A access-mode/license foundation closeout, Phase 7B backend key monetization completion, Phase 7C production runtime performance optimization, Phase 7D engineering completion, Phase 7E.1 production verification, Phase 7E.3 runtime simplification, and Phase 8A/8A.1 delivery session Valkey migration. Valkey is authoritative for rate limits (`RATE_LIMIT_MODE=valkey`). Valkey is ready for delivery sessions (`DELIVERY_SESSION_MODE=valkey`). Shadow comparison is disabled. PostgreSQL remains available as a rollback backend for both rate limits and delivery sessions. Premium license hardening is deferred future license work.
 
 ## Overview
 
@@ -234,7 +234,7 @@ Current tables:
 - `profiles`
 - `audit_logs`
 - `delivery_builds`
-- `delivery_sessions`
+- `delivery_sessions` — Valkey (temporary state). PostgreSQL is preserved as rollback backend only; no new rows are written in `valkey` mode.
 - `webhook_config`
 - `event_logs`
 - `alert_events`
@@ -347,6 +347,50 @@ Audit logging is fire-and-forget. Audit failures must not block user operations.
 ## Rate Limiting
 
 Production rate-limit decisions are authoritative in Valkey through `RATE_LIMIT_MODE=valkey`. Shadow comparison is disabled. PostgreSQL remains available as a rollback backend via `RATE_LIMIT_MODE=postgres`. Shadow comparison and canary modes (`RATE_LIMIT_MODE=shadow`, `RATE_LIMIT_MODE=valkey_canary`) are preserved for monitoring and gradual migration scenarios.
+
+## Delivery Sessions
+
+Delivery sessions use the same runtime pattern as rate limits. Valkey is authoritative when `DELIVERY_SESSION_MODE=valkey`. PostgreSQL remains available as a rollback backend via `DELIVERY_SESSION_MODE=postgres`. Shadow comparison and canary modes (`DELIVERY_SESSION_MODE=shadow`, `DELIVERY_SESSION_MODE=valkey_canary`) are preserved.
+
+Supported modes: `postgres`, `shadow`, `valkey_canary`, `valkey`.
+
+## Data Architecture: Temporary vs Permanent State
+
+The application uses Valkey for ephemeral, short-lived state and PostgreSQL for permanent, analytical, and ownership-critical data.
+
+### Temporary State → Valkey
+
+| Dataset | Purpose | TTL | Key Namespace |
+|---|---|---|---|
+| Rate limits | Sliding-window rate counters | Window + 5s grace | `luxyhub:<env>:rate:v2:*` |
+| Delivery sessions | One-time session tokens and event secrets | `DELIVERY_SESSION_TTL_SECONDS` (default 60s) | `luxyhub:<env>:delivery:v2:*` |
+
+Temporary state is:
+- Short-lived (seconds to minutes)
+- Recomputable or disposable
+- Auto-expired via Valkey TTL
+- Not used for billing, audit, or analytics
+
+### Permanent State → PostgreSQL
+
+| Dataset | Purpose |
+|---|---|
+| Scripts | Script metadata, ownership, visibility |
+| Keys | Monetization keys (free/premium), expiry, assignment |
+| Licenses | License records, assignments, delivery counters |
+| Executions | Script execution history for analytics |
+| Builds | Delivery build metadata, encrypted payloads |
+| Events | Runtime event logs, dead-letter queue |
+| Users/Profiles | Authentication, dashboard profiles |
+| Audit logs | Immutable security audit trail |
+| Downloads | Script download tracking |
+| Verification logs | Token verification history |
+
+Permanent state is:
+- Durable (no TTL)
+- Used for billing, analytics, audit
+- Ownership-enforced via `creator_id` / RLS
+- Migrated through schema migrations, not runtime cutovers
 
 Each route uses an endpoint-specific key such as `VALIDATE`, `SCRIPT_RAW`, `DASHBOARD_SCRIPTS_LIST`, or `DASHBOARD_VERSIONS_GET`.
 

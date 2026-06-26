@@ -7,6 +7,22 @@ const DELIVERY_SESSION_RUNTIME_MODES: readonly DeliverySessionRuntimeMode[] = [
   'valkey',
 ]
 
+export function getDeliverySessionTtlSeconds(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.DELIVERY_SESSION_TTL_SECONDS?.trim()
+  if (!raw) {
+    return 60
+  }
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 3600) {
+    return 60
+  }
+  return Math.floor(parsed)
+}
+
+export function getDeliverySessionTtlMs(env: Record<string, string | undefined> = process.env): number {
+  return getDeliverySessionTtlSeconds(env) * 1000
+}
+
 export function parseDeliverySessionRuntimeConfig(
   env: Record<string, string | undefined> = process.env
 ): DeliverySessionRuntimeConfig {

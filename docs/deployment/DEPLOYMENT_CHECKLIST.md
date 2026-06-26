@@ -45,6 +45,9 @@ Optional variables:
 | `DELIVERY_PAYLOAD_SECRET` | No | **Yes** | Explicit payload encryption secret; falls back to `SUPABASE_SERVICE_ROLE_KEY` |
 | `DELIVERY_PAYLOAD_KEY_ID` | No | No | Non-secret key identifier stored in delivery payload metadata |
 | `NEXT_PUBLIC_SITE_URL` | No | No | Trusted origin used by sensitive CORS checks when different from request origin |
+| `DELIVERY_SESSION_MODE` | No | No | Delivery session storage backend: `postgres`, `shadow`, `valkey_canary`, `valkey` |
+| `DELIVERY_SESSION_TTL_SECONDS` | No | No | Delivery session TTL in seconds (default 60) |
+| `DELIVERY_SESSION_CANARY_PERCENT` | No | No | Canary rollout percentage for valkey_canary mode |
 
 ### 2.2 Deprecated Variables — Remove from Vercel
 

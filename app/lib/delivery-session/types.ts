@@ -85,4 +85,7 @@ export type DeliverySessionRolloutMetricsSnapshot = {
   backendFailures: number
   avgValkeyLatencyMs: number | null
   avgPostgresLatencyMs: number | null
+  activeSessions: number
+  estimatedMemoryBytes: number
+  estimatedAverageSessionSize: number
 }
