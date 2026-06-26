@@ -1,6 +1,6 @@
 # LuxyHub Production Monitor
 
-Operational monitoring toolkit for LuxyHub production rate-limit canary rollouts.
+Operational monitoring toolkit for LuxyHub production rate-limit and delivery session canary rollouts.
 
 This toolkit is read-only. It performs GET requests, reads local process/system status, tails PM2 logs, and reads Valkey INFO output through `redis-cli`. It does not restart services, write to Redis or PostgreSQL, change nginx, change PM2, change deployment configuration, or modify environment variables.
 
@@ -61,6 +61,7 @@ Direct panels:
 ```bash
 ops/monitor/health.sh
 ops/monitor/shadow.sh
+ops/monitor/delivery.sh
 ops/monitor/system.sh
 ops/monitor/logs.sh
 ops/monitor/tmux-monitor.sh
@@ -80,16 +81,23 @@ tmux kill-session -t "LuxyHub Monitor"
 ## Dashboard Layout
 
 ```text
-+----------------------+----------------------+
-| Health               | System               |
-| /api/health          | host / PM2 / Valkey  |
-+----------------------+----------------------+
-| PM2 Live Logs        | Shadow Metrics       |
-| pm2 logs luxyhub     | /api/internal/...    |
-+----------------------+----------------------+
++------------------------------------------+
+| Health                                    |
+| /api/health                              |
++------------------+-----------------------+
+| Rate Limit       | Delivery Sessions     |
+| /api/internal/   | /api/internal/        |
+| rate-limit-shadow| delivery-session      |
++------------------+-----------------------+
+| VPS / Valkey                             |
+| host / PM2 / Valkey                      |
++------------------------------------------+
+| PM2 Live Logs                            |
+| pm2 logs luxyhub                         |
++------------------------------------------+
 ```
 
-Every pane displays `LuxyHub Production Monitor` and a current refresh timestamp. The tmux session name remains `LuxyHub Monitor`, and existing sessions are reused.
+Every pane displays `LuxyHub Production Monitor` and a current refresh timestamp. The tmux session name remains `LuxyHub Monitor`. Stale sessions are destroyed before recreating.
 
 ## Panels
 
@@ -97,7 +105,19 @@ Every pane displays `LuxyHub Production Monitor` and a current refresh timestamp
 
 Refreshes every 2 seconds from `/api/health`.
 
-Displays current time, overall status, runtime mode, operational state, observability status, configured canary percentage, effective canary percentage, parity, mismatch rate, fallback count, backend failures, comparison failures, PostgreSQL status, Valkey status, latency delta, and speedup.
+Displays current time, overall status, runtime mode, operational state, observability status, configured canary percentage, effective canary percentage, parity, mismatch rate, fallback count, backend failures, comparison failures, PostgreSQL status, Valkey status, latency delta, speedup, and delivery session health summary.
+
+### Rate Limit
+
+Refreshes every 2 seconds from `/api/internal/rate-limit-shadow` when `LUXY_MONITOR_TOKEN` is configured.
+
+Displays parity, mismatch count, allow parity, deny parity, retry-after parity, backend failures, comparison failures, canary requests, PostgreSQL requests, Valkey requests, effective canary percentage, and average latency delta.
+
+### Delivery Sessions
+
+Refreshes every 2 seconds from `/api/internal/delivery-session` when `LUXY_MONITOR_TOKEN` is configured.
+
+Displays mode, operational state, created/consumed/expired/active sessions, lookup failures, backend failures, comparison failures, fallback count, parity, mismatch rate, Postgres and Valkey average latency, Valkey health, connection state, latency, and memory.
 
 ### System
 
@@ -119,21 +139,17 @@ The panel does not suppress ordinary log lines. It highlights operational keywor
 - Yellow: `WARN`, `fallback`, `comparison`, `mismatch`
 - Magenta: `lua`, `redis`
 
-### Shadow Metrics
+## Auth Fallback
 
-Refreshes every 2 seconds from `/api/internal/rate-limit-shadow` when `LUXY_MONITOR_TOKEN` is configured.
-
-Displays parity, mismatch count, allow parity, deny parity, retry-after parity, backend failures, comparison failures, canary requests, PostgreSQL requests, Valkey requests, effective canary percentage, and average latency delta.
-
-If authentication is not configured, the panel prints a clean operator message and does not dump raw JSON:
+If authentication is not configured, authenticated panels print a clean operator message and do not dump raw JSON:
 
 ```text
-Shadow Metrics
+Delivery Session
 
 Monitoring authentication not configured.
 
 Endpoint:
-/api/internal/rate-limit-shadow
+/api/internal/delivery-session
 
 Set:
 LUXY_MONITOR_TOKEN=xxxx
@@ -176,4 +192,4 @@ Confirm runtime mode and operational state match the intended rollout state. Con
 
 ### Rollback Monitoring
 
-After rollback, use Health, Shadow, Logs, and System together. Confirm PostgreSQL status is healthy, overall health recovers, fallback and failure counters stop increasing, Valkey instability no longer affects user-visible behavior, and logs settle without new mismatch or comparison failures.
+After rollback, use Health, Shadow, Delivery Session, Logs, and System together. Confirm PostgreSQL status is healthy, overall health recovers, fallback and failure counters stop increasing, Valkey instability no longer affects user-visible behavior, and logs settle without new mismatch or comparison failures.

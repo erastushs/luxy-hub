@@ -370,6 +370,7 @@ describe('GET /api/health', () => {
       'Migration complete. Valkey is the production rate-limit backend.',
       'PostgreSQL remains available as rollback backend via RATE_LIMIT_MODE=postgres.',
       'Shadow comparison is disabled in Valkey authoritative mode.',
+      'Delivery sessions can use Valkey via DELIVERY_SESSION_MODE=valkey.',
     ])
   })
 

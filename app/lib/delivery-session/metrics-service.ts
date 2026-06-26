@@ -12,6 +12,9 @@ type MutableDeliverySessionMetrics = {
   expiredSessions: number
   lookupFailures: number
   backendFailures: number
+  comparisonFailures: number
+  totalComparisons: number
+  identicalComparisons: number
   totalValkeyLatencyMs: number
   valkeyLatencyCount: number
   totalPostgresLatencyMs: number
@@ -33,6 +36,9 @@ function createEmptyMetrics(): MutableDeliverySessionMetrics {
     expiredSessions: 0,
     lookupFailures: 0,
     backendFailures: 0,
+    comparisonFailures: 0,
+    totalComparisons: 0,
+    identicalComparisons: 0,
     totalValkeyLatencyMs: 0,
     valkeyLatencyCount: 0,
     totalPostgresLatencyMs: 0,
@@ -72,6 +78,15 @@ export class DeliverySessionMetricsService {
     this.metrics.backendFailures += 1
   }
 
+  recordComparison(parity: boolean): void {
+    this.metrics.totalComparisons += 1
+    if (parity) {
+      this.metrics.identicalComparisons += 1
+    } else {
+      this.metrics.comparisonFailures += 1
+    }
+  }
+
   recordLatency(backend: DeliverySessionBackend, latencyMs: number): void {
     if (backend === 'valkey') {
       this.metrics.totalValkeyLatencyMs += latencyMs
@@ -99,6 +114,7 @@ export class DeliverySessionMetricsService {
 
   snapshot(env: Record<string, string | undefined> = process.env): DeliverySessionRolloutMetricsSnapshot {
     const config = parseDeliverySessionRuntimeConfig(env)
+    const totalComparisons = this.metrics.totalComparisons
     return {
       mode: config.mode,
       canaryPercentage: config.canaryPercentage,
@@ -112,12 +128,22 @@ export class DeliverySessionMetricsService {
       expiredSessions: this.metrics.expiredSessions,
       lookupFailures: this.metrics.lookupFailures,
       backendFailures: this.metrics.backendFailures,
+      comparisonFailures: this.metrics.comparisonFailures,
+      totalComparisons,
+      identicalComparisons: this.metrics.identicalComparisons,
+      mismatches: totalComparisons - this.metrics.identicalComparisons,
+      parity: totalComparisons === 0 ? null : this.metrics.identicalComparisons / totalComparisons,
+      mismatchRate: totalComparisons === 0 ? 0 : (totalComparisons - this.metrics.identicalComparisons) / totalComparisons,
       avgValkeyLatencyMs: this.metrics.valkeyLatencyCount === 0
         ? null
         : this.metrics.totalValkeyLatencyMs / this.metrics.valkeyLatencyCount,
       avgPostgresLatencyMs: this.metrics.postgresLatencyCount === 0
         ? null
         : this.metrics.totalPostgresLatencyMs / this.metrics.postgresLatencyCount,
+      deltaAverageMs: this.metrics.valkeyLatencyCount === 0 || this.metrics.postgresLatencyCount === 0
+        ? 0
+        : (this.metrics.totalValkeyLatencyMs / this.metrics.valkeyLatencyCount)
+        - (this.metrics.totalPostgresLatencyMs / this.metrics.postgresLatencyCount),
       activeSessions: this.metrics.activeSessions,
       estimatedMemoryBytes: this.metrics.estimatedMemoryBytes,
       estimatedAverageSessionSize: this.metrics.estimatedAverageSessionSize,

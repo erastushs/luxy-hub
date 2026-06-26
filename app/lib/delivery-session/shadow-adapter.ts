@@ -29,6 +29,7 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     metrics.incrementCreated()
     metrics.recordLatency('postgres', execution.comparison.authoritativeLatencyMs)
     metrics.recordLatency('valkey', execution.comparison.shadowLatencyMs)
+    metrics.recordComparison(execution.comparison.parity)
 
     if (!execution.result) {
       throw new Error('Failed to create delivery session')
@@ -51,6 +52,7 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     const metrics = getDeliverySessionMetricsService()
     metrics.recordLatency('postgres', execution.comparison.authoritativeLatencyMs)
     metrics.recordLatency('valkey', execution.comparison.shadowLatencyMs)
+    metrics.recordComparison(execution.comparison.parity)
 
     if (execution.comparison.authoritativeError) {
       metrics.incrementBackendFailure()
@@ -76,6 +78,7 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     }
     metrics.recordLatency('postgres', execution.comparison.authoritativeLatencyMs)
     metrics.recordLatency('valkey', execution.comparison.shadowLatencyMs)
+    metrics.recordComparison(execution.comparison.parity)
 
     if (execution.comparison.authoritativeError) {
       metrics.incrementBackendFailure()

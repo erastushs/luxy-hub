@@ -83,6 +83,13 @@ export type DeliverySessionRolloutMetricsSnapshot = {
   expiredSessions: number
   lookupFailures: number
   backendFailures: number
+  comparisonFailures: number
+  totalComparisons: number
+  identicalComparisons: number
+  mismatches: number
+  parity: number | null
+  mismatchRate: number
+  deltaAverageMs: number
   avgValkeyLatencyMs: number | null
   avgPostgresLatencyMs: number | null
   activeSessions: number

@@ -5,6 +5,8 @@ import {
   getRateLimitShadowMetrics,
 } from '@/app/lib/rate-limit/metrics-service'
 import { checkValkeyHealth } from '@/app/lib/valkey/health'
+import { getDeliverySessionRolloutMetrics } from '@/app/lib/delivery-session/metrics-service'
+import { parseDeliverySessionRuntimeConfig } from '@/app/lib/delivery-session/config'
 
 type OverallStatus = 'healthy' | 'degraded' | 'unhealthy'
 type ServiceStatus = OverallStatus | 'disabled'
@@ -14,7 +16,24 @@ const OPERATIONAL_NOTES = [
   'Migration complete. Valkey is the production rate-limit backend.',
   'PostgreSQL remains available as rollback backend via RATE_LIMIT_MODE=postgres.',
   'Shadow comparison is disabled in Valkey authoritative mode.',
+  'Delivery sessions can use Valkey via DELIVERY_SESSION_MODE=valkey.',
 ] as const
+
+type DeliverySessionOperationalState = 'postgres_authoritative' | 'shadow_comparison_active' | 'valkey_canary_active' | 'valkey_authoritative'
+
+function resolveDeliverySessionOperationalState(mode: string): DeliverySessionOperationalState {
+  if (mode === 'shadow') return 'shadow_comparison_active'
+  if (mode === 'valkey_canary') return 'valkey_canary_active'
+  if (mode === 'valkey') return 'valkey_authoritative'
+  return 'postgres_authoritative'
+}
+
+function getDeliverySessionHealthStatus(mode: string, backendFailures: number): string {
+  if (mode === 'valkey') {
+    return backendFailures > 0 ? 'unhealthy' : 'healthy'
+  }
+  return backendFailures > 0 ? 'degraded' : 'healthy'
+}
 
 function optionalBuildMetadata(env: Record<string, string | undefined> = process.env) {
   const build = {
@@ -194,6 +213,16 @@ export async function GET() {
             averageLatencyDeltaMs: rateLimitMetrics.avgLatencyDeltaMs,
           }),
     }
+    const deliverySessionConfig = parseDeliverySessionRuntimeConfig()
+    const deliverySessionMetrics = getDeliverySessionRolloutMetrics()
+    const deliverySession = {
+      runtimeMode: deliverySessionConfig.mode,
+      operationalState: resolveDeliverySessionOperationalState(deliverySessionConfig.mode),
+      health: getDeliverySessionHealthStatus(deliverySessionConfig.mode, deliverySessionMetrics.backendFailures),
+      backendFailures: deliverySessionMetrics.backendFailures,
+      comparisonFailures: deliverySessionMetrics.comparisonFailures,
+      fallbackCount: deliverySessionMetrics.fallbackCount,
+    }
     const status = resolveOverallStatus({
       postgresStatus: postgres.status,
       valkeyEnabled: valkey.enabled,
@@ -220,6 +249,7 @@ export async function GET() {
       postgres,
       valkey,
       rateLimit,
+      deliverySession,
       rollout: rolloutWithWriteCounters,
       performance,
       notes: OPERATIONAL_NOTES,

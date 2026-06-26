@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_URL="${LUXYHUB_BASE_URL:-${1:-http://127.0.0.1:3000}}"
 HEALTH_ENDPOINT="${BASE_URL%/}/api/health"
 SHADOW_ENDPOINT="${BASE_URL%/}/api/internal/rate-limit-shadow"
+DELIVERY_ENDPOINT="${BASE_URL%/}/api/internal/delivery-session"
 
 load_monitor_token
 
@@ -42,6 +43,15 @@ shadow_probe() {
   fi
 
   curl -sS --max-time 5 -X GET "${SHADOW_AUTH_ARGS[@]}" -o /dev/null -w '%{http_code}' "$SHADOW_ENDPOINT"
+}
+
+delivery_probe() {
+  if [ -z "${LUXY_MONITOR_TOKEN:-}" ]; then
+    printf 'missing-token'
+    return 0
+  fi
+
+  curl -sS --max-time 5 -X GET "${SHADOW_AUTH_ARGS[@]}" -o /dev/null -w '%{http_code}' "$DELIVERY_ENDPOINT"
 }
 
 printf 'LuxyHub Production Monitor\n'
@@ -82,23 +92,38 @@ else
       printf 'warning: GET %s returned HTTP %s\n' "$SHADOW_ENDPOINT" "${shadow_status:-unavailable}"
       ;;
   esac
+
+  delivery_status="$(delivery_probe 2>/dev/null)"
+  case "$delivery_status" in
+    401|403)
+      printf 'warning: GET %s returned HTTP %s; monitoring authentication failed.\n' "$DELIVERY_ENDPOINT" "$delivery_status"
+      ;;
+    2*)
+      printf 'ok: GET %s returned HTTP %s\n' "$DELIVERY_ENDPOINT" "$delivery_status"
+      ;;
+    *)
+      printf 'warning: GET %s returned HTTP %s\n' "$DELIVERY_ENDPOINT" "${delivery_status:-unavailable}"
+      ;;
+  esac
 fi
 
 printf '\nChoose a monitor:\n'
 printf '1) Health only\n'
 printf '2) Shadow only\n'
-printf '3) System\n'
-printf '4) Logs\n'
-printf '5) Full tmux dashboard\n'
+printf '3) Delivery Session\n'
+printf '4) System\n'
+printf '5) Logs\n'
+printf '6) Full tmux dashboard\n'
 printf '\nSelection: '
 read -r selection
 
 case "$selection" in
   1) exec "$SCRIPT_DIR/health.sh" "$BASE_URL" ;;
   2) exec "$SCRIPT_DIR/shadow.sh" "$BASE_URL" ;;
-  3) exec "$SCRIPT_DIR/system.sh" ;;
-  4) exec "$SCRIPT_DIR/logs.sh" ;;
-  5) exec "$SCRIPT_DIR/tmux-monitor.sh" ;;
+  3) exec "$SCRIPT_DIR/delivery.sh" "$BASE_URL" ;;
+  4) exec "$SCRIPT_DIR/system.sh" ;;
+  5) exec "$SCRIPT_DIR/logs.sh" ;;
+  6) exec "$SCRIPT_DIR/tmux-monitor.sh" ;;
   *)
     printf 'Invalid selection: %s\n' "$selection"
     exit 1
