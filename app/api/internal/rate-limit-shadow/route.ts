@@ -28,8 +28,8 @@ function runtimeMetadata(runtimeMode: string) {
 
   return {
     phase: '7',
-    milestone: '7E.2',
-    release: 'RC1',
+    milestone: '7E.3',
+    release: 'Production',
     runtimeMode,
     startedAt: new Date(RUNTIME_STARTED_AT_MS).toISOString(),
     uptimeSeconds,
@@ -65,12 +65,15 @@ export async function GET() {
     const rollout = getRateLimitRolloutMetrics()
     const valkeyHealth = await checkValkeyHealth()
     const runtime = runtimeMetadata(health.runtimeMode)
-    const parity = operationalSnapshot.parityRate
-    const latency = {
-      postgresAverageMs: metrics.avgPostgresLatencyMs,
-      valkeyAverageMs: metrics.avgValkeyLatencyMs,
-      deltaAverageMs: metrics.avgLatencyDeltaMs,
-    }
+    const isValkeyAuthoritative = health.runtimeMode === 'valkey'
+    const parity = isValkeyAuthoritative ? null : operationalSnapshot.parityRate
+    const latency = isValkeyAuthoritative
+      ? { postgresAverageMs: null, valkeyAverageMs: null, deltaAverageMs: null }
+      : {
+          postgresAverageMs: metrics.avgPostgresLatencyMs,
+          valkeyAverageMs: metrics.avgValkeyLatencyMs,
+          deltaAverageMs: metrics.avgLatencyDeltaMs,
+        }
     const valkey = {
       enabled: valkeyHealth.enabled,
       connected: valkeyHealth.connectionState === 'ready',
@@ -84,41 +87,58 @@ export async function GET() {
     }
     const operationalSummary = [
       `Runtime Mode: ${health.runtimeMode}`,
-      `Parity: ${formatPercent(parity)}`,
+      ...(isValkeyAuthoritative
+        ? ['Comparison: disabled', 'Operational State: Valkey Authoritative']
+        : [
+            `Parity: ${formatPercent(parity ?? 0)}`,
+            `Comparison Failures: ${metrics.comparisonFailures}`,
+          ]
+      ),
       `Backend Failures: ${metrics.backendFailures}`,
-      `Comparison Failures: ${metrics.comparisonFailures}`,
-      `Latency: Postgres ${formatLatency(latency.postgresAverageMs)}, Valkey ${formatLatency(latency.valkeyAverageMs)}, Delta ${formatLatency(latency.deltaAverageMs)}`,
+      ...(isValkeyAuthoritative
+        ? []
+        : [`Latency: Postgres ${formatLatency(latency.postgresAverageMs ?? 0)}, Valkey ${formatLatency(latency.valkeyAverageMs ?? 0)}, Delta ${formatLatency(latency.deltaAverageMs ?? 0)}`]
+      ),
       `Valkey: ${valkey.connectionState}`,
       `Uptime: ${runtime.uptimeSeconds}s`,
-      `Status: ${health.observabilityStatus}`,
+      `Status: ${isValkeyAuthoritative ? 'Healthy' : health.observabilityStatus}`,
     ].join(' | ')
 
     return NextResponse.json({
       enabled: health.enabled,
       runtimeMode: health.runtimeMode,
       operationalState: health.operationalState,
-      observabilityStatus: health.observabilityStatus,
+      observabilityStatus: isValkeyAuthoritative ? 'healthy' : health.observabilityStatus,
       runtime,
       rollout,
       health: {
         status: health.status,
-        observabilityStatus: health.observabilityStatus,
+        observabilityStatus: isValkeyAuthoritative ? 'healthy' : health.observabilityStatus,
         operationalState: health.operationalState,
         backendFailures: health.backendFailures,
-        comparisonFailures: metrics.comparisonFailures,
+        comparisonFailures: isValkeyAuthoritative ? 0 : metrics.comparisonFailures,
       },
-      metrics: {
-        totalComparisons: metrics.totalComparisons,
-        identical: metrics.identical,
-        mismatches: metrics.mismatches,
-        mismatchRate: metrics.mismatchRate,
-        latency,
-        averageLatencyDeltaMs: metrics.avgLatencyDeltaMs,
-      },
-      decisionParity: parityReport.decisionParity,
-      retryAfterParity: parityReport.retryAfterParity,
+      metrics: isValkeyAuthoritative
+        ? {
+            totalComparisons: 0,
+            identical: 0,
+            mismatches: 0,
+            mismatchRate: 0,
+            latency,
+            averageLatencyDeltaMs: 0,
+          }
+        : {
+            totalComparisons: metrics.totalComparisons,
+            identical: metrics.identical,
+            mismatches: metrics.mismatches,
+            mismatchRate: metrics.mismatchRate,
+            latency,
+            averageLatencyDeltaMs: metrics.avgLatencyDeltaMs,
+          },
+      decisionParity: isValkeyAuthoritative ? null : parityReport.decisionParity,
+      retryAfterParity: isValkeyAuthoritative ? null : parityReport.retryAfterParity,
       valkey,
-      lastUpdatedAt: metrics.lastUpdatedAt,
+      lastUpdatedAt: isValkeyAuthoritative ? null : metrics.lastUpdatedAt,
       operationalSummary,
     })
   } catch (error) {

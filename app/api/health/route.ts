@@ -11,9 +11,9 @@ type ServiceStatus = OverallStatus | 'disabled'
 
 const RUNTIME_STARTED_AT_MS = Date.now() - Math.floor(process.uptime() * 1000)
 const OPERATIONAL_NOTES = [
-  'PostgreSQL remains authoritative outside explicit Valkey canary routing.',
-  'Valkey canary routing is controlled by RATE_LIMIT_MODE=valkey_canary and RATE_LIMIT_CANARY_PERCENT.',
-  'Rollback remains available through RATE_LIMIT_MODE=postgres.',
+  'Migration complete. Valkey is the production rate-limit backend.',
+  'PostgreSQL remains available as rollback backend via RATE_LIMIT_MODE=postgres.',
+  'Shadow comparison is disabled in Valkey authoritative mode.',
 ] as const
 
 function optionalBuildMetadata(env: Record<string, string | undefined> = process.env) {
@@ -41,8 +41,8 @@ function runtimeMetadata() {
 
   return {
     phase: '7',
-    milestone: '7E.2',
-    release: 'RC1',
+    milestone: '7E.3',
+    release: 'Production',
     startedAt: new Date(RUNTIME_STARTED_AT_MS).toISOString(),
     uptimeSeconds: Math.max(0, Math.floor(process.uptime())),
     ...(build ? { build } : {}),
@@ -67,6 +67,10 @@ function getRateLimitHealthStatus(params: {
   backendFailures: number
   comparisonFailures: number
 }): string {
+  if (params.runtimeMode === 'valkey') {
+    return params.backendFailures > 0 ? 'unhealthy' : 'healthy'
+  }
+
   if (params.healthStatus !== 'disabled') {
     return params.healthStatus
   }
@@ -147,15 +151,18 @@ export async function GET() {
     const valkeyHealth = await checkValkeyHealth()
     const rateLimitHealthSnapshot = getRateLimitShadowHealth()
     const rateLimitMetrics = getRateLimitShadowMetrics()
+    const isValkeyAuthoritative = rateLimitHealthSnapshot.runtimeMode === 'valkey'
     const rollout = getRateLimitRolloutMetrics()
     const rolloutWithWriteCounters = {
       ...rollout,
       postgresAuthoritativeWrites: rollout.postgresAuthoritativeWrites,
       valkeyAuthoritativeWrites: rollout.valkeyAuthoritativeWrites,
     }
-    const parity = rateLimitMetrics.totalComparisons === 0
+    const parity = isValkeyAuthoritative
       ? null
-      : rateLimitMetrics.identical / rateLimitMetrics.totalComparisons
+      : rateLimitMetrics.totalComparisons === 0
+        ? null
+        : rateLimitMetrics.identical / rateLimitMetrics.totalComparisons
     const rateLimitHealth = getRateLimitHealthStatus({
       runtimeMode: rateLimitHealthSnapshot.runtimeMode,
       healthStatus: rateLimitHealthSnapshot.status,
@@ -176,12 +183,16 @@ export async function GET() {
       runtimeMode: rateLimitHealthSnapshot.runtimeMode,
       operationalState: rateLimitHealthSnapshot.operationalState,
       health: rateLimitHealth,
-      observabilityStatus: rateLimitHealthSnapshot.observabilityStatus ?? rateLimitHealth,
       backendFailures: rateLimitMetrics.backendFailures,
-      comparisonFailures: rateLimitMetrics.comparisonFailures,
-      mismatchRate: rateLimitMetrics.mismatchRate,
-      parity,
-      averageLatencyDeltaMs: rateLimitMetrics.avgLatencyDeltaMs,
+      ...(isValkeyAuthoritative
+        ? { observabilityStatus: 'healthy', comparisonFailures: 0, mismatchRate: 0, parity: null, averageLatencyDeltaMs: 0 }
+        : {
+            observabilityStatus: rateLimitHealthSnapshot.observabilityStatus ?? rateLimitHealth,
+            comparisonFailures: rateLimitMetrics.comparisonFailures,
+            mismatchRate: rateLimitMetrics.mismatchRate,
+            parity,
+            averageLatencyDeltaMs: rateLimitMetrics.avgLatencyDeltaMs,
+          }),
     }
     const status = resolveOverallStatus({
       postgresStatus: postgres.status,
@@ -195,10 +206,12 @@ export async function GET() {
       rateLimit.health as ServiceStatus,
       'healthy',
     ], status)
-    const performance = createPerformanceReport({
-      postgresAverageMs: rateLimitMetrics.avgPostgresLatencyMs,
-      valkeyAverageMs: rateLimitMetrics.avgValkeyLatencyMs,
-    })
+    const performance = isValkeyAuthoritative
+      ? { latencyDifferenceMs: null, direction: null, speedup: null }
+      : createPerformanceReport({
+          postgresAverageMs: rateLimitMetrics.avgPostgresLatencyMs,
+          valkeyAverageMs: rateLimitMetrics.avgValkeyLatencyMs,
+        })
 
     return NextResponse.json({
       status,

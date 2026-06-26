@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Current Focus: Phase 7E.2 Operational Rollout preparation after Phase 7E.1 production verification
+- Current Focus: Phase 7E.3 Runtime Simplification — Valkey authoritative, migration complete
 - Documentation Status: DOCUMENTATION COMPLETE
 - Phase 8: Complete (100%), production verified, Roblox verified
 - Analytics V1: Complete
@@ -10,11 +10,11 @@
 - Phase 7B: Backend Key Monetization Platform, complete
 - Phase 7C: Production Runtime Performance, complete
 - Phase 7D: Database Scalability & Runtime Optimization, engineering complete / production baseline
-- Phase 7E.1: Production verified; PostgreSQL authoritative, Valkey shadow, `RATE_LIMIT_MODE=shadow`, canary disabled
-- Phase 7E.2: Operational Rollout for planned production canary progression
-- Premium license hardening: deferred future license work
+- Phase 7E.1: Production verified; PostgreSQL authoritative, Valkey shadow
+- Phase 7E.2: Operational Rollout complete
+- Phase 7E.3: Runtime Simplification — Valkey authoritative, shadow comparison disabled, migration complete
 
-LuxyHub has closed Phase 7A with the access-mode foundation, key validation integration, license foundation, license management dashboard, and license analytics dashboard production ready for the implemented UI/backend scope. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete and preserved runtime API behavior while reducing delivery build payload reads, optimizing event write projections, improving cleanup batching, and safely pruning expired delivery sessions without execution references. Phase 7D engineering is complete as the current production baseline. Phase 7E.1 is production verified with PostgreSQL authoritative, Valkey shadow comparison, `RATE_LIMIT_MODE=shadow`, healthy runtime health, 100% parity, zero backend failures, zero comparison failures, and canary disabled. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
+LuxyHub has closed Phase 7A with the access-mode foundation, key validation integration, license foundation, license management dashboard, and license analytics dashboard production ready for the implemented UI/backend scope. Phase 7B backend monetization infrastructure is complete. Phase 7C production runtime performance optimization is complete. Phase 7D engineering is complete as the current production baseline. Phase 7E.1 was production verified with PostgreSQL authoritative, Valkey shadow comparison. Phase 7E.3 completes the migration: Valkey is authoritative (`RATE_LIMIT_MODE=valkey`), shadow comparison is disabled, and PostgreSQL remains as a rollback backend. Phase 8 Event Reporting & Webhook Platform is complete at 100% for the accepted Discord-backed production scope.
 
 ## Source of Truth Documents
 
@@ -123,6 +123,7 @@ Scheduler notes:
 - Phase 7C — production runtime performance complete.
 - Phase 7D — engineering complete / production baseline.
 - Phase 7E.1 — production verified.
+- Phase 7E.3 — runtime simplification complete.
 - Phase 8 — complete / formally closed at 100%, production verified, Roblox verified.
 
 ## Project Status
@@ -141,14 +142,14 @@ Scheduler notes:
 - Phase 7C Production Runtime Performance
 - Phase 7D Valkey Shadow Runtime Baseline
 - Phase 7E.1 Operational Health and Canary Infrastructure
+- Phase 7E.3 Runtime Simplification — Valkey Authoritative
 
 ### In Progress
 
-- Phase 7E.2 Operational Rollout
+None — all phases complete.
 
 ### Deferred / Not Started
 
-- Valkey authoritative runtime
 - PostgreSQL rate-limit retirement
 - Analytics V2
 - QA & Test Coverage Expansion
@@ -160,13 +161,10 @@ Scheduler notes:
 
 ### Future Phase Order
 
-1. Phase 7E.2 Operational Rollout: 1% -> 5% -> 10% -> 25% -> 50% -> 100%
-2. Valkey authoritative runtime
-3. PostgreSQL rate-limit retirement
-4. Analytics V2
-5. QA & Test Coverage Expansion
-6. Operational Hardening
-7. Security Review
-8. Final Security Audit
-9. Release Candidate
-10. V1 Release
+1. PostgreSQL rate-limit retirement (if desired)
+2. Analytics V2
+3. QA & Test Coverage Expansion
+4. Operational Hardening
+5. Security Review
+6. Final Security Audit
+7. V1 Release

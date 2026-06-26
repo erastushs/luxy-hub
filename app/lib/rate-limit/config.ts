@@ -102,7 +102,6 @@ export const EVENT_RATE_LIMITS = {
 export const RATE_LIMIT_RUNTIME_MODES = [
   'postgres',
   'shadow',
-  'dual_write',
   'valkey_canary',
   'valkey',
 ] as const

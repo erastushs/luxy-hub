@@ -1,7 +1,7 @@
 # LuxyHub Architecture
 
 Last updated: 2026-06-24
-Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, Phase 7A access-mode/license foundation closeout, Phase 7B backend key monetization completion, Phase 7C production runtime performance optimization, Phase 7D engineering completion, and Phase 7E.1 production verification. PostgreSQL is authoritative, Valkey is shadow for rate limits, `RATE_LIMIT_MODE=shadow`, canary is disabled, and Phase 7E.2 production canary is planned. Premium license hardening is deferred future license work.
+Status: Current implementation after Creator Dashboard V1, secure delivery, Phase 6 loader integration, Analytics V1, Phase 8 Event Platform production verification, Phase 7A access-mode/license foundation closeout, Phase 7B backend key monetization completion, Phase 7C production runtime performance optimization, Phase 7D engineering completion, Phase 7E.1 production verification, and Phase 7E.3 runtime simplification. Valkey is authoritative for rate limits (`RATE_LIMIT_MODE=valkey`). Shadow comparison is disabled. PostgreSQL remains available as a rollback backend. Premium license hardening is deferred future license work.
 
 ## Overview
 
@@ -15,7 +15,7 @@ LuxyHub is a Next.js 16 application that currently provides:
 - Phase 7A access-mode foundation, key validation integration, license foundation, license management dashboard, and license analytics dashboard
 - Phase 7B backend key monetization infrastructure
 - Phase 7C runtime performance optimizations for delivery build metadata reads, event write projections, cleanup batching, and safe expired session pruning
-- Phase 7D/7E.1 rate-limit shadow runtime with PostgreSQL authoritative, Valkey shadow comparison, 100% parity, healthy production status, and deterministic canary infrastructure disabled until Phase 7E.2
+- Phase 7D/7E.1/7E.3 rate-limit runtime simplification with Valkey authoritative, shadow comparison disabled, healthy production status, and PostgreSQL rollback path
 - Supabase-backed authentication, ownership enforcement, RLS, Turnstile login protection, rate limiting, and audit logging
 
 The current production architecture is a single Next.js application. Dedicated `dashboard`, `api`, `cdn`, or `vault` subdomains are not implemented.
@@ -85,9 +85,10 @@ Repository Layer
   v
 Supabase Postgres + Supabase Auth
 
-Rate-limit runtime (`RATE_LIMIT_MODE=shadow`)
-  |-- PostgreSQL authoritative decision
-  |-- Valkey shadow comparison
+Rate-limit runtime (`RATE_LIMIT_MODE=valkey`)
+
+  |-- Valkey authoritative (no shadow comparison)
+
   |-- /api/health and /api/internal/rate-limit-shadow metrics
 ```
 
@@ -345,7 +346,7 @@ Audit logging is fire-and-forget. Audit failures must not block user operations.
 
 ## Rate Limiting
 
-Production rate-limit decisions are currently authoritative in PostgreSQL through `RATE_LIMIT_MODE=shadow`. Valkey runs as the shadow comparison backend for parity, latency, and health metrics. Canary infrastructure exists but is disabled until Phase 7E.2. Immediate rollback is `RATE_LIMIT_MODE=postgres`.
+Production rate-limit decisions are authoritative in Valkey through `RATE_LIMIT_MODE=valkey`. Shadow comparison is disabled. PostgreSQL remains available as a rollback backend via `RATE_LIMIT_MODE=postgres`. Shadow comparison and canary modes (`RATE_LIMIT_MODE=shadow`, `RATE_LIMIT_MODE=valkey_canary`) are preserved for monitoring and gradual migration scenarios.
 
 Each route uses an endpoint-specific key such as `VALIDATE`, `SCRIPT_RAW`, `DASHBOARD_SCRIPTS_LIST`, or `DASHBOARD_VERSIONS_GET`.
 
@@ -437,7 +438,7 @@ Current phase:
 - Runtime popup key validation: planned / not implemented.
 - Phase 7C — Production Runtime Performance: complete.
 - Phase 7D — Database Scalability & Runtime Optimization: engineering complete / production baseline.
-- Phase 7E.1 — Observability and canary infrastructure: production verified.
+- Phase 7E.3 — Runtime simplification: Valkey authoritative, shadow disabled, migration complete
 - Premium license hardening: deferred future license work. MAIN contains Phase 7A foundation only.
 
 Completed phases:
@@ -452,7 +453,7 @@ Completed phases:
 - Phase 7B — Backend Key Monetization Platform: complete
 - Phase 7C — Production Runtime Performance: complete
 - Phase 7D — Database Scalability & Runtime Optimization: engineering complete / production baseline
-- Phase 7E.1 — Operational health and canary infrastructure: production verified
+- Phase 7E.3 — Runtime simplification: Valkey authoritative, shadow disabled, migration complete
 - Phase 8 — Event Reporting & Webhook Platform: complete / 100%, production verified, and Roblox verified (database foundation, HMAC reporting API, replay and timestamp validation, queue worker with claim leases, dead-letter handling, Discord provider, dashboard webhook management, event operations, analytics dashboard, security dashboard, internal alerts, GitHub Actions scheduler, event retention cleanup, monitoring counters, and RLS hardening). Telegram and Slack providers, webhook encryption at rest, nonce atomicity improvements, and durable audit event stream expansion are deferred future enhancements and accepted risks, not Phase 8 blockers.
 
 Future ordering:

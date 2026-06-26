@@ -20,6 +20,7 @@ import {
 import { resolveRateLimitAdapter } from '@/app/lib/rate-limit/runtime'
 import { CanaryRateLimitAdapter, selectCanaryBackend, stableCanaryBucket } from '@/app/lib/rate-limit/canary-adapter'
 import { ShadowRateLimitAdapter } from '@/app/lib/rate-limit/shadow-adapter'
+import { ValkeyRateLimitAdapter } from '@/app/lib/rate-limit/valkey-adapter'
 import {
   checkEventRateLimit,
   checkLoginFailureLimit,
@@ -229,7 +230,6 @@ describe('rate-limit configuration and runtime selection', () => {
 
   it('parses future placeholder runtime modes without enabling them', () => {
     expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_MODE: 'shadow' }).mode).toBe('shadow')
-    expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_MODE: 'dual_write' }).mode).toBe('dual_write')
     expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_MODE: 'valkey_canary' }).mode).toBe('valkey_canary')
     expect(parseRateLimitRuntimeConfig({ RATE_LIMIT_MODE: 'valkey' }).mode).toBe('valkey')
   })
@@ -247,7 +247,7 @@ describe('rate-limit configuration and runtime selection', () => {
     expect(resolveRateLimitAdapter({})).toBeInstanceOf(PostgresRateLimitAdapter)
     expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'shadow' })).toBeInstanceOf(ShadowRateLimitAdapter)
     expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'valkey_canary' })).toBeInstanceOf(CanaryRateLimitAdapter)
-    expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'valkey' })).toBeInstanceOf(PostgresRateLimitAdapter)
+    expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'valkey' })).toBeInstanceOf(ValkeyRateLimitAdapter)
   })
 
   it('logs invalid runtime modes internally without throwing', () => {

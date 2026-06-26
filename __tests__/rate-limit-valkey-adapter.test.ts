@@ -8,7 +8,6 @@ vi.mock('@/app/lib/supabase', () => ({
 
 import { ValkeyRateLimitAdapter, createRateLimitKey } from '@/app/lib/rate-limit/valkey-adapter'
 import { resolveRateLimitAdapter } from '@/app/lib/rate-limit/runtime'
-import { PostgresRateLimitAdapter } from '@/app/lib/rate-limit/postgres-adapter'
 import type { ValkeyClient } from '@/app/lib/valkey/types'
 import type { ValkeyConnectionManager } from '@/app/lib/valkey/connection'
 
@@ -265,7 +264,7 @@ describe('ValkeyRateLimitAdapter', () => {
     expect(console.warn).not.toHaveBeenCalled()
   })
 
-  it('is not selected by the runtime in this phase', () => {
-    expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'valkey' })).toBeInstanceOf(PostgresRateLimitAdapter)
+  it('is selected by the runtime when RATE_LIMIT_MODE=valkey', () => {
+    expect(resolveRateLimitAdapter({ RATE_LIMIT_MODE: 'valkey' })).toBeInstanceOf(ValkeyRateLimitAdapter)
   })
 })

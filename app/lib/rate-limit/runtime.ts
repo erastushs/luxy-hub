@@ -46,6 +46,10 @@ export function resolveRateLimitAdapter(
     )
   }
 
+  if (config.mode === 'valkey') {
+    return valkeyRateLimitAdapter
+  }
+
   return postgresRateLimitAdapter
 }
 

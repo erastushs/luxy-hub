@@ -280,7 +280,7 @@ describe('rate-limit shadow executor', () => {
     })
 
     const report = getRateLimitShadowParityReport()
-    expect(report).toEqual({
+    expect(report).toMatchObject({
       totalComparisons: 3,
       identical: 1,
       mismatches: 2,

@@ -184,8 +184,8 @@ describe('GET /api/internal/rate-limit-shadow', () => {
       observabilityStatus: 'healthy',
       runtime: {
         phase: '7',
-        milestone: '7E.2',
-        release: 'RC1',
+        milestone: '7E.3',
+        release: 'Production',
         runtimeMode: 'shadow',
         startedAt: expect.any(String),
         uptimeSeconds: expect.any(Number),
@@ -243,7 +243,7 @@ describe('GET /api/internal/rate-limit-shadow', () => {
         checkedAt: '2026-06-23T00:00:00.000Z',
       },
       lastUpdatedAt: '2026-06-23T00:00:00.000Z',
-      operationalSummary: expect.stringMatching(/^Runtime Mode: shadow \\| Parity: 99\.9994% \\| Backend Failures: 0 \\| Comparison Failures: 0 \\| Latency: Postgres 7\.12 ms, Valkey 7\.30 ms, Delta 0\.18 ms \\| Valkey: ready \\| Uptime: \\d+s \\| Status: healthy$/),
+      operationalSummary: expect.stringMatching(/^Runtime Mode: shadow \| Parity: 99\.9994% \| Comparison Failures: 0 \| Backend Failures: 0 \| Latency: Postgres 7\.12 ms, Valkey 7\.30 ms, Delta 0\.18 ms \| Valkey: ready \| Uptime: \d+s \| Status: healthy$/),
     })
     expect(body.runtime.uptimeSeconds).toBeGreaterThanOrEqual(0)
     expect(body.valkey.uptimeSeconds).toBeGreaterThanOrEqual(0)

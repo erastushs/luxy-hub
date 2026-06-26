@@ -44,7 +44,7 @@ function mockValkey(overrides = {}) {
 }
 
 function mockRateLimit(overrides: {
-  runtimeMode?: 'postgres' | 'shadow' | 'dual_write' | 'valkey_canary' | 'valkey'
+  runtimeMode?: 'postgres' | 'shadow' | 'valkey_canary' | 'valkey'
   health?: 'disabled' | 'healthy' | 'degraded' | 'unhealthy'
   totalComparisons?: number
   identical?: number
@@ -68,14 +68,16 @@ function mockRateLimit(overrides: {
   const fallbackCount = overrides.fallbackCount ?? 0
 
     vi.mocked(getRateLimitShadowHealth).mockReturnValue({
-      enabled: runtimeMode === 'shadow' || runtimeMode === 'valkey_canary',
+      enabled: runtimeMode === 'shadow' || runtimeMode === 'valkey_canary' || runtimeMode === 'valkey',
       runtimeMode,
-      operationalState: runtimeMode === 'valkey_canary'
-        ? 'valkey_canary_active'
-        : runtimeMode === 'shadow'
-          ? 'shadow_comparison_active'
-          : 'postgres_authoritative',
-      observabilityStatus: overrides.health === 'disabled' ? 'healthy' : overrides.health ?? 'healthy',
+      operationalState: runtimeMode === 'valkey'
+        ? 'valkey_authoritative'
+        : runtimeMode === 'valkey_canary'
+          ? 'valkey_canary_active'
+          : runtimeMode === 'shadow'
+            ? 'shadow_comparison_active'
+            : 'postgres_authoritative',
+      observabilityStatus: runtimeMode === 'valkey' ? 'healthy' : (overrides.health === 'disabled' ? 'healthy' : overrides.health ?? 'healthy'),
       totalComparisons,
       mismatchRate,
     backendFailures,
@@ -151,8 +153,8 @@ describe('GET /api/health', () => {
     expect(body.postgres).toEqual({ status: 'healthy', connected: true })
     expect(body.runtime).toMatchObject({
       phase: '7',
-      milestone: '7E.2',
-      release: 'RC1',
+      milestone: '7E.3',
+      release: 'Production',
       startedAt: expect.any(String),
       uptimeSeconds: expect.any(Number),
     })
@@ -365,9 +367,9 @@ describe('GET /api/health', () => {
     const body = await response.json()
 
     expect(body.notes).toEqual([
-      'PostgreSQL remains authoritative outside explicit Valkey canary routing.',
-      'Valkey canary routing is controlled by RATE_LIMIT_MODE=valkey_canary and RATE_LIMIT_CANARY_PERCENT.',
-      'Rollback remains available through RATE_LIMIT_MODE=postgres.',
+      'Migration complete. Valkey is the production rate-limit backend.',
+      'PostgreSQL remains available as rollback backend via RATE_LIMIT_MODE=postgres.',
+      'Shadow comparison is disabled in Valkey authoritative mode.',
     ])
   })
 
@@ -433,8 +435,8 @@ describe('GET /api/health', () => {
     expect(body.error).toBe('health_check_unavailable')
     expect(body.runtime).toMatchObject({
       phase: '7',
-      milestone: '7E.2',
-      release: 'RC1',
+      milestone: '7E.3',
+      release: 'Production',
       uptimeSeconds: expect.any(Number),
     })
     expect(body.notes).toEqual(expect.any(Array))

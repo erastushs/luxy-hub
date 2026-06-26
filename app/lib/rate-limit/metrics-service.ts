@@ -54,7 +54,6 @@ export type RateLimitShadowHealthStatus = 'disabled' | 'healthy' | 'degraded' | 
 export type RateLimitOperationalState =
   | 'postgres_authoritative'
   | 'shadow_comparison_active'
-  | 'dual_write_active'
   | 'valkey_canary_active'
   | 'valkey_authoritative'
 export type RateLimitObservabilityStatus = Exclude<RateLimitShadowHealthStatus, 'disabled'> | 'standby'
@@ -189,10 +188,6 @@ function observabilityStatusLabel(status: RateLimitObservabilityStatus): string 
 function resolveOperationalState(mode: RateLimitRuntimeMode): RateLimitOperationalState {
   if (mode === 'shadow') {
     return 'shadow_comparison_active'
-  }
-
-  if (mode === 'dual_write') {
-    return 'dual_write_active'
   }
 
   if (mode === 'valkey_canary') {
@@ -380,7 +375,7 @@ export class RateLimitShadowMetricsService {
   health(env: Record<string, string | undefined> = process.env): RateLimitShadowHealth {
     const checkedAt = new Date().toISOString()
     const snapshot = this.snapshot(env)
-    const enabled = snapshot.runtimeMode === 'shadow' || snapshot.runtimeMode === 'valkey_canary'
+    const enabled = snapshot.runtimeMode === 'shadow' || snapshot.runtimeMode === 'valkey_canary' || snapshot.runtimeMode === 'valkey'
     const status = this.resolveHealthStatus(snapshot, enabled)
 
     return {
@@ -475,6 +470,13 @@ export class RateLimitShadowMetricsService {
     snapshot: RateLimitShadowMetricsSnapshot,
     enabled: boolean
   ): RateLimitShadowHealthStatus {
+    if (snapshot.runtimeMode === 'valkey') {
+      if (snapshot.authoritativeBackendFailures > 0) {
+        return 'unhealthy'
+      }
+      return 'healthy'
+    }
+
     if (!enabled) {
       return 'disabled'
     }

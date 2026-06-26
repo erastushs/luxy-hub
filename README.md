@@ -18,7 +18,7 @@ LuxyHub is a Next.js 16 application for Roblox script distribution, key validati
 - SHA-256 hashed delivery session tokens, consume-once validation, and 60-second TTL
 - Security headers, CORS controls, API body limits, route rate limiting, and cleanup retention jobs
 - Production runtime performance optimizations for delivery build metadata reads, event write projections, cleanup batching, and safe expired session pruning
-- Phase 7D/7E.1 rate-limit shadow runtime with PostgreSQL authoritative, Valkey shadow comparison, production health reporting, and Cloudflare-aware client IP resolution
+- Phase 7E.3 rate-limit runtime simplification: Valkey authoritative backend, migration complete
 
 ## Tech Stack
 
@@ -133,15 +133,16 @@ npm run build
 
 | Area | Current Production State |
 |---|---|
-| PostgreSQL | Authoritative |
-| Valkey | Shadow |
+| Valkey | Authoritative |
+| PostgreSQL | Rollback backend |
 | Health | Healthy |
-| Parity | 100% |
-| Runtime mode | `RATE_LIMIT_MODE=shadow` |
-| Canary | Disabled |
+| Runtime mode | `RATE_LIMIT_MODE=valkey` |
+| Shadow comparison | Disabled |
 | Rollback | Immediate PostgreSQL via `RATE_LIMIT_MODE=postgres` |
 
 Production is deployed behind Cloudflare. Rate-limit client IP resolution prioritizes `CF-Connecting-IP`, then `X-Vercel-Forwarded-For`, `X-Forwarded-For`, and `X-Real-IP`, with `127.0.0.1` as the local fallback.
+
+The migration from PostgreSQL to Valkey is complete. The Valkey adapter operates without shadow comparison or canary routing in `valkey` mode. PostgreSQL remains fully available as a rollback backend by setting `RATE_LIMIT_MODE=postgres`. Shadow comparison and canary modes (`RATE_LIMIT_MODE=shadow`, `RATE_LIMIT_MODE=valkey_canary`) are preserved for monitoring and gradual migration scenarios.
 
 ## Documentation
 
