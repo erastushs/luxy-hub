@@ -6,11 +6,11 @@ import {
   type DeliveryBuildRow,
 } from '@/app/lib/repositories/delivery-build-repository'
 import {
-  consumeSession,
   createSession,
   getSessionByTokenHash,
-  type DeliverySessionRow,
-} from '@/app/lib/repositories/delivery-session-repository'
+  consumeSession,
+  type DeliverySessionData,
+} from '@/app/lib/delivery-session'
 import { findScriptForDeliveryBySlug, type ScriptRow } from '@/app/lib/repositories/script-repository'
 import { isValidSlug } from '@/app/lib/validators'
 import { DELIVERY_BUILD_VERSION, PAYLOAD_FORMAT_VERSION } from '@/app/lib/services/delivery-build-service'
@@ -20,17 +20,18 @@ import {
 } from '@/app/lib/delivery/runtime-payload'
 import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { authorizeDeliveryAccess } from '@/app/lib/services/delivery-authorization-service'
+import { getDeliverySessionMetricsService } from '@/app/lib/delivery-session/metrics-service'
 
 export const DELIVERY_SESSION_TTL_SECONDS = 60
 const UNAVAILABLE_MESSAGE = 'Delivery unavailable'
 const INVALID_SESSION_MESSAGE = 'Invalid delivery session'
 
 export type CreateDeliverySessionResult =
-  | { success: true; session_token: string; event_secret: string; expires_in: number; session: DeliverySessionRow }
+  | { success: true; session_token: string; event_secret: string; expires_in: number; session: DeliverySessionData }
   | { success: false; message: string; status: number }
 
 export type ValidateDeliverySessionResult =
-  | { success: true; session: DeliverySessionRow; build: DeliveryBuildRow }
+  | { success: true; session: DeliverySessionData; build: DeliveryBuildRow }
   | { success: false; message: string; status: number }
 
 export type ConsumeDeliverySessionResult =
@@ -41,7 +42,7 @@ export type ConsumeDeliverySessionResult =
       version_id: string
       runtime_format_version: RuntimePayloadResponse['runtime_format_version']
       event_secret: string
-      session: DeliverySessionRow
+      session: DeliverySessionData
       build: DeliveryBuildRow
     }
   | { success: false; message: string; status: number }
@@ -124,6 +125,9 @@ export async function createDeliverySession(
       expiresAt: new Date(Date.now() + DELIVERY_SESSION_TTL_SECONDS * 1000).toISOString(),
       eventSecret,
     })
+
+    getDeliverySessionMetricsService().incrementCreated()
+
     await recordExecution({ scriptId: script.id, sessionId: session.id })
 
     return {
@@ -147,6 +151,7 @@ export async function validateDeliverySession(sessionToken: unknown): Promise<Va
     const tokenHash = hashDeliverySessionToken(sessionToken)
     const session = await getSessionByTokenHash(tokenHash)
     if (!session || session.consumed_at || new Date(session.expires_at).getTime() <= Date.now()) {
+      getDeliverySessionMetricsService().incrementLookupFailure()
       return invalidSession()
     }
 
@@ -171,6 +176,8 @@ export async function consumeDeliverySession(sessionToken: unknown): Promise<Con
   if (!consumedSession) {
     return { success: false, message: INVALID_SESSION_MESSAGE, status: 403 }
   }
+
+  getDeliverySessionMetricsService().incrementConsumed()
 
   let runtimePayload: RuntimePayloadResponse
   try {

@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { hashDeliverySessionToken } from '@/app/lib/services/delivery-session-service'
-import { getSessionByTokenHash } from '@/app/lib/repositories/delivery-session-repository'
+import { getSessionByTokenHash } from '@/app/lib/delivery-session'
 import { createEventLog, findEventByNonce, isValidEventType, type EventType } from '@/app/lib/repositories/event-repository'
 import { recordSecurityCounter } from '@/app/lib/services/event-monitoring-service'
 import { checkEventRateLimit } from '@/app/lib/rate-limiter'

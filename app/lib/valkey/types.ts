@@ -28,6 +28,8 @@ export type ValkeyClient = {
   ping: () => Promise<string>
   info: (section?: string) => Promise<string>
   eval?: (script: string, options: { keys: string[]; arguments: string[] }) => Promise<unknown>
+  get?: (key: string) => Promise<string | null>
+  set?: (key: string, value: string, options?: { PX?: number; KEEPTTL?: boolean }) => Promise<unknown>
   del?: (key: string | string[]) => Promise<number>
   on: (event: string, listener: (...args: unknown[]) => void) => unknown
   off?: (event: string, listener: (...args: unknown[]) => void) => unknown

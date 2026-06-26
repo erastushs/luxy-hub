@@ -24,7 +24,7 @@ function hmacJSONBase64(event: string, timestamp: number, nonce: string, data: u
   return createHmac('sha256', TEST_EVENT_SECRET).update(input).digest('base64')
 }
 
-vi.mock('@/app/lib/repositories/delivery-session-repository', () => ({
+vi.mock('@/app/lib/delivery-session', () => ({
   getSessionByTokenHash: vi.fn(),
 }))
 
@@ -51,7 +51,7 @@ import {
   findEventByNonce,
   isValidEventType,
 } from '@/app/lib/repositories/event-repository'
-import { getSessionByTokenHash } from '@/app/lib/repositories/delivery-session-repository'
+import { getSessionByTokenHash } from '@/app/lib/delivery-session'
 import { reportEvent } from '@/app/lib/services/event-reporting-service'
 import { hashDeliverySessionToken } from '@/app/lib/services/delivery-session-service'
 

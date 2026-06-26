@@ -8,7 +8,7 @@ import type {
   DeliveryBuildMetadataRow,
   DeliveryBuildRow,
 } from '@/app/lib/repositories/delivery-build-repository'
-import type { DeliverySessionRow } from '@/app/lib/repositories/delivery-session-repository'
+import type { DeliverySessionData as DeliverySessionRow } from '@/app/lib/delivery-session'
 
 vi.mock('@/app/lib/services/delivery-build-service', () => ({
   DELIVERY_BUILD_VERSION: 'delivery-build-v1',
@@ -24,7 +24,7 @@ vi.mock('@/app/lib/repositories/delivery-build-repository', () => ({
   getBuildById: vi.fn(),
 }))
 
-vi.mock('@/app/lib/repositories/delivery-session-repository', () => ({
+vi.mock('@/app/lib/delivery-session', () => ({
   createSession: vi.fn(),
   getSessionByTokenHash: vi.fn(),
   consumeSession: vi.fn(),
@@ -59,7 +59,7 @@ import {
   consumeSession,
   createSession,
   getSessionByTokenHash,
-} from '@/app/lib/repositories/delivery-session-repository'
+} from '@/app/lib/delivery-session'
 import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { createRuntimePayloadFromBuild } from '@/app/lib/delivery/runtime-payload'
 import { validateKey } from '@/app/lib/services/key-service'

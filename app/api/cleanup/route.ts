@@ -5,6 +5,7 @@ import {
   deleteDeliveredEventsBefore,
   deletePendingEventsBefore,
 } from '@/app/lib/repositories/event-repository'
+import { parseDeliverySessionRuntimeConfig } from '@/app/lib/delivery-session/config'
 import { deleteExpiredSessionsWithoutExecutions } from '@/app/lib/repositories/delivery-session-repository'
 
 const CLEANUP_BATCHES = 25
@@ -374,9 +375,12 @@ export async function POST(req: NextRequest) {
       pending: await deletePendingEventsBefore(sevenDaysAgo),
     }
 
-    const deliverySessionsResult = await runCleanupTarget('delivery_sessions', () =>
-      deleteExpiredSessionsWithoutExecutions(new Date())
-    )
+    const deliverySessionMode = parseDeliverySessionRuntimeConfig().mode
+    const deliverySessionsResult = deliverySessionMode === 'valkey'
+      ? { deleted: 0, status: 'success' as const }
+      : await runCleanupTarget('delivery_sessions', () =>
+          deleteExpiredSessionsWithoutExecutions(new Date())
+        )
 
     const cleanupResults = [
       keysResult,
