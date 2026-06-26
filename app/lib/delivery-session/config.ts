@@ -47,6 +47,10 @@ export function parseDeliverySessionRuntimeConfig(
   return { requestedMode, mode: 'postgres', invalidMode: requestedMode, canaryPercentage }
 }
 
+export function getDeliverySessionTraceEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.DELIVERY_SESSION_TRACE?.trim().toLowerCase() === 'true'
+}
+
 function parseCanaryPercentage(rawValue: string | undefined): number {
   if (!rawValue?.trim()) {
     return 0

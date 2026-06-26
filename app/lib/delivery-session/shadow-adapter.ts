@@ -1,6 +1,7 @@
 import type { DeliverySessionAdapter, DeliverySessionData } from './types'
 import { executeDeliverySessionShadow } from './shadow'
 import { getDeliverySessionMetricsService } from './metrics-service'
+import { getCurrentTracer } from './trace'
 
 export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
   constructor(
@@ -15,6 +16,9 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     expiresAt: string
     eventSecret?: string | null
   }): Promise<DeliverySessionData> {
+    const tracer = getCurrentTracer()
+    tracer.adapter('shadow')
+
     const execution = await executeDeliverySessionShadow({
       context: {
         operation: 'create',
@@ -31,6 +35,9 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     metrics.recordLatency('valkey', execution.comparison.shadowLatencyMs)
     metrics.recordComparison(execution.comparison.parity)
 
+    const comparisonLabel = execution.comparison.parity ? 'identical' : execution.comparison.mismatchReason ?? 'unknown'
+    tracer.shadow('postgres', 'valkey', comparisonLabel)
+
     if (!execution.result) {
       throw new Error('Failed to create delivery session')
     }
@@ -39,6 +46,9 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
   }
 
   async getSessionByTokenHash(tokenHash: string): Promise<DeliverySessionData | null> {
+    const tracer = getCurrentTracer()
+    tracer.adapter('shadow')
+
     const execution = await executeDeliverySessionShadow({
       context: {
         operation: 'get',
@@ -54,6 +64,9 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     metrics.recordLatency('valkey', execution.comparison.shadowLatencyMs)
     metrics.recordComparison(execution.comparison.parity)
 
+    const comparisonLabel = execution.comparison.parity ? 'identical' : execution.comparison.mismatchReason ?? 'unknown'
+    tracer.shadow('postgres', 'valkey', comparisonLabel)
+
     if (execution.comparison.authoritativeError) {
       metrics.incrementBackendFailure()
     }
@@ -62,6 +75,9 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
   }
 
   async consumeSession(sessionId: string): Promise<DeliverySessionData | null> {
+    const tracer = getCurrentTracer()
+    tracer.adapter('shadow')
+
     const execution = await executeDeliverySessionShadow({
       context: {
         operation: 'consume',
@@ -79,6 +95,9 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     metrics.recordLatency('postgres', execution.comparison.authoritativeLatencyMs)
     metrics.recordLatency('valkey', execution.comparison.shadowLatencyMs)
     metrics.recordComparison(execution.comparison.parity)
+
+    const comparisonLabel = execution.comparison.parity ? 'identical' : execution.comparison.mismatchReason ?? 'unknown'
+    tracer.shadow('postgres', 'valkey', comparisonLabel)
 
     if (execution.comparison.authoritativeError) {
       metrics.incrementBackendFailure()

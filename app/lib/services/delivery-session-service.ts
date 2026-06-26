@@ -22,6 +22,7 @@ import { recordExecution } from '@/app/lib/repositories/script-execution-reposit
 import { authorizeDeliveryAccess } from '@/app/lib/services/delivery-authorization-service'
 import { getDeliverySessionMetricsService } from '@/app/lib/delivery-session/metrics-service'
 import { getDeliverySessionTtlSeconds } from '@/app/lib/delivery-session/config'
+import { getCurrentTracer } from '@/app/lib/delivery-session/trace'
 
 export const DELIVERY_SESSION_TTL_SECONDS = getDeliverySessionTtlSeconds()
 const UNAVAILABLE_MESSAGE = 'Delivery unavailable'
@@ -93,29 +94,48 @@ export async function createDeliverySession(
   license?: unknown,
   customerIdentifier?: unknown
 ): Promise<CreateDeliverySessionResult> {
+  const tracer = getCurrentTracer()
+
   if (!isValidSlug(slug)) {
+    tracer.fail('slug_validation', 'invalid_slug')
     return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
   }
+  tracer.pass('slug_validation')
 
   try {
     const script = await findScriptForDeliveryBySlug(slug)
-    if (!script || !script.current_version_id || !isScriptDeliverable(script)) {
+    if (!script) {
+      tracer.fail('script_lookup', 'script_not_found')
       return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
     }
+    if (!script.current_version_id || !isScriptDeliverable(script)) {
+      const reason = !script.current_version_id ? 'no_version' : 'script_not_deliverable'
+      tracer.fail('script_lookup', reason)
+      return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
+    }
+    tracer.pass('script_lookup')
 
     const authorization = await authorizeDeliveryAccess({ script, key, license, customerIdentifier })
     if (!authorization.success) {
+      tracer.fail('authorization', 'authorization_failed')
       return authorization
     }
+    tracer.pass('authorization')
 
     const build = await getReadyBuildMetadata(script.current_version_id, {
       buildVersion: DELIVERY_BUILD_VERSION,
       payloadFormatVersion: PAYLOAD_FORMAT_VERSION,
     })
 
-    if (!build || !isReadyBuildMetadataDeliverable(build)) {
+    if (!build) {
+      tracer.fail('build_lookup', 'build_not_found')
       return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
     }
+    if (!isReadyBuildMetadataDeliverable(build)) {
+      tracer.fail('build_lookup', 'build_not_ready')
+      return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
+    }
+    tracer.pass('build_lookup')
 
     const sessionToken = createRawSessionToken()
     const eventSecret = createEventSecret()
@@ -126,10 +146,14 @@ export async function createDeliverySession(
       expiresAt: new Date(Date.now() + DELIVERY_SESSION_TTL_SECONDS * 1000).toISOString(),
       eventSecret,
     })
+    tracer.pass('session_create')
 
     getDeliverySessionMetricsService().incrementCreated()
 
     await recordExecution({ scriptId: script.id, sessionId: session.id })
+    tracer.pass('execution_record')
+
+    tracer.success()
 
     return {
       success: true,
@@ -138,7 +162,9 @@ export async function createDeliverySession(
       expires_in: DELIVERY_SESSION_TTL_SECONDS,
       session,
     }
-  } catch {
+  } catch (error) {
+    tracer.exception('createDeliverySession', error)
+    tracer.error()
     return { success: false, message: UNAVAILABLE_MESSAGE, status: 404 }
   }
 }

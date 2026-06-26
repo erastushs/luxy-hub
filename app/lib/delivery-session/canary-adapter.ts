@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { DeliverySessionAdapter, DeliverySessionBackend, DeliverySessionData } from './types'
 import { executeDeliverySessionShadow } from './shadow'
 import { getDeliverySessionMetricsService } from './metrics-service'
+import { getCurrentTracer } from './trace'
 
 export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
   constructor(
@@ -17,8 +18,10 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
     expiresAt: string
     eventSecret?: string | null
   }): Promise<DeliverySessionData> {
+    const tracer = getCurrentTracer()
     const identifier = `delivery:create:${params.tokenHash}`
     const backend = selectCanaryBackend(identifier, this.canaryPercentage)
+    tracer.adapter('valkey_canary', backend)
 
     if (backend === 'postgres') {
       return this.runWithShadow(identifier, 'postgres', 'valkey', {
@@ -34,7 +37,8 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
       const result = await this.valkey.createSession(params)
       metrics.incrementCreated()
       return result
-    } catch {
+    } catch (error) {
+      tracer.fallback('valkey', 'postgres', error instanceof Error ? error.message : String(error))
       metrics.recordRolloutRequest('postgres', true)
       metrics.incrementBackendFailure()
       const result = await this.postgres.createSession(params)
@@ -44,8 +48,10 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
   }
 
   async getSessionByTokenHash(tokenHash: string): Promise<DeliverySessionData | null> {
+    const tracer = getCurrentTracer()
     const identifier = `delivery:get:${tokenHash}`
     const backend = selectCanaryBackend(identifier, this.canaryPercentage)
+    tracer.adapter('valkey_canary', backend)
 
     if (backend === 'postgres') {
       return this.runWithShadow(identifier, 'postgres', 'valkey', {
@@ -59,7 +65,8 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
 
     try {
       return await this.valkey.getSessionByTokenHash(tokenHash)
-    } catch {
+    } catch (error) {
+      tracer.fallback('valkey', 'postgres', error instanceof Error ? error.message : String(error))
       metrics.recordRolloutRequest('postgres', true)
       metrics.incrementBackendFailure()
       return this.postgres.getSessionByTokenHash(tokenHash)
@@ -67,8 +74,10 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
   }
 
   async consumeSession(sessionId: string): Promise<DeliverySessionData | null> {
+    const tracer = getCurrentTracer()
     const identifier = `delivery:consume:${sessionId}`
     const backend = selectCanaryBackend(identifier, this.canaryPercentage)
+    tracer.adapter('valkey_canary', backend)
 
     if (backend === 'postgres') {
       return this.runWithShadow(identifier, 'postgres', 'valkey', {
@@ -86,7 +95,8 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
         metrics.incrementConsumed()
       }
       return result
-    } catch {
+    } catch (error) {
+      tracer.fallback('valkey', 'postgres', error instanceof Error ? error.message : String(error))
       metrics.recordRolloutRequest('postgres', true)
       metrics.incrementBackendFailure()
       const result = await this.postgres.consumeSession(sessionId)

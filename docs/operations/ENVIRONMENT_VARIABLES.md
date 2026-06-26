@@ -406,6 +406,25 @@ Security considerations:
 - Set to 0 for no Valkey traffic, 100 for full canary, intermediate values for gradual rollout.
 - Deterministic routing based on SHA-256 hash of request identifier ensures consistent routing per identifier.
 
+### `DELIVERY_SESSION_TRACE`
+
+Purpose: Enable structured trace logging for delivery session diagnostics.
+
+Required/Optional: Optional. Defaults to `false`.
+
+Supported values: `true`, `false`.
+
+Used by:
+
+- `app/lib/delivery-session/trace.ts`
+
+Security considerations:
+
+- Not secret. Controls diagnostic log output only.
+- Must be `false` in normal operation. Only enable during active debugging.
+- Does not log secrets, session tokens, or event secrets.
+- See `docs/operations/TRACE_DIAGNOSTICS.md` for example output and usage.
+
 ## Validation Checklist
 
 After setting or rotating variables:
