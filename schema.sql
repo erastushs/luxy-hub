@@ -223,7 +223,7 @@ CREATE INDEX IF NOT EXISTS idx_delivery_sessions_build_id
 CREATE TABLE IF NOT EXISTS script_executions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   script_id uuid NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
-  session_id uuid NOT NULL UNIQUE REFERENCES delivery_sessions(id) ON DELETE CASCADE,
+  session_id uuid NOT NULL UNIQUE,
   created_at timestamp with time zone NOT NULL DEFAULT now()
 );
 
