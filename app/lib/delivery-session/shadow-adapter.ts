@@ -1,4 +1,4 @@
-import type { DeliverySessionAdapter, DeliverySessionData } from './types'
+import type { DeliverySessionAdapter, DeliverySessionData, CreateDeliverySessionParams } from './types'
 import { executeDeliverySessionShadow } from './shadow'
 import { getDeliverySessionMetricsService } from './metrics-service'
 import { getCurrentTracer } from './trace'
@@ -9,15 +9,13 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     private readonly shadow: DeliverySessionAdapter
   ) {}
 
-  async createSession(params: {
-    scriptId: string
-    buildId: string
-    tokenHash: string
-    expiresAt: string
-    eventSecret?: string | null
-  }): Promise<DeliverySessionData> {
+  async createSession(params: CreateDeliverySessionParams): Promise<DeliverySessionData> {
     const tracer = getCurrentTracer()
     tracer.adapter('shadow')
+
+    const authStart = Date.now()
+    const authoritativeData = await this.authoritative.createSession(params)
+    const authLatencyMs = Date.now() - authStart
 
     const execution = await executeDeliverySessionShadow({
       context: {
@@ -25,8 +23,14 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
         authoritativeBackend: 'postgres',
         shadowBackend: 'valkey',
       },
-      authoritative: () => this.authoritative.createSession(params),
-      shadow: () => this.shadow.createSession(params),
+      authoritative: () => Promise.resolve(authoritativeData),
+      shadow: () => this.shadow.createSession({ ...params, id: authoritativeData.id }),
+      preResolvedAuthoritative: {
+        backend: 'postgres',
+        data: authoritativeData,
+        latencyMs: authLatencyMs,
+        error: null,
+      },
     })
 
     const metrics = getDeliverySessionMetricsService()

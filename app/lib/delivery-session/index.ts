@@ -41,7 +41,7 @@ export async function deleteSession(sessionId: string): Promise<boolean> {
   return getDeliverySessionAdapter().deleteSession(sessionId)
 }
 
-export type { DeliverySessionAdapter, DeliverySessionData } from './types'
+export type { DeliverySessionAdapter, DeliverySessionData, CreateDeliverySessionParams } from './types'
 export { parseDeliverySessionRuntimeConfig } from './config'
 export { resolveDeliverySessionAdapter } from './runtime'
 export { getDeliverySessionRolloutMetrics } from './metrics-service'

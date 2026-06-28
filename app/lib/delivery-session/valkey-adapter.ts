@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { getValkeyConnectionManager, type ValkeyConnectionManager } from '@/app/lib/valkey/connection'
 import { createValkeyKeyPrefix, sanitizeSegment } from '@/app/lib/valkey/namespace'
 import { getDeliverySessionTtlMs } from './config'
-import type { DeliverySessionAdapter, DeliverySessionData } from './types'
+import type { DeliverySessionAdapter, DeliverySessionData, CreateDeliverySessionParams } from './types'
 
 /*
  * Namespace versioning
@@ -108,14 +108,8 @@ export class ValkeyDeliverySessionAdapter implements DeliverySessionAdapter {
     this.logFailures = options.logFailures ?? true
   }
 
-  async createSession(params: {
-    scriptId: string
-    buildId: string
-    tokenHash: string
-    expiresAt: string
-    eventSecret?: string | null
-  }): Promise<DeliverySessionData> {
-    const id = randomUUID()
+  async createSession(params: CreateDeliverySessionParams): Promise<DeliverySessionData> {
+    const id = params.id ?? randomUUID()
     const sessionKey = sessionDataKey(id)
     const indexKey = tokenIndexKey(params.tokenHash)
     const ttlMs = getDeliverySessionTtlMs()

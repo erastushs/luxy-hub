@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/app/lib/supabase'
-import type { DeliverySessionAdapter, DeliverySessionData } from './types'
+import type { DeliverySessionAdapter, DeliverySessionData, CreateDeliverySessionParams } from './types'
 
 const SESSION_SELECT = [
   'id',
@@ -26,24 +26,24 @@ function normalizeRow(row: Record<string, unknown>): DeliverySessionData {
 }
 
 export class PostgresDeliverySessionAdapter implements DeliverySessionAdapter {
-  async createSession(params: {
-    scriptId: string
-    buildId: string
-    tokenHash: string
-    expiresAt: string
-    eventSecret?: string | null
-  }): Promise<DeliverySessionData> {
+  async createSession(params: CreateDeliverySessionParams): Promise<DeliverySessionData> {
+    const row = {
+      script_id: params.scriptId,
+      build_id: params.buildId,
+      session_token_hash: params.tokenHash,
+      expires_at: params.expiresAt,
+      event_secret: params.eventSecret ?? null,
+      consumed_at: null,
+      created_at: new Date().toISOString(),
+    } as Record<string, unknown>
+
+    if (params.id) {
+      row.id = params.id
+    }
+
     const { data, error } = await supabaseAdmin
       .from('delivery_sessions')
-      .insert({
-        script_id: params.scriptId,
-        build_id: params.buildId,
-        session_token_hash: params.tokenHash,
-        expires_at: params.expiresAt,
-        event_secret: params.eventSecret ?? null,
-        consumed_at: null,
-        created_at: new Date().toISOString(),
-      })
+      .insert(row)
       .select(SESSION_SELECT)
       .single()
 

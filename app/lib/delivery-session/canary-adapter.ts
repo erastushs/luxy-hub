@@ -24,10 +24,47 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
     tracer.adapter('valkey_canary', backend)
 
     if (backend === 'postgres') {
-      return this.runWithShadow(identifier, 'postgres', 'valkey', {
-        authoritative: () => this.postgres.createSession(params),
-        shadow: () => this.valkey.createSession(params),
-      }, 'create') as Promise<DeliverySessionData>
+      const authStart = Date.now()
+      const authoritativeData = await this.postgres.createSession(params)
+      const authLatencyMs = Date.now() - authStart
+
+      const execution = await executeDeliverySessionShadow({
+        context: {
+          operation: 'create',
+          authoritativeBackend: 'postgres',
+          shadowBackend: 'valkey',
+        },
+        authoritative: () => Promise.resolve(authoritativeData),
+        shadow: () => this.valkey.createSession({ ...params, id: authoritativeData.id }),
+        preResolvedAuthoritative: {
+          backend: 'postgres',
+          data: authoritativeData,
+          latencyMs: authLatencyMs,
+          error: null,
+        },
+      })
+
+      const metrics = getDeliverySessionMetricsService()
+      metrics.recordRolloutRequest('postgres')
+      metrics.recordLatency('valkey', execution.comparison.shadowLatencyMs)
+      metrics.incrementCreated()
+      metrics.recordComparison({
+        operation: 'create',
+        identical: execution.comparison.parity,
+      })
+
+      const comparisonLabel = execution.comparison.parity ? 'identical' : execution.comparison.mismatchReason ?? 'unknown'
+      tracer.shadow('postgres', 'valkey', comparisonLabel, 'create', execution.comparison.mismatchFields)
+
+      if (execution.comparison.authoritativeError) {
+        metrics.incrementBackendFailure()
+      }
+
+      if (execution.comparison.authoritativeData) {
+        return execution.comparison.authoritativeData
+      }
+
+      throw new Error('Failed to execute delivery session operation')
     }
 
     const metrics = getDeliverySessionMetricsService()

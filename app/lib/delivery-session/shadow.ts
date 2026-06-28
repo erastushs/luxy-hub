@@ -20,7 +20,7 @@ function serializeError(error: unknown): DeliverySessionExecutionError {
   return { name: 'UnknownError', message: 'Unknown delivery session execution error' }
 }
 
-async function executeBackend(
+export async function executeBackend(
   backend: DeliverySessionBackend,
   operation: ShadowOperation
 ): Promise<DeliverySessionExecutionResult> {
@@ -46,9 +46,11 @@ export async function executeDeliverySessionShadow(params: {
   context: DeliverySessionShadowContext
   authoritative: ShadowOperation
   shadow: ShadowOperation
+  preResolvedAuthoritative?: DeliverySessionExecutionResult
 }): Promise<DeliverySessionShadowExecution> {
   const executedAt = new Date().toISOString()
-  const authoritative = await executeBackend(params.context.authoritativeBackend, params.authoritative)
+  const authoritative = params.preResolvedAuthoritative
+    ?? await executeBackend(params.context.authoritativeBackend, params.authoritative)
   const shadow = await executeBackend(params.context.shadowBackend, params.shadow)
   const comparison = compareExecutions({
     context: params.context,
@@ -59,7 +61,7 @@ export async function executeDeliverySessionShadow(params: {
   return { result: authoritative.data, comparison }
 }
 
-function compareExecutions(params: {
+export function compareExecutions(params: {
   context: DeliverySessionShadowContext
   authoritative: DeliverySessionExecutionResult
   shadow: DeliverySessionExecutionResult

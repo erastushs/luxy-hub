@@ -11,14 +11,17 @@ export type DeliverySessionData = {
 
 export type DeliverySessionBackend = 'postgres' | 'valkey'
 
+export type CreateDeliverySessionParams = {
+  scriptId: string
+  buildId: string
+  tokenHash: string
+  expiresAt: string
+  eventSecret?: string | null
+  id?: string
+}
+
 export type DeliverySessionAdapter = {
-  createSession(params: {
-    scriptId: string
-    buildId: string
-    tokenHash: string
-    expiresAt: string
-    eventSecret?: string | null
-  }): Promise<DeliverySessionData>
+  createSession(params: CreateDeliverySessionParams): Promise<DeliverySessionData>
 
   getSessionByTokenHash(tokenHash: string): Promise<DeliverySessionData | null>
 
