@@ -33,10 +33,13 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     metrics.incrementCreated()
     metrics.recordLatency('postgres', execution.comparison.authoritativeLatencyMs)
     metrics.recordLatency('valkey', execution.comparison.shadowLatencyMs)
-    metrics.recordComparison(execution.comparison.parity)
+    metrics.recordComparison({
+      operation: 'create',
+      identical: execution.comparison.parity,
+    })
 
     const comparisonLabel = execution.comparison.parity ? 'identical' : execution.comparison.mismatchReason ?? 'unknown'
-    tracer.shadow('postgres', 'valkey', comparisonLabel)
+    tracer.shadow('postgres', 'valkey', comparisonLabel, 'create', execution.comparison.mismatchFields)
 
     if (!execution.result) {
       throw new Error('Failed to create delivery session')
@@ -62,10 +65,13 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     const metrics = getDeliverySessionMetricsService()
     metrics.recordLatency('postgres', execution.comparison.authoritativeLatencyMs)
     metrics.recordLatency('valkey', execution.comparison.shadowLatencyMs)
-    metrics.recordComparison(execution.comparison.parity)
+    metrics.recordComparison({
+      operation: 'lookup',
+      identical: execution.comparison.parity,
+    })
 
     const comparisonLabel = execution.comparison.parity ? 'identical' : execution.comparison.mismatchReason ?? 'unknown'
-    tracer.shadow('postgres', 'valkey', comparisonLabel)
+    tracer.shadow('postgres', 'valkey', comparisonLabel, 'lookup', execution.comparison.mismatchFields)
 
     if (execution.comparison.authoritativeError) {
       metrics.incrementBackendFailure()
@@ -94,10 +100,13 @@ export class ShadowDeliverySessionAdapter implements DeliverySessionAdapter {
     }
     metrics.recordLatency('postgres', execution.comparison.authoritativeLatencyMs)
     metrics.recordLatency('valkey', execution.comparison.shadowLatencyMs)
-    metrics.recordComparison(execution.comparison.parity)
+    metrics.recordComparison({
+      operation: 'consume',
+      identical: execution.comparison.parity,
+    })
 
     const comparisonLabel = execution.comparison.parity ? 'identical' : execution.comparison.mismatchReason ?? 'unknown'
-    tracer.shadow('postgres', 'valkey', comparisonLabel)
+    tracer.shadow('postgres', 'valkey', comparisonLabel, 'consume', execution.comparison.mismatchFields)
 
     if (execution.comparison.authoritativeError) {
       metrics.incrementBackendFailure()

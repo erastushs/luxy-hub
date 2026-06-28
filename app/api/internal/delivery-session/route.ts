@@ -107,6 +107,7 @@ export async function GET() {
         mismatches: metrics.mismatches,
         parity: metrics.parity,
         mismatchRate: metrics.mismatchRate,
+        breakdown: metrics.comparisonBreakdown,
       },
       latency: {
         postgresAverageMs: metrics.avgPostgresLatencyMs,

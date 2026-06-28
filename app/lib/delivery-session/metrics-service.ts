@@ -1,5 +1,10 @@
 import { parseDeliverySessionRuntimeConfig } from './config'
-import type { DeliverySessionBackend, DeliverySessionRolloutMetricsSnapshot } from './types'
+import type {
+  DeliverySessionBackend,
+  DeliverySessionRolloutMetricsSnapshot,
+  DeliveryComparisonOperation,
+  ComparisonBreakdown,
+} from './types'
 
 type MutableDeliverySessionMetrics = {
   totalRequests: number
@@ -22,6 +27,17 @@ type MutableDeliverySessionMetrics = {
   activeSessions: number
   estimatedMemoryBytes: number
   estimatedAverageSessionSize: number
+  comparisonBreakdown: Record<DeliveryComparisonOperation, MutableComparisonBreakdownEntry>
+}
+
+type MutableComparisonBreakdownEntry = {
+  total: number
+  identical: number
+  mismatches: number
+}
+
+function createEmptyBreakdownEntry(): MutableComparisonBreakdownEntry {
+  return { total: 0, identical: 0, mismatches: 0 }
 }
 
 function createEmptyMetrics(): MutableDeliverySessionMetrics {
@@ -46,6 +62,11 @@ function createEmptyMetrics(): MutableDeliverySessionMetrics {
     activeSessions: 0,
     estimatedMemoryBytes: 0,
     estimatedAverageSessionSize: 0,
+    comparisonBreakdown: {
+      create: createEmptyBreakdownEntry(),
+      lookup: createEmptyBreakdownEntry(),
+      consume: createEmptyBreakdownEntry(),
+    },
   }
 }
 
@@ -78,12 +99,25 @@ export class DeliverySessionMetricsService {
     this.metrics.backendFailures += 1
   }
 
-  recordComparison(parity: boolean): void {
+  recordComparison(params: {
+    operation: DeliveryComparisonOperation
+    identical: boolean
+  }): void {
     this.metrics.totalComparisons += 1
-    if (parity) {
+    if (params.identical) {
       this.metrics.identicalComparisons += 1
     } else {
       this.metrics.comparisonFailures += 1
+    }
+
+    const entry = this.metrics.comparisonBreakdown[params.operation]
+    if (entry) {
+      entry.total += 1
+      if (params.identical) {
+        entry.identical += 1
+      } else {
+        entry.mismatches += 1
+      }
     }
   }
 
@@ -147,6 +181,7 @@ export class DeliverySessionMetricsService {
       activeSessions: this.metrics.activeSessions,
       estimatedMemoryBytes: this.metrics.estimatedMemoryBytes,
       estimatedAverageSessionSize: this.metrics.estimatedAverageSessionSize,
+      comparisonBreakdown: buildComparisonBreakdown(this.metrics.comparisonBreakdown),
     }
   }
 
@@ -159,6 +194,23 @@ export class DeliverySessionMetricsService {
     this.metrics.estimatedAverageSessionSize = avgSerializedSize
     this.metrics.estimatedMemoryBytes = this.metrics.activeSessions * avgSerializedSize
   }
+}
+
+function buildComparisonBreakdown(
+  raw: Record<DeliveryComparisonOperation, MutableComparisonBreakdownEntry>
+): ComparisonBreakdown {
+  const result: ComparisonBreakdown = {}
+  for (const op of ['create', 'lookup', 'consume'] as const) {
+    const entry = raw[op]
+    if (!entry || entry.total === 0) continue
+    result[op] = {
+      total: entry.total,
+      identical: entry.identical,
+      mismatches: entry.mismatches,
+      parity: entry.total === 0 ? null : entry.identical / entry.total,
+    }
+  }
+  return result
 }
 
 const deliverySessionMetricsService = new DeliverySessionMetricsService()

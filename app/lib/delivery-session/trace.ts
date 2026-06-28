@@ -41,12 +41,18 @@ export class DeliverySessionTracer {
     console.log(`[delivery][${this.traceId}]   reason=${reason}`)
   }
 
-  shadow(authoritative: string, shadowBackend: string, comparison: string): void {
+  shadow(authoritative: string, shadowBackend: string, comparison: string, operation?: string, mismatchFields?: string[]): void {
     if (!this.enabled) return
     console.log(`[delivery][${this.traceId}] SHADOW`)
     console.log(`[delivery][${this.traceId}]   authoritative=${authoritative}`)
     console.log(`[delivery][${this.traceId}]   shadow=${shadowBackend}`)
     console.log(`[delivery][${this.traceId}]   comparison=${comparison}`)
+    if (operation) {
+      console.log(`[delivery][${this.traceId}]   operation=${operation}`)
+    }
+    if (mismatchFields && mismatchFields.length > 0) {
+      console.log(`[delivery][${this.traceId}]   fields=[${mismatchFields.join(', ')}]`)
+    }
   }
 
   exception(step: string, error: unknown): void {
@@ -86,5 +92,5 @@ export function runWithTracer<T>(tracer: DeliverySessionTracer, fn: () => T): T 
 
 export function getCurrentTracer(): DeliverySessionTracer {
   const tracer = traceStorage.getStore()
-  return tracer ?? new DeliverySessionTracer('noop')
+  return tracer ?? new DeliverySessionTracer()
 }

@@ -36,6 +36,25 @@ export const DELIVERY_SESSION_RUNTIME_MODES = [
 
 export type DeliverySessionRuntimeMode = (typeof DELIVERY_SESSION_RUNTIME_MODES)[number]
 
+export const DELIVERY_COMPARISON_OPERATIONS = [
+  'create',
+  'lookup',
+  'consume',
+] as const
+
+export type DeliveryComparisonOperation = (typeof DELIVERY_COMPARISON_OPERATIONS)[number]
+
+export type ComparisonBreakdownEntry = {
+  total: number
+  identical: number
+  mismatches: number
+  parity: number | null
+}
+
+export type ComparisonBreakdown = {
+  [K in DeliveryComparisonOperation]?: ComparisonBreakdownEntry
+}
+
 export type DeliverySessionRuntimeConfig = {
   requestedMode: string | null
   mode: DeliverySessionRuntimeMode
@@ -67,6 +86,7 @@ export type DeliverySessionComparisonResult = {
   shadowError: DeliverySessionExecutionError | null
   parity: boolean
   mismatchReason: string | null
+  mismatchFields: string[]
   executedAt: string
 }
 
@@ -95,4 +115,5 @@ export type DeliverySessionRolloutMetricsSnapshot = {
   activeSessions: number
   estimatedMemoryBytes: number
   estimatedAverageSessionSize: number
+  comparisonBreakdown: ComparisonBreakdown
 }

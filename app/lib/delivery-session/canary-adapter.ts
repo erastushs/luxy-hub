@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { DeliverySessionAdapter, DeliverySessionBackend, DeliverySessionData } from './types'
+import type { DeliverySessionAdapter, DeliverySessionBackend, DeliverySessionData, DeliveryComparisonOperation } from './types'
 import { executeDeliverySessionShadow } from './shadow'
 import { getDeliverySessionMetricsService } from './metrics-service'
 import { getCurrentTracer } from './trace'
@@ -27,7 +27,7 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
       return this.runWithShadow(identifier, 'postgres', 'valkey', {
         authoritative: () => this.postgres.createSession(params),
         shadow: () => this.valkey.createSession(params),
-      }) as Promise<DeliverySessionData>
+      }, 'create') as Promise<DeliverySessionData>
     }
 
     const metrics = getDeliverySessionMetricsService()
@@ -57,7 +57,7 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
       return this.runWithShadow(identifier, 'postgres', 'valkey', {
         authoritative: () => this.postgres.getSessionByTokenHash(tokenHash),
         shadow: () => this.valkey.getSessionByTokenHash(tokenHash),
-      })
+      }, 'lookup')
     }
 
     const metrics = getDeliverySessionMetricsService()
@@ -83,7 +83,7 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
       return this.runWithShadow(identifier, 'postgres', 'valkey', {
         authoritative: () => this.postgres.consumeSession(sessionId),
         shadow: () => this.valkey.consumeSession(sessionId),
-      })
+      }, 'consume')
     }
 
     const metrics = getDeliverySessionMetricsService()
@@ -118,8 +118,10 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
     ops: {
       authoritative: () => Promise<DeliverySessionData | null>
       shadow: () => Promise<DeliverySessionData | null>
-    }
+    },
+    operation: DeliveryComparisonOperation = 'lookup'
   ): Promise<DeliverySessionData | null> {
+    const tracer = getCurrentTracer()
     const metrics = getDeliverySessionMetricsService()
     metrics.recordRolloutRequest('postgres')
 
@@ -134,6 +136,13 @@ export class CanaryDeliverySessionAdapter implements DeliverySessionAdapter {
     })
 
     metrics.recordLatency(shadowBackend, execution.comparison.shadowLatencyMs)
+    metrics.recordComparison({
+      operation,
+      identical: execution.comparison.parity,
+    })
+
+    const comparisonLabel = execution.comparison.parity ? 'identical' : execution.comparison.mismatchReason ?? 'unknown'
+    tracer.shadow('postgres', 'valkey', comparisonLabel, operation, execution.comparison.mismatchFields)
 
     if (execution.comparison.authoritativeError) {
       metrics.incrementBackendFailure()

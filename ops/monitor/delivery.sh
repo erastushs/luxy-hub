@@ -137,6 +137,52 @@ while true; do
               ["Parity", (.comparison.parity | pct4), (if (.comparison.parity == null) then "neutral" elif (.comparison.parity >= 1) then "green" elif (.comparison.parity >= 0.99) then "yellow" else "red" end)],
               ["Mismatch Rate", (.comparison.mismatchRate | pct4), (if ((.comparison.mismatchRate // 0) | tonumber) == 0 then "green" else "red" end)],
               ["", "", "neutral"],
+              ["Comparison Breakdown", "", "neutral"]
+            ]
+            | .[]
+            | @tsv
+          ' | render_rows
+
+          printf '\n%s%sComparison Breakdown%s\n\n' "$BOLD" "$CYAN" "$RESET"
+
+          printf '%s\n' "$body" | jq -r '
+            def fixed2: (. * 100 | round / 100);
+            def pct: if . == null then "  n/a" else ((fixed2 * 100 | tostring) + "%") end;
+            def zpad: if (. // 0) < 10 then "  \(.)" else " \(.)" end;
+
+            .comparison.breakdown // {}
+            | to_entries
+            | map(
+                "  \(.key | ascii_upcase | .[0:1] + .[1:])\n" +
+                "    Total      \(.value.total | zpad)\n" +
+                "    Mismatch   \(.value.mismatches | zpad)\n" +
+                "    Parity     \(.value.parity | pct)"
+              )
+            | .[]
+          '
+
+          printf '\n%s\n' "$body" | jq -r '
+            def fixed2: (. * 100 | round / 100);
+            def ms: if . == null then "n/a" else ((fixed2 | tostring) + " ms") end;
+            def pct: if . == null then "n/a" else ((fixed2 | tostring) + "%") end;
+            def pct4: if . == null then "n/a" else (((. * 100) | fixed2 | tostring) + "%") end;
+            def zero_color:
+              if ((. // 0) | tonumber) > 0 then "red" else "green" end;
+            def neg_color:
+              if (. == null) then "neutral"
+              elif . then "green"
+              else "red" end;
+            def memory:
+              if . == null then "n/a"
+              elif . >= 1048576 then ((. / 1048576 | fixed2 | tostring) + " MiB")
+              elif . >= 1024 then ((. / 1024 | fixed2 | tostring) + " KiB")
+              else "1.3 MiB" end;
+            def effective_canary:
+              if .rollout.effectiveCanaryPercentage == 0 and .runtime.mode == "postgres" then 0
+              else .rollout.effectiveCanaryPercentage end;
+
+            [
+              ["", "", "neutral"],
               ["Postgres Avg", (.latency.postgresAverageMs | ms), "neutral"],
               ["Valkey Avg", (.latency.valkeyAverageMs | ms), "neutral"],
               ["Delta Avg", (.latency.deltaAverageMs | ms), "neutral"],

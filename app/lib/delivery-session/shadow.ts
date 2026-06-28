@@ -66,6 +66,7 @@ function compareExecutions(params: {
   executedAt: string
 }): DeliverySessionComparisonResult {
   let mismatchReason: string | null = null
+  const mismatchFields: string[] = []
 
   if (params.authoritative.error || params.shadow.error) {
     mismatchReason = 'backend_error'
@@ -76,12 +77,26 @@ function compareExecutions(params: {
   } else if (params.authoritative.data && params.shadow.data) {
     if (params.authoritative.data.session_token_hash !== params.shadow.data.session_token_hash) {
       mismatchReason = 'token_hash_mismatch'
+      mismatchFields.push('session_token_hash')
+    }
+    if (params.authoritative.data.script_id !== params.shadow.data.script_id) {
+      mismatchFields.push('script_id')
+    }
+    if (params.authoritative.data.build_id !== params.shadow.data.build_id) {
+      mismatchFields.push('build_id')
+    }
+    if (params.authoritative.data.expires_at !== params.shadow.data.expires_at) {
+      mismatchFields.push('expires_at')
+    }
+    if (params.authoritative.data.consumed_at !== params.shadow.data.consumed_at) {
+      mismatchFields.push('consumed_at')
     }
     if (params.context.operation === 'consume') {
       const authConsumed = !!params.authoritative.data.consumed_at
       const shadowConsumed = !!params.shadow.data.consumed_at
       if (authConsumed !== shadowConsumed) {
-        mismatchReason = 'consumed_state_mismatch'
+        if (!mismatchReason) mismatchReason = 'consumed_state_mismatch'
+        if (!mismatchFields.includes('consumed_at')) mismatchFields.push('consumed_at')
       }
     }
   }
@@ -98,6 +113,7 @@ function compareExecutions(params: {
     shadowError: params.shadow.error,
     parity: mismatchReason === null,
     mismatchReason,
+    mismatchFields,
     executedAt: params.executedAt,
   }
 }
