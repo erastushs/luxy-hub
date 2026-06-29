@@ -39,10 +39,9 @@ fetch_shadow() {
 
 header() {
   printf '\033c'
-  printf '%sLuxyHub Production Monitor%s\n' "$BOLD" "$RESET"
-  printf '%sShadow Metrics%s\n' "$CYAN" "$RESET"
-  printf 'Current refresh timestamp: %(%Y-%m-%d %H:%M:%S %Z)T\n' -1
-  printf 'Endpoint: %s\n\n' "$ENDPOINT"
+  printf '%s========================================%s\n' "$BOLD" "$RESET"
+  printf '%s  Rate Limit%s\n' "$BOLD" "$RESET"
+  printf '%s========================================%s\n\n' "$BOLD" "$RESET"
 }
 
 colorize() {
@@ -54,16 +53,8 @@ colorize() {
   esac
 }
 
-render_rows() {
-  while IFS=$'\t' read -r label value color; do
-    printf '%-34s ' "$label"
-    colorize "$color" "$value"
-    printf '\n'
-  done
-}
-
 auth_message() {
-  printf '%sShadow Metrics%s\n\n' "$BOLD" "$RESET"
+  printf '%sRate Limit%s\n\n' "$BOLD" "$RESET"
   printf '%sMonitoring authentication not configured.%s\n\n' "$YELLOW" "$RESET"
   printf 'Endpoint:\n%s\n\n' '/api/internal/rate-limit-shadow'
   printf 'Set:\n%s\n\n' 'LUXY_MONITOR_TOKEN=xxxx'
@@ -79,10 +70,10 @@ while true; do
   header
 
   raw="$(fetch_shadow 2>&1)"
-  status=$?
+  fetch_status=$?
 
-  if [ "$status" -ne 0 ]; then
-    printf '%sShadow request failed:%s\n%s\n' "$RED" "$RESET" "$raw"
+  if [ "$fetch_status" -ne 0 ]; then
+    printf '%sRate limit request failed:%s\n%s\n' "$RED" "$RESET" "$raw"
   else
     http_status="${raw##*$'\n'}"
     body="${raw%$'\n'*}"
@@ -93,58 +84,96 @@ while true; do
         ;;
       2*)
         if ! printf '%s\n' "$body" | jq -er . >/dev/null 2>&1; then
-          printf '%sInvalid JSON from shadow endpoint%s\n' "$RED" "$RESET"
+          printf '%sInvalid JSON from rate limit endpoint%s\n' "$RED" "$RESET"
           printf '%s\n' "$body"
         else
-          printf '%s\n' "$body" | jq -r '
-            def fixed2: (. * 100 | round / 100);
-            def scalar_rate:
-              if . == null then null
-              elif type == "number" then .
-              elif type == "object" then (.rate // .value // .percentage // .ratio)
-              else null end;
-            def pct_ratio: if scalar_rate == null then "n/a" else (((scalar_rate * 100) | fixed2 | tostring) + "%") end;
-            def pct_value: if scalar_rate == null then "n/a" else ((scalar_rate | fixed2 | tostring) + "%") end;
-            def ms: if . == null then "n/a" else ((fixed2 | tostring) + " ms") end;
-            def parity_color:
-              if . == null then "neutral"
-              elif . >= 1 then "green"
-              elif . >= 0.99 then "yellow"
-              else "red" end;
-            def zero_color:
-              if ((. // 0) | tonumber) > 0 then "red" else "green" end;
-            def parity_rate:
-              if (.metrics.totalComparisons // 0) == 0
-              then null
-              else ((.metrics.identical // 0) / .metrics.totalComparisons)
-              end;
+          is_valkey=$(printf '%s\n' "$body" | jq -r '
+            if .runtime.mode == "valkey" then "true" else "false" end
+          ')
 
-            [
-              ["Parity", (parity_rate | pct_ratio), (parity_rate | parity_color)],
-              ["Mismatch", ((.metrics.mismatches // 0) | tostring), ((.metrics.mismatches // 0) | zero_color)],
-              ["Allow parity", ((.decisionParity.allowParity // .decisionParity.allowedParity // .decisionParity.allow) | pct_ratio), ((.decisionParity.allowParity // .decisionParity.allowedParity // .decisionParity.allow) | parity_color)],
-              ["Deny parity", ((.decisionParity.denyParity // .decisionParity.deniedParity // .decisionParity.deny) | pct_ratio), ((.decisionParity.denyParity // .decisionParity.deniedParity // .decisionParity.deny) | parity_color)],
-              ["Retry-after parity", (.retryAfterParity | pct_ratio), (.retryAfterParity | parity_color)],
-              ["Backend failures", ((.health.backendFailures // 0) | tostring), ((.health.backendFailures // 0) | zero_color)],
-              ["Comparison failures", ((.health.comparisonFailures // 0) | tostring), ((.health.comparisonFailures // 0) | zero_color)],
-              ["Canary requests", ((.rollout.canaryRequests // 0) | tostring), "neutral"],
-              ["Postgres requests", ((.rollout.postgresRequests // .rollout.postgresAuthoritativeWrites // 0) | tostring), "neutral"],
-              ["Valkey requests", ((.rollout.valkeyRequests // .rollout.valkeyAuthoritativeWrites // 0) | tostring), "neutral"],
-              ["Effective canary percentage", ((.rollout.effectiveCanaryPercentage // .rollout.effectivePercentage // .rollout.effectiveValkeyPercentage) | pct_value), "neutral"],
-              ["Average latency delta", ((.metrics.latency.deltaAverageMs // .metrics.averageLatencyDeltaMs) | ms), "neutral"]
-            ]
-            | .[]
-            | @tsv
-          ' | render_rows
+          if [ "$is_valkey" = "true" ]; then
+            printf '%s\n' "$body" | jq -r '
+              def fixed2: (. * 100 | round / 100);
+              def ms: if . == null then "n/a" else ((fixed2 | tostring) + " ms") end;
+              def zero_color:
+                if ((. // 0) | tonumber) > 0 then "red" else "green" end;
+
+              [
+                ["Mode", (.runtime.mode // "n/a"), "neutral"],
+                ["State", (.runtime.operationalState // "n/a"), "neutral"],
+                ["", "", "neutral"],
+                ["Production Mode", "Comparison disabled.", "neutral"],
+                ["", "", "neutral"],
+                ["Requests", (.rollout.valkeyAuthoritativeWrites // 0 | tostring), "neutral"],
+                ["Backend Failures", ((.health.backendFailures // 0) | tostring), ((.health.backendFailures // 0) | zero_color)],
+                ["Fallback", ((.rollout.fallbackCount // 0) | tostring), ((.rollout.fallbackCount // 0) | zero_color)]
+              ]
+              | .[]
+              | @tsv
+            ' | while IFS=$'\t' read -r label value color; do
+              printf '%-24s ' "$label"
+              if [ "$color" = "neutral" ] || [ -z "$color" ]; then
+                printf '%s\n' "$value"
+              else
+                colorize "$color" "$value"
+                printf '\n'
+              fi
+            done
+          else
+            printf '%s\n' "$body" | jq -r '
+              def fixed2: (. * 100 | round / 100);
+              def ms: if . == null then "n/a" else ((fixed2 | tostring) + " ms") end;
+              def pct: if . == null then "n/a" else (((. * 100) | fixed2 | tostring) + "%") end;
+              def parity_color:
+                if . == null then "neutral"
+                elif . >= 1 then "green"
+                elif . >= 0.99 then "yellow"
+                else "red" end;
+              def zero_color:
+                if ((. // 0) | tonumber) > 0 then "red" else "green" end;
+              def parity_rate:
+                if (.metrics.totalComparisons // 0) == 0
+                then null
+                else ((.metrics.identical // 0) / .metrics.totalComparisons)
+                end;
+
+              [
+                ["Parity", (parity_rate | pct), (parity_rate | parity_color)],
+                ["Mismatch", ((.metrics.mismatches // 0) | tostring), ((.metrics.mismatches // 0) | zero_color)],
+                ["", "", "neutral"],
+                ["Allow parity", ((.decisionParity.allowParity // .decisionParity.allowedParity // .decisionParity.allow) | pct), ((.decisionParity.allowParity // .decisionParity.allowedParity // .decisionParity.allow) | parity_color)],
+                ["Deny parity", ((.decisionParity.denyParity // .decisionParity.deniedParity // .decisionParity.deny) | pct), ((.decisionParity.denyParity // .decisionParity.deniedParity // .decisionParity.deny) | parity_color)],
+                ["Retry-after parity", (.retryAfterParity | pct), (.retryAfterParity | parity_color)],
+                ["", "", "neutral"],
+                ["Backend failures", ((.health.backendFailures // 0) | tostring), ((.health.backendFailures // 0) | zero_color)],
+                ["Comparison failures", ((.health.comparisonFailures // 0) | tostring), ((.health.comparisonFailures // 0) | zero_color)],
+                ["", "", "neutral"],
+                ["Canary requests", ((.rollout.canaryRequests // 0) | tostring), "neutral"],
+                ["Postgres requests", ((.rollout.postgresRequests // .rollout.postgresAuthoritativeWrites // 0) | tostring), "neutral"],
+                ["Valkey requests", ((.rollout.valkeyRequests // .rollout.valkeyAuthoritativeWrites // 0) | tostring), "neutral"],
+                ["Avg latency delta", (.metrics.averageLatencyDeltaMs | ms), "neutral"]
+              ]
+              | .[]
+              | @tsv
+            ' | while IFS=$'\t' read -r label value color; do
+              printf '%-24s ' "$label"
+              if [ "$color" = "neutral" ] || [ -z "$color" ]; then
+                printf '%s\n' "$value"
+              else
+                colorize "$color" "$value"
+                printf '\n'
+              fi
+            done
+          fi
         fi
         ;;
       *)
         printf 'HTTP %s\n\n' "$http_status"
-        printf 'Shadow metrics unavailable.\n'
+        printf 'Rate limit metrics unavailable.\n'
         ;;
     esac
   fi
 
-  printf '\n%sRefreshes every 2 seconds.%s\n' "$DIM" "$RESET"
+  printf '\n%sRefreshes every 2 seconds.  Endpoint: %s%s\n' "$DIM" "$ENDPOINT" "$RESET"
   sleep 2
 done

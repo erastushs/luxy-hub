@@ -13,10 +13,10 @@ type ServiceStatus = OverallStatus | 'disabled'
 
 const RUNTIME_STARTED_AT_MS = Date.now() - Math.floor(process.uptime() * 1000)
 const OPERATIONAL_NOTES = [
-  'Migration complete. Valkey is the production rate-limit backend.',
-  'PostgreSQL remains available as rollback backend via RATE_LIMIT_MODE=postgres.',
-  'Shadow comparison is disabled in Valkey authoritative mode.',
-  'Delivery sessions can use Valkey via DELIVERY_SESSION_MODE=valkey.',
+  'Rate Limiter runs on Valkey.',
+  'Delivery Sessions run on Valkey.',
+  'PostgreSQL stores persistent application data.',
+  'Rollback remains available through environment configuration.',
 ] as const
 
 type DeliverySessionOperationalState = 'postgres_authoritative' | 'shadow_comparison_active' | 'valkey_canary_active' | 'valkey_authoritative'
@@ -59,8 +59,8 @@ function runtimeMetadata() {
   const build = optionalBuildMetadata()
 
   return {
-    phase: '7',
-    milestone: '7E.3',
+    phase: '8A',
+    milestone: '8A.4',
     release: 'Production',
     startedAt: new Date(RUNTIME_STARTED_AT_MS).toISOString(),
     uptimeSeconds: Math.max(0, Math.floor(process.uptime())),
@@ -242,18 +242,48 @@ export async function GET() {
           valkeyAverageMs: rateLimitMetrics.avgValkeyLatencyMs,
         })
 
+    const services = {
+      postgres,
+      valkey,
+      rateLimit,
+      deliverySession,
+    }
+
+    const runtimeBackends = {
+      rateLimit: {
+        mode: rateLimit.runtimeMode,
+        state: rateLimit.operationalState,
+        health: rateLimit.health,
+        backendFailures: rateLimit.backendFailures,
+        fallback: rolloutWithWriteCounters.fallbackCount,
+        parity: isValkeyAuthoritative ? 'not applicable' : (parity !== null ? parity : 'not applicable'),
+        comparison: isValkeyAuthoritative ? 'disabled' : 'active',
+      },
+      deliverySession: {
+        mode: deliverySession.runtimeMode,
+        state: deliverySession.operationalState,
+        health: deliverySession.health,
+        backendFailures: deliverySession.backendFailures,
+        fallback: deliverySession.fallbackCount,
+        activeSessions: deliverySessionMetrics.activeSessions ?? 0,
+        lookupFailures: deliverySessionMetrics.lookupFailures ?? 0,
+      },
+    }
+
     return NextResponse.json({
       status,
       timestamp,
       summary,
+      runtime: runtimeMetadata(),
+      services,
+      performance,
+      runtimeBackends,
       postgres,
       valkey,
       rateLimit,
       deliverySession,
       rollout: rolloutWithWriteCounters,
-      performance,
       notes: OPERATIONAL_NOTES,
-      runtime: runtimeMetadata(),
     })
   } catch {
     const status = 'unhealthy'

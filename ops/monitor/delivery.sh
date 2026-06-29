@@ -39,10 +39,9 @@ fetch_monitor() {
 
 header() {
   printf '\033c'
-  printf '%sLuxyHub Production Monitor%s\n' "$BOLD" "$RESET"
-  printf '%sDelivery Session%s\n' "$CYAN" "$RESET"
-  printf 'Current refresh timestamp: %(%Y-%m-%d %H:%M:%S %Z)T\n' -1
-  printf 'Endpoint: %s\n\n' "$ENDPOINT"
+  printf '%s========================================%s\n' "$BOLD" "$RESET"
+  printf '%s  Delivery Sessions%s\n' "$BOLD" "$RESET"
+  printf '%s========================================%s\n\n' "$BOLD" "$RESET"
 }
 
 colorize() {
@@ -54,16 +53,12 @@ colorize() {
   esac
 }
 
-render_rows() {
-  while IFS=$'\t' read -r label value color; do
-    printf '%-28s ' "$label"
-    colorize "$color" "$value"
-    printf '\n'
-  done
+section() {
+  printf '\n%s----------------------------------------%s\n' "$DIM" "$RESET"
 }
 
 auth_message() {
-  printf '%sDelivery Session%s\n\n' "$BOLD" "$RESET"
+  printf '%sDelivery Sessions%s\n\n' "$BOLD" "$RESET"
   printf '%sMonitoring authentication not configured.%s\n\n' "$YELLOW" "$RESET"
   printf 'Endpoint:\n%s\n\n' '/api/internal/delivery-session'
   printf 'Set:\n%s\n\n' 'LUXY_MONITOR_TOKEN=xxxx'
@@ -79,9 +74,9 @@ while true; do
   header
 
   raw="$(fetch_monitor 2>&1)"
-  status=$?
+  fetch_status=$?
 
-  if [ "$status" -ne 0 ]; then
+  if [ "$fetch_status" -ne 0 ]; then
     printf '%sDelivery session request failed:%s\n%s\n' "$RED" "$RESET" "$raw"
   else
     http_status="${raw##*$'\n'}"
@@ -96,105 +91,79 @@ while true; do
           printf '%sInvalid JSON from delivery session endpoint%s\n' "$RED" "$RESET"
           printf '%s\n' "$body"
         else
+          is_authoritative=$(printf '%s\n' "$body" | jq -r '
+            if .runtime.mode == "valkey" then "true" else "false" end
+          ')
+
           printf '%s\n' "$body" | jq -r '
             def fixed2: (. * 100 | round / 100);
             def ms: if . == null then "n/a" else ((fixed2 | tostring) + " ms") end;
-            def pct: if . == null then "n/a" else ((fixed2 | tostring) + "%") end;
-            def pct4: if . == null then "n/a" else (((. * 100) | fixed2 | tostring) + "%") end;
             def zero_color:
               if ((. // 0) | tonumber) > 0 then "red" else "green" end;
-            def neg_color:
-              if (. == null) then "neutral"
-              elif . then "green"
-              else "red" end;
             def memory:
               if . == null then "n/a"
               elif . >= 1048576 then ((. / 1048576 | fixed2 | tostring) + " MiB")
               elif . >= 1024 then ((. / 1024 | fixed2 | tostring) + " KiB")
               else "1.3 MiB" end;
-            def effective_canary:
-              if .rollout.effectiveCanaryPercentage == 0 and .runtime.mode == "postgres" then 0
-              else .rollout.effectiveCanaryPercentage end;
 
             [
               ["Mode", (.runtime.mode // "n/a"), "neutral"],
-              ["Operational", (.runtime.operationalState // "n/a"), "neutral"],
-              ["", "", "neutral"],
-              ["Created", ((.metrics.createdSessions // 0) | tostring), "neutral"],
-              ["Consumed", ((.metrics.consumedSessions // 0) | tostring), "neutral"],
-              ["Expired", ((.metrics.expiredSessions // 0) | tostring), (if ((.metrics.expiredSessions // 0) > 0) then "yellow" else "green" end)],
-              ["", "", "neutral"],
-              ["Active", ((.metrics.activeSessions // 0) | tostring), "neutral"],
-              ["", "", "neutral"],
-              ["Lookup Failures", ((.metrics.lookupFailures // 0) | tostring), ((.metrics.lookupFailures // 0) | zero_color)],
-              ["Backend Failures", ((.metrics.backendFailures // 0) | tostring), ((.metrics.backendFailures // 0) | zero_color)],
-              ["Comparison Failures", ((.metrics.comparisonFailures // 0) | tostring), ((.metrics.comparisonFailures // 0) | zero_color)],
-              ["Fallback", ((.rollout.fallbackCount // 0) | tostring), ((.rollout.fallbackCount // 0) | zero_color)],
-              ["", "", "neutral"],
-              ["Total comparisons", ((.comparison.totalComparisons // 0) | tostring), "neutral"],
-              ["Identical", ((.comparison.identical // 0) | tostring), "green"],
-              ["Mismatches", ((.comparison.mismatches // 0) | tostring), ((.comparison.mismatches // 0) | zero_color)],
-              ["Parity", (.comparison.parity | pct4), (if (.comparison.parity == null) then "neutral" elif (.comparison.parity >= 1) then "green" elif (.comparison.parity >= 0.99) then "yellow" else "red" end)],
-              ["Mismatch Rate", (.comparison.mismatchRate | pct4), (if ((.comparison.mismatchRate // 0) | tonumber) == 0 then "green" else "red" end)],
-              ["", "", "neutral"],
-              ["Comparison Breakdown", "", "neutral"]
-            ]
-            | .[]
-            | @tsv
-          ' | render_rows
-
-          printf '\n%s%sComparison Breakdown%s\n\n' "$BOLD" "$CYAN" "$RESET"
-
-          printf '%s\n' "$body" | jq -r '
-            def fixed2: (. * 100 | round / 100);
-            def pct: if . == null then "  n/a" else ((fixed2 * 100 | tostring) + "%") end;
-            def zpad: if (. // 0) < 10 then "  \(.)" else " \(.)" end;
-
-            .comparison.breakdown // {}
-            | to_entries
-            | map(
-                "  \(.key | ascii_upcase | .[0:1] + .[1:])\n" +
-                "    Total      \(.value.total | zpad)\n" +
-                "    Mismatch   \(.value.mismatches | zpad)\n" +
-                "    Parity     \(.value.parity | pct)"
-              )
-            | .[]
-          '
-
-          printf '\n%s\n' "$body" | jq -r '
-            def fixed2: (. * 100 | round / 100);
-            def ms: if . == null then "n/a" else ((fixed2 | tostring) + " ms") end;
-            def pct: if . == null then "n/a" else ((fixed2 | tostring) + "%") end;
-            def pct4: if . == null then "n/a" else (((. * 100) | fixed2 | tostring) + "%") end;
-            def zero_color:
-              if ((. // 0) | tonumber) > 0 then "red" else "green" end;
-            def neg_color:
-              if (. == null) then "neutral"
-              elif . then "green"
-              else "red" end;
-            def memory:
-              if . == null then "n/a"
-              elif . >= 1048576 then ((. / 1048576 | fixed2 | tostring) + " MiB")
-              elif . >= 1024 then ((. / 1024 | fixed2 | tostring) + " KiB")
-              else "1.3 MiB" end;
-            def effective_canary:
-              if .rollout.effectiveCanaryPercentage == 0 and .runtime.mode == "postgres" then 0
-              else .rollout.effectiveCanaryPercentage end;
+              ["State", (.runtime.operationalState // "n/a"), "neutral"]
+            ] as $mode_info,
 
             [
-              ["", "", "neutral"],
-              ["Postgres Avg", (.latency.postgresAverageMs | ms), "neutral"],
-              ["Valkey Avg", (.latency.valkeyAverageMs | ms), "neutral"],
-              ["Delta Avg", (.latency.deltaAverageMs | ms), "neutral"],
-              ["", "", "neutral"],
-              ["Valkey status", (.valkey.status // "n/a"), (if (.valkey.status // "") == "healthy" then "green" elif (.valkey.status // "") == "unhealthy" then "red" else "yellow" end)],
-              ["Valkey state", (.valkey.connectionState // "n/a"), (if (.valkey.connectionState // "") == "ready" then "green" else "yellow" end)],
-              ["Valkey latency", (.valkey.latencyMs | ms), (if ((.valkey.latencyMs // 0) | tonumber) <= 5 then "green" else "yellow" end)],
-              ["Valkey memory", (.valkey.memoryUsedBytes | memory), "neutral"]
-            ]
+              ["Sessions", "", "neutral"],
+              ["  Created", ((.metrics.createdSessions // 0) | tostring), "neutral"],
+              ["  Consumed", ((.metrics.consumedSessions // 0) | tostring), "neutral"],
+              ["  Expired", ((.metrics.expiredSessions // 0) | tostring), (if ((.metrics.expiredSessions // 0) > 0) then "yellow" else "green" end)],
+              ["  Active", ((.metrics.activeSessions // 0) | tostring), "neutral"]
+            ] as $sessions,
+
+            [
+              ["Failures", "", "neutral"],
+              ["  Lookup", ((.metrics.lookupFailures // 0) | tostring), ((.metrics.lookupFailures // 0) | zero_color)],
+              ["  Backend", ((.metrics.backendFailures // 0) | tostring), ((.metrics.backendFailures // 0) | zero_color)],
+              ["  Fallback", ((.rollout.fallbackCount // 0) | tostring), ((.rollout.fallbackCount // 0) | zero_color)]
+            ] as $failures,
+
+            [
+              ["Performance", "", "neutral"],
+              ["  Avg latency", ((.latency.valkeyAverageMs // .latency.postgresAverageMs) | ms), "neutral"],
+              ["  Valkey latency", (.valkey.latencyMs | ms), "neutral"],
+              ["  Memory", (.valkey.memoryUsedBytes | memory), "neutral"]
+            ] as $perf
+
+            | if .runtime.mode == "valkey" then
+                $mode_info,
+                ["Comparison", "Not applicable", "neutral"],
+                $sessions,
+                $failures,
+                $perf
+              else
+                ["Comparison", "", "neutral"],
+                ["  Total", ((.comparison.totalComparisons // 0) | tostring), "neutral"],
+                ["  Mismatches", ((.comparison.mismatches // 0) | tostring), ((.comparison.mismatches // 0) | zero_color)],
+                ["  Parity", (if .comparison.parity == null then "n/a" else ((.comparison.parity * 100) | fixed2 | tostring) + "%" end), (if .comparison.parity == null then "neutral" elif .comparison.parity >= 1 then "green" elif .comparison.parity >= 0.99 then "yellow" else "red" end)],
+                $mode_info,
+                $sessions,
+                $failures,
+                $perf
+              end
             | .[]
             | @tsv
-          ' | render_rows
+          ' | while IFS=$'\t' read -r label value color; do
+            if [ "$label" = "Mode" ] || [ "$label" = "State" ] || [ "$label" = "Sessions" ] || [ "$label" = "Failures" ] || [ "$label" = "Performance" ] || [ "$label" = "Comparison" ]; then
+              printf '%s%s%s\n' "$DIM" "$label" "$RESET"
+            else
+              printf '%-22s ' "$label"
+              if [ "$color" = "neutral" ] || [ -z "$color" ]; then
+                printf '%s\n' "$value"
+              else
+                colorize "$color" "$value"
+                printf '\n'
+              fi
+            fi
+          done
         fi
         ;;
       *)
@@ -204,6 +173,6 @@ while true; do
     esac
   fi
 
-  printf '\n%sRefreshes every 2 seconds.%s\n' "$DIM" "$RESET"
+  printf '\n%sRefreshes every 2 seconds.  Endpoint: %s%s\n' "$DIM" "$ENDPOINT" "$RESET"
   sleep 2
 done

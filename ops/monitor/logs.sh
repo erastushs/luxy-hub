@@ -3,9 +3,11 @@ set -u
 
 RESET=$'\033[0m'
 BOLD=$'\033[1m'
+DIM=$'\033[2m'
 RED=$'\033[31m'
 YELLOW=$'\033[33m'
 MAGENTA=$'\033[35m'
+GREEN=$'\033[32m'
 CYAN=$'\033[36m'
 
 require_command() {
@@ -19,18 +21,29 @@ require_command pm2
 
 shopt -s nocasematch
 
-printf '%sLuxyHub Production Monitor%s\n' "$BOLD" "$RESET"
-printf '%sPM2 Live Logs%s\n' "$CYAN" "$RESET"
-printf 'Current refresh timestamp: %(%Y-%m-%d %H:%M:%S %Z)T\n' -1
-printf 'Command: pm2 logs luxyhub\n\n'
+printf '%s========================================%s\n' "$BOLD" "$RESET"
+printf '%s  PM2 Logs%s\n' "$BOLD" "$RESET"
+printf '%s========================================%s\n\n' "$BOLD" "$RESET"
 
 pm2 logs luxyhub --lines 100 | while IFS= read -r line; do
-  if [[ "$line" =~ ERROR|error|timeout|disconnect ]]; then
+  if [[ "$line" =~ (ERROR|error) ]]; then
     printf '%s%s%s\n' "$RED" "$line" "$RESET"
-  elif [[ "$line" =~ WARN|warn|fallback|comparison|mismatch ]]; then
+  elif [[ "$line" =~ (WARN|warn) ]]; then
     printf '%s%s%s\n' "$YELLOW" "$line" "$RESET"
-  elif [[ "$line" =~ lua|redis ]]; then
+  elif [[ "$line" =~ (FALLBACK|BACKEND\s*FAILURE) ]]; then
+    printf '%s%s%s\n' "$RED" "$line" "$RESET"
+  elif [[ "$line" =~ (LOOKUP\s*FAILURE) ]]; then
+    printf '%s%s%s\n' "$YELLOW" "$line" "$RESET"
+  elif [[ "$line" =~ (VALKEY|valkey) ]]; then
     printf '%s%s%s\n' "$MAGENTA" "$line" "$RESET"
+  elif [[ "$line" =~ (POSTGRES|postgres) ]]; then
+    printf '%s%s%s\n' "$CYAN" "$line" "$RESET"
+  elif [[ "$line" =~ (SESSION|session) ]]; then
+    printf '%s%s%s\n' "$GREEN" "$line" "$RESET"
+  elif [[ "$line" =~ (DELIVERY|delivery) ]]; then
+    printf '%s%s%s\n' "$MAGENTA" "$line" "$RESET"
+  elif [[ "$line" =~ (RATE\s*LIMIT|rate.?limit) ]]; then
+    printf '%s%s%s\n' "$CYAN" "$line" "$RESET"
   else
     printf '%s\n' "$line"
   fi

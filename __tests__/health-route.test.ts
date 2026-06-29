@@ -152,8 +152,8 @@ describe('GET /api/health', () => {
     expect(body.timestamp).toEqual(expect.any(String))
     expect(body.postgres).toEqual({ status: 'healthy', connected: true })
     expect(body.runtime).toMatchObject({
-      phase: '7',
-      milestone: '7E.3',
+      phase: '8A',
+      milestone: '8A.4',
       release: 'Production',
       startedAt: expect.any(String),
       uptimeSeconds: expect.any(Number),
@@ -367,10 +367,10 @@ describe('GET /api/health', () => {
     const body = await response.json()
 
     expect(body.notes).toEqual([
-      'Migration complete. Valkey is the production rate-limit backend.',
-      'PostgreSQL remains available as rollback backend via RATE_LIMIT_MODE=postgres.',
-      'Shadow comparison is disabled in Valkey authoritative mode.',
-      'Delivery sessions can use Valkey via DELIVERY_SESSION_MODE=valkey.',
+      'Rate Limiter runs on Valkey.',
+      'Delivery Sessions run on Valkey.',
+      'PostgreSQL stores persistent application data.',
+      'Rollback remains available through environment configuration.',
     ])
   })
 
@@ -435,8 +435,8 @@ describe('GET /api/health', () => {
     expect(body.status).toBe('unhealthy')
     expect(body.error).toBe('health_check_unavailable')
     expect(body.runtime).toMatchObject({
-      phase: '7',
-      milestone: '7E.3',
+      phase: '8A',
+      milestone: '8A.4',
       release: 'Production',
       uptimeSeconds: expect.any(Number),
     })

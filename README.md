@@ -44,46 +44,30 @@ Open:
 http://localhost:3000
 ```
 
-## Required Environment Variables
+## Architecture
 
-Production requires:
+```
+Runtime State
+    Rate Limiter → Valkey
+    Delivery Session → Valkey
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-ADMIN_API_KEY=
-CRON_SECRET=
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=
-TURNSTILE_SECRET_KEY=
-ANALYTICS_PEPPER=
+Persistent Data
+    PostgreSQL
 ```
 
-Additional delivery payload configuration is optional:
+## Configuration
 
-```env
-DELIVERY_PAYLOAD_SECRET=
-DELIVERY_PAYLOAD_KEY_ID=
-NEXT_PUBLIC_SITE_URL=
+```bash
+cp .env.example .env
 ```
 
-Delivery session runtime mode is configured via environment variable:
+Configure required secrets.
 
-```env
-# Runtime mode: postgres | shadow | valkey_canary | valkey (default: postgres)
-DELIVERY_SESSION_MODE=postgres
+See:
 
-# Canary percentage (0-100, only used when mode is valkey_canary)
-DELIVERY_SESSION_CANARY_PERCENT=5
-```
+`docs/operations/ENVIRONMENT_VARIABLES.md`
 
-Operational monitoring uses a separate token:
-
-```env
-LUXY_MONITOR_TOKEN=
-```
-
-`ADMIN_API_KEY` is used only for admin-bearer access to private raw script reads. `CRON_SECRET` protects `/api/cleanup`, `/api/internal/event-worker`, and `/api/internal/check-alerts`; cron secrets are not accepted for admin access. `LUXY_MONITOR_TOKEN` is only for operational monitoring endpoints and is not part of the creator auth flow.
+`CRON_SECRET` protects `/api/cleanup`, `/api/internal/event-worker`, and `/api/internal/check-alerts`. `ADMIN_API_KEY` is used only for admin-bearer access to private raw script reads. `LUXY_MONITOR_TOKEN` is only for operational monitoring endpoints and is not part of the creator auth flow.
 
 ## Authentication Flow
 
@@ -145,20 +129,18 @@ npm run build
 | Area | Current Production State |
 |---|---|---|
 | Valkey (rate limits) | Authoritative |
-| Valkey (delivery sessions) | Ready for cutover |
-| PostgreSQL | Rollback backend |
+| Valkey (delivery sessions) | Authoritative |
+| PostgreSQL | Persistent data |
 | Health | Healthy |
 | Rate limit mode | `RATE_LIMIT_MODE=valkey` |
-| Delivery session mode | `DELIVERY_SESSION_MODE=postgres` |
+| Delivery session mode | `DELIVERY_SESSION_MODE=valkey` |
 | Shadow comparison | Disabled |
 | Rollback (rate limits) | Immediate PostgreSQL via `RATE_LIMIT_MODE=postgres` |
 | Rollback (delivery sessions) | Immediate PostgreSQL via `DELIVERY_SESSION_MODE=postgres` |
 
 Production is deployed behind Cloudflare. Rate-limit client IP resolution prioritizes `CF-Connecting-IP`, then `X-Vercel-Forwarded-For`, `X-Forwarded-For`, and `X-Real-IP`, with `127.0.0.1` as the local fallback.
 
-The rate-limit migration from PostgreSQL to Valkey is complete. The Valkey adapter operates without shadow comparison or canary routing in `valkey` mode. PostgreSQL remains fully available as a rollback backend by setting `RATE_LIMIT_MODE=postgres`. Shadow comparison and canary modes (`RATE_LIMIT_MODE=shadow`, `RATE_LIMIT_MODE=valkey_canary`) are preserved for monitoring and gradual migration scenarios.
-
-The delivery session migration from PostgreSQL to Valkey follows the same runtime mode pattern: `DELIVERY_SESSION_MODE` supports `postgres`, `shadow`, `valkey_canary`, and `valkey` modes. Sessions use TTL-based expiration in Valkey via key namespace `luxyhub:<env>:delivery:v1:*`.
+Rate limiter and delivery sessions both run on Valkey in production. PostgreSQL stores persistent application data. Rollback remains available through environment configuration. Shadow comparison and canary modes are preserved for staged rollouts.
 
 ## Documentation
 

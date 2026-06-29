@@ -18,9 +18,9 @@ require_command() {
 
 header() {
   printf '\033c'
-  printf '%sLuxyHub Production Monitor%s\n' "$BOLD" "$RESET"
-  printf '%sSystem%s\n' "$CYAN" "$RESET"
-  printf 'Current refresh timestamp: %(%Y-%m-%d %H:%M:%S %Z)T\n\n' -1
+  printf '%s========================================%s\n' "$BOLD" "$RESET"
+  printf '%s  System%s\n' "$BOLD" "$RESET"
+  printf '%s========================================%s\n\n' "$BOLD" "$RESET"
 }
 
 colorize() {
@@ -33,7 +33,7 @@ colorize() {
 }
 
 row() {
-  printf '%-24s ' "$1"
+  printf '%-18s ' "$1"
   colorize "${3:-neutral}" "$2"
   printf '\n'
 }
@@ -105,6 +105,21 @@ pm2_status_color() {
   fi
 }
 
+pm2_uptime() {
+  pm2 jlist 2>/dev/null | jq -r '
+    .[0].pm2_env.pm_uptime // empty
+    | if . then
+        ((now - .) / 1000 | floor) as $s |
+        ($s / 86400 | floor) as $d |
+        ($s % 86400 / 3600 | floor) as $h |
+        ($s % 3600 / 60 | floor) as $m |
+        (if $d > 0 then "\($d)d " else "" end) +
+        (if $h > 0 or $d > 0 then "\($h)h " else "" end) +
+        "\($m)m"
+      else "n/a" end
+  '
+}
+
 valkey_info() {
   redis-cli INFO server memory clients 2>/dev/null | tr -d '\r'
 }
@@ -128,33 +143,33 @@ while true; do
   mem_percent="$(memory_percent)"
   disk_value="$(disk_percent)"
 
-  row 'Current time' "$(printf '%(%Y-%m-%d %H:%M:%S %Z)T' -1)"
-  row 'System uptime' "$(uptime -p 2>/dev/null || uptime)"
-  row 'Load average' "$(awk '{ print $1 " " $2 " " $3 }' /proc/loadavg)"
-  row 'CPU usage' "$cpu" "$(usage_color "$cpu_value")"
-  row 'Memory usage' "$(memory_usage)" "$(usage_color "$mem_percent")"
-  row 'Disk usage' "$(disk_usage)" "$(usage_color "$disk_value")"
-  row 'Node version' "$(node -v 2>/dev/null || printf 'node unavailable')"
+  row 'Node version' "$(node -v 2>/dev/null || printf 'n/a')"
+  row 'PM2 uptime' "$(pm2_uptime)"
 
-  printf '\n%sPM2 process status%s\n' "$BOLD" "$RESET"
+  printf '\n%sVPS Resources%s\n' "$DIM" "$RESET"
+  row '  Disk' "$(disk_usage)" "$(usage_color "$disk_value")"
+  row '  RAM' "$(memory_usage)" "$(usage_color "$mem_percent")"
+  row '  CPU Load' "$cpu" "$(usage_color "$cpu_value")"
+
+  printf '\n%sPM2 Process%s\n' "$DIM" "$RESET"
   pm2_color="$(pm2_status_color)"
   pm2_status | while IFS= read -r line; do
-    row 'Process' "$line" "$pm2_color"
+    row '  Process' "$line" "$pm2_color"
   done
 
-  printf '\n%sValkey%s\n' "$BOLD" "$RESET"
+  printf '\n%sValkey%s\n' "$DIM" "$RESET"
   if command -v redis-cli >/dev/null 2>&1; then
     info="$(valkey_info)"
     valkey_version="$(printf '%s\n' "$info" | info_field valkey_version)"
     if [ "$valkey_version" = 'n/a' ]; then
       valkey_version="$(printf '%s\n' "$info" | info_field redis_version)"
     fi
-    row 'Valkey version' "$valkey_version"
-    row 'Valkey memory' "$(printf '%s\n' "$info" | info_field used_memory_human)"
-    row 'Valkey clients' "$(printf '%s\n' "$info" | info_field connected_clients)"
-    row 'Valkey uptime' "$(printf '%s\n' "$info" | info_field uptime_in_seconds) seconds"
+    row '  Memory' "$(printf '%s\n' "$info" | info_field used_memory_human)"
+    row '  Uptime' "$(printf '%s\n' "$info" | info_field uptime_in_seconds) seconds"
+    row '  Version' "$valkey_version"
+    row '  Clients' "$(printf '%s\n' "$info" | info_field connected_clients)"
   else
-    row 'Valkey' 'redis-cli unavailable' 'yellow'
+    row '  Valkey' 'redis-cli unavailable' 'yellow'
   fi
 
   printf '\n%sRefreshes every 2 seconds.%s\n' "$DIM" "$RESET"
