@@ -1,5 +1,4 @@
 import { supabaseAdmin } from '@/app/lib/supabase'
-import { getTopScripts as getTopScriptsRepo, type TopScript } from '@/app/lib/repositories/script-execution-repository'
 import { findScriptBySlugForOwner } from '@/app/lib/repositories/script-repository'
 
 export type CreatorAnalyticsOverviewType = {
@@ -16,7 +15,13 @@ export type ScriptAnalyticsType = {
   last_executed_at: string | null
 }
 
-export type { TopScript }
+export type TopScript = {
+  name: string
+  slug: string
+  visibility: 'public' | 'private' | 'unlisted'
+  executions: number
+  last_executed_at: string | null
+}
 
 export type OverviewResult =
   | { success: true; overview: CreatorAnalyticsOverviewType }
@@ -83,7 +88,24 @@ export async function getScriptStats(ownerId: string, slug: string): Promise<Scr
 
 export async function getTopScripts(ownerId: string, limit: number = 5): Promise<TopScript[]> {
   try {
-    return await getTopScriptsRepo(ownerId, limit)
+    const safeLimit = Math.max(1, Math.min(limit, 100))
+    const { data, error } = await supabaseAdmin
+      .from('scripts')
+      .select('name, slug, visibility, execute_count, last_executed_at')
+      .eq('creator_id', ownerId)
+      .order('execute_count', { ascending: false })
+      .order('last_executed_at', { ascending: false, nullsFirst: false })
+      .limit(safeLimit)
+
+    if (error || !data) return []
+
+    return data.map((script) => ({
+      name: script.name,
+      slug: script.slug,
+      visibility: script.visibility,
+      executions: Number(script.execute_count ?? 0),
+      last_executed_at: script.last_executed_at ?? null,
+    })) as TopScript[]
   } catch {
     return []
   }

@@ -20,17 +20,11 @@ vi.mock('@/app/lib/repositories/script-repository', () => ({
   findScriptBySlugForOwner: vi.fn(),
 }))
 
-vi.mock('@/app/lib/repositories/script-execution-repository', () => ({
-  getTopScripts: vi.fn(),
-}))
-
 import { supabaseAdmin } from '@/app/lib/supabase'
 import { findScriptBySlugForOwner } from '@/app/lib/repositories/script-repository'
-import { getTopScripts as getTopScriptsRepo } from '@/app/lib/repositories/script-execution-repository'
 
 const mockedFrom = vi.mocked(supabaseAdmin.from)
 const mockedFindScriptBySlugForOwner = vi.mocked(findScriptBySlugForOwner)
-const mockedGetTopScriptsRepo = vi.mocked(getTopScriptsRepo)
 
 function mockScriptsSelect(data: Array<{ visibility: string; execute_count: number }> | null, error: unknown = null) {
   const eq = vi.fn().mockResolvedValue({ data, error })
@@ -132,20 +126,32 @@ describe('Analytics V1 service', () => {
   })
 
   describe('getTopScripts', () => {
-    it('returns top scripts from the execution repository', async () => {
-      mockedGetTopScriptsRepo.mockResolvedValue([
+    it('returns top scripts from the scripts cache', async () => {
+      const limit = vi.fn().mockResolvedValue({
+        data: [
         {
           name: 'My Script',
           slug: 'my-script',
           visibility: 'public',
-          executions: 42,
+          execute_count: 42,
           last_executed_at: '2026-01-01T00:00:00.000Z',
         },
-      ])
+        ],
+        error: null,
+      })
+      const orderLastExecuted = vi.fn().mockReturnValue({ limit })
+      const orderExecuteCount = vi.fn().mockReturnValue({ order: orderLastExecuted })
+      const eq = vi.fn().mockReturnValue({ order: orderExecuteCount })
+      const select = vi.fn().mockReturnValue({ eq })
+      mockedFrom.mockReturnValue({ select } as never)
 
       const result = await getTopScripts(OWNER_A, 5)
 
-      expect(mockedGetTopScriptsRepo).toHaveBeenCalledWith(OWNER_A, 5)
+      expect(mockedFrom).toHaveBeenCalledWith('scripts')
+      expect(eq).toHaveBeenCalledWith('creator_id', OWNER_A)
+      expect(orderExecuteCount).toHaveBeenCalledWith('execute_count', { ascending: false })
+      expect(orderLastExecuted).toHaveBeenCalledWith('last_executed_at', { ascending: false, nullsFirst: false })
+      expect(limit).toHaveBeenCalledWith(5)
       expect(result[0].executions).toBe(42)
       expect(result[0].last_executed_at).toBe('2026-01-01T00:00:00.000Z')
     })

@@ -17,6 +17,7 @@ vi.mock('@/app/lib/services/delivery-build-service', () => ({
 
 vi.mock('@/app/lib/repositories/script-repository', () => ({
   findScriptForDeliveryBySlug: vi.fn(),
+  incrementScriptExecutionStats: vi.fn(),
 }))
 
 vi.mock('@/app/lib/repositories/delivery-build-repository', () => ({
@@ -28,10 +29,6 @@ vi.mock('@/app/lib/delivery-session', () => ({
   createSession: vi.fn(),
   getSessionByTokenHash: vi.fn(),
   consumeSession: vi.fn(),
-}))
-
-vi.mock('@/app/lib/repositories/script-execution-repository', () => ({
-  recordExecution: vi.fn(),
 }))
 
 vi.mock('@/app/lib/delivery/runtime-payload', () => ({
@@ -53,14 +50,16 @@ import {
   hashDeliverySessionToken,
   validateDeliverySession,
 } from '@/app/lib/services/delivery-session-service'
-import { findScriptForDeliveryBySlug } from '@/app/lib/repositories/script-repository'
+import {
+  findScriptForDeliveryBySlug,
+  incrementScriptExecutionStats,
+} from '@/app/lib/repositories/script-repository'
 import { getBuildById, getReadyBuildMetadata } from '@/app/lib/repositories/delivery-build-repository'
 import {
   consumeSession,
   createSession,
   getSessionByTokenHash,
 } from '@/app/lib/delivery-session'
-import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { createRuntimePayloadFromBuild } from '@/app/lib/delivery/runtime-payload'
 import { validateKey } from '@/app/lib/services/key-service'
 import { validateLicense } from '@/app/lib/services/license-service'
@@ -71,7 +70,7 @@ const mockedGetBuildById = vi.mocked(getBuildById)
 const mockedCreateSession = vi.mocked(createSession)
 const mockedGetSessionByTokenHash = vi.mocked(getSessionByTokenHash)
 const mockedConsumeSession = vi.mocked(consumeSession)
-const mockedRecordExecution = vi.mocked(recordExecution)
+const mockedIncrementScriptExecutionStats = vi.mocked(incrementScriptExecutionStats)
 const mockedCreateRuntimePayloadFromBuild = vi.mocked(createRuntimePayloadFromBuild)
 const mockedValidateKey = vi.mocked(validateKey)
 const mockedValidateLicense = vi.mocked(validateLicense)
@@ -196,12 +195,7 @@ describe('Phase 5C delivery session service', () => {
       version_id: 'version-uuid-1',
       runtime_format_version: 'runtime-v1',
     })
-    mockedRecordExecution.mockResolvedValue({
-      id: 'execution-uuid-1',
-      script_id: 'script-uuid-1',
-      session_id: 'session-uuid-1',
-      created_at: '2026-01-01T00:00:00.000Z',
-    })
+    mockedIncrementScriptExecutionStats.mockResolvedValue()
   })
 
   it('creates a short-lived session and stores only a token hash', async () => {
@@ -219,10 +213,7 @@ describe('Phase 5C delivery session service', () => {
 
     expect(result.success).toBe(true)
     expect(mockedCreateSession).toHaveBeenCalledTimes(1)
-    expect(mockedRecordExecution).toHaveBeenCalledWith({
-      scriptId: 'script-uuid-1',
-      sessionId: 'session-uuid-1',
-    })
+    expect(mockedIncrementScriptExecutionStats).toHaveBeenCalledWith('script-uuid-1')
 
     const createParams = mockedCreateSession.mock.calls[0][0]
     expect(createParams.tokenHash).toMatch(/^[a-f0-9]{64}$/)
@@ -257,10 +248,7 @@ describe('Phase 5C delivery session service', () => {
       expiresAt: expect.any(String),
       eventSecret: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
     }))
-    expect(mockedRecordExecution).toHaveBeenCalledWith({
-      scriptId: 'script-uuid-1',
-      sessionId: 'session-uuid-1',
-    })
+    expect(mockedIncrementScriptExecutionStats).toHaveBeenCalledWith('script-uuid-1')
     if (result.success) {
       expect(result.event_secret).toBe(result.session.event_secret)
       expect(result).not.toHaveProperty('session_token_hash')
@@ -301,10 +289,7 @@ describe('Phase 5C delivery session service', () => {
       payloadFormatVersion: 'inline-json-v1',
     })
     expect(mockedCreateSession).toHaveBeenCalledTimes(1)
-    expect(mockedRecordExecution).toHaveBeenCalledWith({
-      scriptId: 'script-uuid-1',
-      sessionId: 'session-uuid-1',
-    })
+    expect(mockedIncrementScriptExecutionStats).toHaveBeenCalledWith('script-uuid-1')
   })
 
   it('creates sessions for key-required scripts when a valid key is provided', async () => {
@@ -325,10 +310,7 @@ describe('Phase 5C delivery session service', () => {
     expect(mockedValidateKey).toHaveBeenCalledWith('LUXY-ABCD-1234-EFGH')
     expect(mockedGetReadyBuildMetadata).toHaveBeenCalled()
     expect(mockedCreateSession).toHaveBeenCalledTimes(1)
-    expect(mockedRecordExecution).toHaveBeenCalledWith({
-      scriptId: 'script-uuid-1',
-      sessionId: 'session-uuid-1',
-    })
+    expect(mockedIncrementScriptExecutionStats).toHaveBeenCalledWith('script-uuid-1')
   })
 
   it('rejects key-required sessions when no key is provided', async () => {
@@ -344,7 +326,7 @@ describe('Phase 5C delivery session service', () => {
     expect(mockedValidateKey).not.toHaveBeenCalled()
     expect(mockedGetReadyBuildMetadata).not.toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
-    expect(mockedRecordExecution).not.toHaveBeenCalled()
+    expect(mockedIncrementScriptExecutionStats).not.toHaveBeenCalled()
   })
 
   it('rejects key-required sessions with an invalid key', async () => {
@@ -361,7 +343,7 @@ describe('Phase 5C delivery session service', () => {
     expect(mockedValidateKey).toHaveBeenCalledWith('BAD-KEY-XXXX-YYYY')
     expect(mockedGetReadyBuildMetadata).not.toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
-    expect(mockedRecordExecution).not.toHaveBeenCalled()
+    expect(mockedIncrementScriptExecutionStats).not.toHaveBeenCalled()
   })
 
   it('rejects license-required sessions when no license is provided', async () => {
@@ -382,7 +364,7 @@ describe('Phase 5C delivery session service', () => {
     })
     expect(mockedGetReadyBuildMetadata).not.toHaveBeenCalled()
     expect(mockedCreateSession).not.toHaveBeenCalled()
-    expect(mockedRecordExecution).not.toHaveBeenCalled()
+    expect(mockedIncrementScriptExecutionStats).not.toHaveBeenCalled()
   })
 
   it('creates sessions for license-required scripts with a valid license', async () => {
@@ -416,10 +398,7 @@ describe('Phase 5C delivery session service', () => {
     })
     expect(mockedGetReadyBuildMetadata).toHaveBeenCalled()
     expect(mockedCreateSession).toHaveBeenCalledTimes(1)
-    expect(mockedRecordExecution).toHaveBeenCalledWith({
-      scriptId: 'script-uuid-1',
-      sessionId: 'session-uuid-1',
-    })
+    expect(mockedIncrementScriptExecutionStats).toHaveBeenCalledWith('script-uuid-1')
   })
 
   it('rejects expired tokens uniformly', async () => {

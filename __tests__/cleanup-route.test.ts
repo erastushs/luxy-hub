@@ -14,7 +14,7 @@ vi.mock('@/app/lib/repositories/event-repository', () => ({
 }))
 
 vi.mock('@/app/lib/repositories/delivery-session-repository', () => ({
-  deleteExpiredSessionsWithoutExecutions: vi.fn(),
+  deleteExpiredSessions: vi.fn(),
 }))
 
 import { supabaseAdmin } from '@/app/lib/supabase'
@@ -23,7 +23,7 @@ import {
   deleteDeliveredEventsBefore,
   deletePendingEventsBefore,
 } from '@/app/lib/repositories/event-repository'
-import { deleteExpiredSessionsWithoutExecutions } from '@/app/lib/repositories/delivery-session-repository'
+import { deleteExpiredSessions } from '@/app/lib/repositories/delivery-session-repository'
 
 type QueryChain = {
   update: Mock
@@ -115,7 +115,7 @@ describe('cleanup route retention cleanup', () => {
     vi.mocked(deleteDeliveredEventsBefore).mockResolvedValue(3)
     vi.mocked(deleteDeadLetterEventsBefore).mockResolvedValue(2)
     vi.mocked(deletePendingEventsBefore).mockResolvedValue(1)
-    vi.mocked(deleteExpiredSessionsWithoutExecutions).mockResolvedValue(4)
+    vi.mocked(deleteExpiredSessions).mockResolvedValue(4)
     createEmptyCleanupMocks()
   })
 

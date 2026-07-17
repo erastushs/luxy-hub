@@ -11,14 +11,17 @@ import {
   consumeSession,
   type DeliverySessionData,
 } from '@/app/lib/delivery-session'
-import { findScriptForDeliveryBySlug, type ScriptRow } from '@/app/lib/repositories/script-repository'
+import {
+  findScriptForDeliveryBySlug,
+  incrementScriptExecutionStats,
+  type ScriptRow,
+} from '@/app/lib/repositories/script-repository'
 import { isValidSlug } from '@/app/lib/validators'
 import { DELIVERY_BUILD_VERSION, PAYLOAD_FORMAT_VERSION } from '@/app/lib/services/delivery-build-service'
 import {
   createRuntimePayloadFromBuild,
   type RuntimePayloadResponse,
 } from '@/app/lib/delivery/runtime-payload'
-import { recordExecution } from '@/app/lib/repositories/script-execution-repository'
 import { authorizeDeliveryAccess } from '@/app/lib/services/delivery-authorization-service'
 import { getDeliverySessionMetricsService } from '@/app/lib/delivery-session/metrics-service'
 import { getDeliverySessionTtlSeconds } from '@/app/lib/delivery-session/config'
@@ -150,8 +153,8 @@ export async function createDeliverySession(
 
     getDeliverySessionMetricsService().incrementCreated()
 
-    await recordExecution({ scriptId: script.id, sessionId: session.id })
-    tracer.pass('execution_record')
+    await incrementScriptExecutionStats(script.id)
+    tracer.pass('execution_stats_increment')
 
     tracer.success()
 

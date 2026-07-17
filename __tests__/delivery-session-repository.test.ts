@@ -8,7 +8,7 @@ vi.mock('@/app/lib/supabase', () => ({
 }))
 
 import { supabaseAdmin } from '@/app/lib/supabase'
-import { deleteExpiredSessionsWithoutExecutions } from '@/app/lib/repositories/delivery-session-repository'
+import { deleteExpiredSessions } from '@/app/lib/repositories/delivery-session-repository'
 
 type CleanupRpcRow = {
   deleted_count: number
@@ -34,7 +34,7 @@ describe('delivery session repository cleanup', () => {
       remaining_candidates: 0,
     }))
 
-    const count = await deleteExpiredSessionsWithoutExecutions(
+    const count = await deleteExpiredSessions(
       new Date('2026-01-01T00:00:00.000Z'),
       100
     )
@@ -42,7 +42,7 @@ describe('delivery session repository cleanup', () => {
     expect(count).toBe(4)
     expect(mockedRpc).toHaveBeenCalledTimes(1)
     expect(mockedRpc).toHaveBeenCalledWith(
-      'cleanup_expired_delivery_sessions_without_executions',
+      'cleanup_expired_delivery_sessions',
       {
         before_timestamp: '2026-01-01T00:00:00.000Z',
         batch_size: 100,
@@ -57,12 +57,12 @@ describe('delivery session repository cleanup', () => {
       remaining_candidates: 0,
     }))
 
-    const count = await deleteExpiredSessionsWithoutExecutions(new Date('2026-01-01T00:00:00.000Z'))
+    const count = await deleteExpiredSessions(new Date('2026-01-01T00:00:00.000Z'))
 
     expect(count).toBe(0)
     expect(mockedRpc).toHaveBeenCalledTimes(1)
     expect(mockedRpc).toHaveBeenCalledWith(
-      'cleanup_expired_delivery_sessions_without_executions',
+      'cleanup_expired_delivery_sessions',
       {
         before_timestamp: '2026-01-01T00:00:00.000Z',
         batch_size: 1000,
@@ -77,13 +77,13 @@ describe('delivery session repository cleanup', () => {
       remaining_candidates: 0,
     }))
 
-    await deleteExpiredSessionsWithoutExecutions(
+    await deleteExpiredSessions(
       new Date('2026-01-01T00:00:00.000Z'),
       5000
     )
 
     expect(mockedRpc).toHaveBeenCalledWith(
-      'cleanup_expired_delivery_sessions_without_executions',
+      'cleanup_expired_delivery_sessions',
       {
         before_timestamp: '2026-01-01T00:00:00.000Z',
         batch_size: 1000,
@@ -91,14 +91,14 @@ describe('delivery session repository cleanup', () => {
     )
   })
 
-  it('does not delete sessions referenced by script executions', async () => {
+  it('reports the cleanup result for expired sessions', async () => {
     mockedRpc.mockResolvedValueOnce(rpcResult({
       deleted_count: 0,
       processed_count: 5,
       remaining_candidates: 0,
     }))
 
-    const count = await deleteExpiredSessionsWithoutExecutions(
+    const count = await deleteExpiredSessions(
       new Date('2026-01-01T00:00:00.000Z'),
       5
     )
@@ -114,7 +114,7 @@ describe('delivery session repository cleanup', () => {
       remaining_candidates: 10,
     }))
 
-    const count = await deleteExpiredSessionsWithoutExecutions(
+    const count = await deleteExpiredSessions(
       new Date('2026-01-01T00:00:00.000Z'),
       5
     )
@@ -136,7 +136,7 @@ describe('delivery session repository cleanup', () => {
         remaining_candidates: 0,
       }))
 
-    const count = await deleteExpiredSessionsWithoutExecutions(
+    const count = await deleteExpiredSessions(
       new Date('2026-01-01T00:00:00.000Z'),
       5,
       10

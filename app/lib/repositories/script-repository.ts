@@ -120,6 +120,19 @@ export async function findScriptForDeliveryBySlug(slug: string): Promise<Deliver
   return data as unknown as DeliveryScriptRow
 }
 
+/**
+ * Atomically records a delivery-session creation in the script-level analytics cache.
+ * The PostgreSQL RPC performs `execute_count = execute_count + 1`; never replace this
+ * with a read-modify-write update in application code.
+ */
+export async function incrementScriptExecutionStats(scriptId: string): Promise<void> {
+  const { error } = await supabaseAdmin.rpc('increment_script_execution_stats', {
+    p_script_id: scriptId,
+  })
+
+  if (error) throw error
+}
+
 export async function findScriptBySlugForOwner(slug: string, ownerId: string): Promise<ScriptRow | null> {
   const { data, error } = await supabaseAdmin
     .from('scripts')

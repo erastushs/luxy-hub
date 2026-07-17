@@ -167,17 +167,7 @@ export async function consumeSession(sessionId: string): Promise<DeliverySession
   return data as unknown as DeliverySessionRow
 }
 
-export async function deleteExpiredSessions(before: Date = new Date()): Promise<number> {
-  const { count, error } = await supabaseAdmin
-    .from('delivery_sessions')
-    .delete({ count: 'exact' })
-    .lt('expires_at', before.toISOString())
-
-  if (error) throw error
-  return count ?? 0
-}
-
-export async function deleteExpiredSessionsWithoutExecutions(
+export async function deleteExpiredSessions(
   before: Date = new Date(),
   limit: number = 1000,
   maxScanBatches: number = 10
@@ -188,7 +178,7 @@ export async function deleteExpiredSessionsWithoutExecutions(
 
   for (let batch = 0; batch < cappedScanBatches; batch++) {
     const startedAt = Date.now()
-    const queryChain = 'rpc(cleanup_expired_delivery_sessions_without_executions)'
+    const queryChain = 'rpc(cleanup_expired_delivery_sessions)'
 
     logCleanupQuery({
       table: 'delivery_sessions',
@@ -202,7 +192,7 @@ export async function deleteExpiredSessionsWithoutExecutions(
     })
 
     const { data, error } = await supabaseAdmin.rpc(
-      'cleanup_expired_delivery_sessions_without_executions',
+      'cleanup_expired_delivery_sessions',
       {
         before_timestamp: before.toISOString(),
         batch_size: cappedLimit,
